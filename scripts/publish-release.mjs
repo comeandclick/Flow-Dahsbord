@@ -25,6 +25,7 @@ if (!token) {
 }
 
 try {
+  execSync("node scripts/sync-readme.mjs", { stdio: "inherit" });
   execSync("vercel --prod --yes", { stdio: "inherit" });
 
   const response = await fetch(`${PROD_ALIAS}/api/release/announce`, {
