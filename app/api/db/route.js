@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { readSessionCookieValue } from "../../../lib/auth";
-import { readStore, writeStore } from "../../../lib/remote-store";
+import { isAccountBlocked } from "../../../lib/admin";
+import { readStore, withStoreLock, writeStore } from "../../../lib/remote-store";
 import { normalizeDb } from "../../../lib/schema";
 
 export const runtime = "nodejs";
@@ -26,22 +27,34 @@ export async function PUT(request) {
     }
 
     const payload = await readPayload(request);
-    const store = await readStore();
-    const account = store.users.find((entry) => entry.uid === session.uid);
-
-    if (!account) {
-      return Response.json({ error: "Compte introuvable" }, { status: 404 });
-    }
-
     if (JSON.stringify(payload.db || {}).length > 1024 * 1024) {
       return Response.json({ error: "Base trop volumineuse" }, { status: 413 });
     }
 
-    account.db = normalizeDb(payload.db, account);
-    await writeStore(store);
+    const db = await withStoreLock(async () => {
+      const store = await readStore();
+      const account = store.users.find((entry) => entry.uid === session.uid);
 
-    return Response.json({ ok: true, db: account.db });
-  } catch {
-    return Response.json({ error: "Sauvegarde impossible" }, { status: 500 });
+      if (!account) {
+        const error = new Error("Compte introuvable");
+        error.status = 404;
+        throw error;
+      }
+
+      if (isAccountBlocked(account)) {
+        const error = new Error("Compte bloqué");
+        error.status = 423;
+        throw error;
+      }
+
+      account.db = normalizeDb(payload.db, account);
+      account.lastSeenAt = new Date().toISOString();
+      await writeStore(store);
+      return account.db;
+    });
+
+    return Response.json({ ok: true, db });
+  } catch (error) {
+    return Response.json({ error: error.message || "Sauvegarde impossible" }, { status: error.status || 500 });
   }
 }

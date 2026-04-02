@@ -6,11 +6,21 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "check:client": "node scripts/check-client.mjs",
+    "publish:release": "node scripts/publish-release.mjs"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "next": "^15.3.1",
+    "nodemailer": "^8.0.4",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "stripe": "^21.0.1",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "agentation": "^3.0.2",
+    "playwright": "^1.58.2"
   }
 }
