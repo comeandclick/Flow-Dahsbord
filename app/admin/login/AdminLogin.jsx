@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getStoredLocale, installDomTranslator } from "../../../lib/i18n";
+import { getStoredLocale } from "../../../lib/i18n";
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -18,16 +18,41 @@ async function api(path, options = {}) {
 }
 
 export default function AdminLogin() {
+  const [locale] = useState(() => getStoredLocale());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  const copy = locale === "en"
+    ? {
+        eyebrow: "Flow Control",
+        title: "Admin login",
+        body: "Access the Flow admin console with the same visual identity and a cleaner control surface.",
+        email: "Admin email",
+        emailPlaceholder: "admin@flow...",
+        password: "Password",
+        passwordPlaceholder: "Administrator password",
+        submit: "Open admin dashboard",
+        pending: "Signing in...",
+        back: "Back to Flow",
+      }
+    : {
+        eyebrow: "Flow Control",
+        title: "Connexion admin",
+        body: "Accède à la console admin Flow avec la même identité visuelle et une surface de contrôle plus claire.",
+        email: "Email admin",
+        emailPlaceholder: "admin@flow...",
+        password: "Mot de passe",
+        passwordPlaceholder: "Mot de passe administrateur",
+        submit: "Ouvrir le dashboard admin",
+        pending: "Connexion...",
+        back: "Retour à Flow",
+      };
+
   useEffect(() => {
-    const locale = getStoredLocale();
     document.documentElement.lang = locale;
-    return installDomTranslator(document.body, locale);
-  }, []);
+  }, [locale]);
 
   return (
     <div className="shell">
@@ -150,13 +175,13 @@ export default function AdminLogin() {
 
       <div className="card">
         <div className="logo">F</div>
-        <div className="eyebrow">Flow Control</div>
-        <h1>Connexion admin</h1>
-        <p>Le shell admin reprend maintenant le meme langage visuel que Flow pour garder une experience plus propre et plus lisible.</p>
-        <label>Email admin</label>
-        <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="admin@flow..." autoComplete="username" />
-        <label>Mot de passe</label>
-        <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Mot de passe administrateur" autoComplete="current-password" />
+        <div className="eyebrow">{copy.eyebrow}</div>
+        <h1>{copy.title}</h1>
+        <p>{copy.body}</p>
+        <label>{copy.email}</label>
+        <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder={copy.emailPlaceholder} autoComplete="username" />
+        <label>{copy.password}</label>
+        <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder={copy.passwordPlaceholder} autoComplete="current-password" />
         <button
           disabled={busy}
           onClick={async () => {
@@ -175,10 +200,10 @@ export default function AdminLogin() {
             }
           }}
         >
-          {busy ? "Connexion..." : "Ouvrir le dashboard admin"}
+          {busy ? copy.pending : copy.submit}
         </button>
         {error ? <div className="error">{error}</div> : null}
-        <div className="link"><a href="/">Retour a Flow</a></div>
+        <div className="link"><a href="/">{copy.back}</a></div>
       </div>
     </div>
   );

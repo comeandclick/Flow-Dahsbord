@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.32
+### 1.22.33
 
-- **Date** : 02/04/2026 21:28
-- **Résumé** : Flow rebascule sur un nouveau store distant sain pour supprimer les erreurs Store write failed (404).
+- **Date** : 03/04/2026 12:15
+- **Résumé** : Flow nettoie le périmètre visible, stabilise l’entrée admin et rend le dashboard admin plus lisible avec une vraie zone données live.
 
-- **Store distant recréé** : Le blob distant cassé a été remplacé par un nouveau store chiffré valide pour rétablir lecture et écriture.
-- **Accès admin remis en place** : Le compte super-admin a été reprovisionné dans le nouveau store pour débloquer connexion et administration.
-- **Erreurs 404 supprimées** : Les opérations de connexion, création de compte et sauvegarde ne pointent plus vers un blob introuvable.
+- **Périmètre visible resserré** : Journal et Finance sortent du routing visible Flow sans suppression des données stockées ni des backups existants.
+- **Zone données live admin** : Le dashboard admin expose maintenant un panneau dédié au compte sélectionné avec profil, sécurité, forfait, activité et volumes module par module.
+- **Entrée admin stabilisée** : La page de connexion admin ne dépend plus du traducteur DOM pour ses textes critiques et reste plus stable côté focus et rendu.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

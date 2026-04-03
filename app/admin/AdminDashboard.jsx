@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getStoredLocale, installDomTranslator } from "../../lib/i18n";
 
-const nf = new Intl.NumberFormat("fr-FR");
 const PERMISSIONS = [
   { key: "dashboard.read", label: "Dashboard" },
   { key: "users.read", label: "Lecture utilisateurs" },
@@ -56,25 +55,29 @@ const ROLE_OPTIONS = [
   { value: "super_admin", label: "Super Admin" },
 ];
 
-function formatDate(value) {
+function formatNumber(value, locale = "fr") {
+  return new Intl.NumberFormat(locale === "en" ? "en-US" : "fr-FR").format(Number(value) || 0);
+}
+
+function formatDate(value, locale = "fr") {
   if (!value) return "—";
   try {
-    return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+    return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
   } catch {
     return "—";
   }
 }
 
-function relativeTime(value) {
-  if (!value) return "jamais";
+function relativeTime(value, locale = "fr") {
+  if (!value) return locale === "en" ? "never" : "jamais";
   const diffMs = Date.now() - new Date(value).getTime();
-  if (!Number.isFinite(diffMs)) return "jamais";
+  if (!Number.isFinite(diffMs)) return locale === "en" ? "never" : "jamais";
   const minutes = Math.round(diffMs / 60000);
-  if (minutes < 1) return "a l'instant";
-  if (minutes < 60) return `il y a ${minutes} min`;
+  if (minutes < 1) return locale === "en" ? "just now" : "à l'instant";
+  if (minutes < 60) return locale === "en" ? `${minutes} min ago` : `il y a ${minutes} min`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `il y a ${hours} h`;
-  return `il y a ${Math.round(hours / 24)} j`;
+  if (hours < 24) return locale === "en" ? `${hours} h ago` : `il y a ${hours} h`;
+  return locale === "en" ? `${Math.round(hours / 24)} d ago` : `il y a ${Math.round(hours / 24)} j`;
 }
 
 function reportStatusLabel(status) {
@@ -124,7 +127,18 @@ function StatCard({ label, value, hint }) {
   );
 }
 
+function DataMetric({ label, value, hint = "" }) {
+  return (
+    <div className="detail-box">
+      <div className="meta">{label}</div>
+      <strong>{value || "—"}</strong>
+      {hint ? <div className="soft">{hint}</div> : null}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
+  const [locale, setLocale] = useState(() => getStoredLocale());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -158,9 +172,18 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    const locale = getStoredLocale();
     document.documentElement.lang = locale;
     return installDomTranslator(document.body, locale);
+  }, [locale]);
+
+  useEffect(() => {
+    const syncLocale = () => setLocale(getStoredLocale());
+    window.addEventListener("storage", syncLocale);
+    window.addEventListener("focus", syncLocale);
+    return () => {
+      window.removeEventListener("storage", syncLocale);
+      window.removeEventListener("focus", syncLocale);
+    };
   }, []);
 
   async function loadOverview(silent = false) {
@@ -274,8 +297,9 @@ export default function AdminDashboard() {
   }
 
   const topModules = [
-    { key: "overview", label: "Vue générale", value: `${nf.format(data?.stats?.usersTotal || 0)} comptes` },
+    { key: "overview", label: "Vue générale", value: `${formatNumber(data?.stats?.usersTotal || 0, locale)} comptes` },
     { key: "users", label: "Utilisateurs", value: `${filteredUsers.length} visibles` },
+    { key: "data", label: "Données live", value: selectedUser ? (selectedUser.name || selectedUser.email) : "Aucune sélection" },
     { key: "support", label: "Support", value: `${supportConversations.length} conversations` },
     { key: "reports", label: "Signalements", value: `${reports.length} entrées` },
     { key: "admins", label: "Administration", value: `${(data?.permissions || []).length} permissions` },
@@ -687,6 +711,37 @@ export default function AdminDashboard() {
           grid-template-columns:repeat(2,minmax(0,1fr));
           gap:12px;
         }
+        .data-grid{
+          display:grid;
+          grid-template-columns:repeat(4,minmax(0,1fr));
+          gap:12px;
+        }
+        .data-block{
+          padding:16px;
+          border-radius:22px;
+          border:1px solid rgba(255,255,255,.08);
+          background:#17191f;
+          display:grid;
+          gap:12px;
+          align-content:start;
+        }
+        .data-list{
+          display:grid;
+          gap:8px;
+        }
+        .data-row{
+          display:flex;
+          justify-content:space-between;
+          gap:10px;
+          align-items:flex-start;
+          font-size:13px;
+          color:rgba(242,243,248,.82);
+        }
+        .data-row span:last-child{
+          text-align:right;
+          color:rgba(242,243,248,.62);
+          word-break:break-word;
+        }
         .detail-box{
           padding:14px 16px;
         }
@@ -819,7 +874,7 @@ export default function AdminDashboard() {
         }
         @media (max-width:1160px){
           .admin-layout{grid-template-columns:1fr}
-          .hero,.detail-grid,.two-col,.permission-grid,.conversation-shell,.activity-grid,.split-grid{grid-template-columns:1fr}
+          .hero,.detail-grid,.two-col,.permission-grid,.conversation-shell,.activity-grid,.split-grid,.data-grid{grid-template-columns:1fr}
           .sidebar{
             min-height:auto;
             position:static;
@@ -884,10 +939,11 @@ export default function AdminDashboard() {
           <section className="flow-card hero">
             <div className="hero-copy">
               <div className="eyebrow">Flow Admin Dashboard</div>
-              <h2>Piloter Flow sans bruit inutile.</h2>
-              <div className="soft">Ouvre une zone, traite l’action, puis referme. Le dashboard garde la même DA que Flow et reste simple à lire sur PC comme sur téléphone.</div>
+              <h2>Piloter Flow avec des sections nettes.</h2>
+              <div className="soft">Un panneau par usage: vue globale, comptes, données live, support, signalements et administration. Moins de bruit, plus d’action utile.</div>
               <div className="hero-actions">
                 <button className="btn primary" type="button" onClick={() => setOpenSection("users")}>Ouvrir les comptes</button>
+                <button className="btn soft" type="button" onClick={() => setOpenSection("data")}>Ouvrir les données live</button>
                 <button className="btn soft" type="button" onClick={() => setOpenSection("support")}>Ouvrir le support</button>
                 <button className="btn soft" type="button" onClick={() => setOpenSection("reports")}>Ouvrir les signalements</button>
               </div>
@@ -900,7 +956,7 @@ export default function AdminDashboard() {
               </div>
               <div className="mini-stat">
                 <div className="meta">Dernière mise à jour</div>
-                <strong style={{ fontSize: 16, lineHeight: 1.35 }}>{formatDate(data?.release?.deployedAt)}</strong>
+                <strong style={{ fontSize: 16, lineHeight: 1.35 }}>{formatDate(data?.release?.deployedAt, locale)}</strong>
                 <div className="soft">{data?.health?.latencyMs ? `${data.health.latencyMs} ms` : "Latence indisponible"}</div>
               </div>
             </div>
@@ -909,10 +965,10 @@ export default function AdminDashboard() {
           {error ? <div className="error-box">{error}</div> : null}
 
           <section className="stats-grid">
-            <StatCard label="Utilisateurs" value={nf.format(data?.stats?.usersTotal || 0)} hint={`${data?.stats?.newUsers7d || 0} nouveaux sur 7 jours`} />
-            <StatCard label="En ligne" value={nf.format(data?.stats?.onlineNow || 0)} hint={`${data?.stats?.active5m || 0} actifs sur 5 min`} />
-            <StatCard label="Conversations" value={nf.format(data?.stats?.conversations || 0)} hint={`${data?.stats?.groupConversations || 0} groupes`} />
-            <StatCard label="Signalements" value={nf.format(data?.stats?.reportsOpen || 0)} hint={`${data?.stats?.blockedUsers || 0} comptes bloques`} />
+            <StatCard label="Utilisateurs" value={formatNumber(data?.stats?.usersTotal || 0, locale)} hint={`${data?.stats?.newUsers7d || 0} nouveaux sur 7 jours`} />
+            <StatCard label="En ligne" value={formatNumber(data?.stats?.onlineNow || 0, locale)} hint={`${data?.stats?.active5m || 0} actifs sur 5 min`} />
+            <StatCard label="Conversations" value={formatNumber(data?.stats?.conversations || 0, locale)} hint={`${data?.stats?.groupConversations || 0} groupes`} />
+            <StatCard label="Signalements" value={formatNumber(data?.stats?.reportsOpen || 0, locale)} hint={`${data?.stats?.blockedUsers || 0} comptes bloques`} />
           </section>
 
           <section className="section-stack">
@@ -923,9 +979,9 @@ export default function AdminDashboard() {
                   <h3>Store, activité et état global</h3>
                   <div className="panel-sub">Santé du store, activité admin et comptes les plus actifs dans un seul panneau.</div>
                 </div>
-                <div className="section-summary">
-                  <div className="section-kpi">{nf.format(data?.stats?.usersTotal || 0)} comptes</div>
-                  <div className="section-kpi">{nf.format(data?.stats?.onlineNow || 0)} en ligne</div>
+                  <div className="section-summary">
+                  <div className="section-kpi">{formatNumber(data?.stats?.usersTotal || 0, locale)} comptes</div>
+                  <div className="section-kpi">{formatNumber(data?.stats?.onlineNow || 0, locale)} en ligne</div>
                   <div className="section-chevron">⌄</div>
                 </div>
               </button>
@@ -944,7 +1000,7 @@ export default function AdminDashboard() {
                           <div key={entry.id} className="activity-item">
                             <strong>{entry.title || "Action admin"}</strong>
                             <span>{entry.detail || "—"}</span>
-                            <span>{entry.actor?.name || "Admin"} · {entry.actor?.email || "—"} · {entry.actor?.role || "admin"} · {formatDate(entry.createdAt)}</span>
+                            <span>{entry.actor?.name || "Admin"} · {entry.actor?.email || "—"} · {entry.actor?.role || "admin"} · {formatDate(entry.createdAt, locale)}</span>
                           </div>
                         ))}
                         {!(data?.analytics?.auditTrail || []).length && <div className="empty">Aucune action admin récente.</div>}
@@ -964,7 +1020,7 @@ export default function AdminDashboard() {
                             <strong>{entry.name}</strong>
                             <span>{entry.email}</span>
                             <span>{entry.metrics.notes} notes · {entry.metrics.tasks} tâches · {entry.metrics.events} événements · {entry.metrics.bookmarks} signets · {entry.metrics.goals} objectifs</span>
-                            <span>Dernière connexion: {formatDate(entry.lastLoginAt)} · score: {entry.metrics.activity}</span>
+                            <span>Dernière connexion: {formatDate(entry.lastLoginAt, locale)} · score: {entry.metrics.activity}</span>
                           </div>
                         ))}
                         {!(data?.analytics?.topActiveUsers || []).length && <div className="empty">Aucune donnée d’activité disponible.</div>}
@@ -1011,7 +1067,7 @@ export default function AdminDashboard() {
                             <div className="user-meta">
                               <span>@{entry.profile?.username || "sans-identifiant"}</span>
                               <span>{entry.plan}</span>
-                              <span>{relativeTime(entry.lastLoginAt)}</span>
+                              <span>{relativeTime(entry.lastLoginAt, locale)}</span>
                               {entry.admin?.enabled ? <span>admin {entry.admin.role}</span> : null}
                             </div>
                           </button>
@@ -1033,11 +1089,11 @@ export default function AdminDashboard() {
                             <div className="detail-box">
                               <div className="meta">Contact</div>
                               <strong>{selectedUser.email}</strong>
-                              <div className="soft">Créé le {formatDate(selectedUser.createdAt)}</div>
+                              <div className="soft">Créé le {formatDate(selectedUser.createdAt, locale)}</div>
                             </div>
                             <div className="detail-box">
                               <div className="meta">Connexion</div>
-                              <strong>{formatDate(selectedUser.lastLoginAt)}</strong>
+                              <strong>{formatDate(selectedUser.lastLoginAt, locale)}</strong>
                               <div className="soft">{selectedUser.loginCount} connexions</div>
                             </div>
                           </div>
@@ -1106,6 +1162,99 @@ export default function AdminDashboard() {
               ) : null}
             </section>
 
+            <section className={`flow-card section-card ${openSection === "data" ? "open" : ""}`}>
+              <button type="button" className="section-toggle" onClick={() => toggleSection("data")}>
+                <div className="section-toggle-main">
+                  <div className="eyebrow">Données live</div>
+                  <h3>Lecture complète du compte sélectionné</h3>
+                  <div className="panel-sub">Profil, sécurité, plan, activité, volumes métier et signaux de santé en direct.</div>
+                </div>
+                <div className="section-summary">
+                  <div className="section-kpi">{selectedUser?.name || "Aucune sélection"}</div>
+                  <div className="section-kpi">{selectedUser?.email || "Choisis un compte"}</div>
+                  <div className="section-chevron">⌄</div>
+                </div>
+              </button>
+              {openSection === "data" ? (
+                <div className="section-content">
+                  {!selectedUser ? <div className="empty">Sélectionne un utilisateur dans la section comptes pour afficher ses données live.</div> : (
+                    <>
+                      <div className="data-grid">
+                        <DataMetric label="Nom affiché" value={selectedUser.name} hint={selectedUser.profile?.fullName || "Nom complet non renseigné"} />
+                        <DataMetric label="Identifiant" value={selectedUser.profile?.username ? `@${selectedUser.profile.username}` : "Aucun"} hint={selectedUser.email} />
+                        <DataMetric label="Forfait" value={selectedUser.plan} hint={`Statut: ${selectedUser.planStatus || "—"}`} />
+                        <DataMetric label="Dernière présence" value={relativeTime(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)} hint={formatDate(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)} />
+                      </div>
+
+                      <div className="activity-grid">
+                        <div className="data-block">
+                          <div>
+                            <div className="eyebrow">Compte</div>
+                            <h3 className="panel-title">{selectedUser.name}</h3>
+                          </div>
+                          <div className="data-list">
+                            <div className="data-row"><span>Email</span><span>{selectedUser.email}</span></div>
+                            <div className="data-row"><span>UID</span><span>{selectedUser.uid}</span></div>
+                            <div className="data-row"><span>Création</span><span>{formatDate(selectedUser.createdAt, locale)}</span></div>
+                            <div className="data-row"><span>Dernière connexion</span><span>{formatDate(selectedUser.lastLoginAt, locale)}</span></div>
+                            <div className="data-row"><span>Dernière activité</span><span>{formatDate(selectedUser.lastSeenAt, locale)}</span></div>
+                            <div className="data-row"><span>Connexions</span><span>{formatNumber(selectedUser.loginCount, locale)}</span></div>
+                          </div>
+                        </div>
+
+                        <div className="data-block">
+                          <div>
+                            <div className="eyebrow">Profil</div>
+                            <h3 className="panel-title">Identité et contact</h3>
+                          </div>
+                          <div className="data-list">
+                            <div className="data-row"><span>Nom complet</span><span>{selectedUser.profile?.fullName || "—"}</span></div>
+                            <div className="data-row"><span>Téléphone</span><span>{selectedUser.profile?.phone || "—"}</span></div>
+                            <div className="data-row"><span>Téléphone visible</span><span>{selectedUser.profile?.phoneVisible ? "Oui" : "Non"}</span></div>
+                            <div className="data-row"><span>Photo profil</span><span>{selectedUser.profile?.photoUrl ? "Configurée" : "Absente"}</span></div>
+                            <div className="data-row"><span>Admin</span><span>{selectedUser.admin?.enabled ? selectedUser.admin.role : "Non"}</span></div>
+                            <div className="data-row"><span>Permissions</span><span>{formatNumber((selectedUser.admin?.permissions || []).length, locale)}</span></div>
+                          </div>
+                        </div>
+
+                        <div className="data-block">
+                          <div>
+                            <div className="eyebrow">Sécurité</div>
+                            <h3 className="panel-title">État et signaux</h3>
+                          </div>
+                          <div className="data-list">
+                            <div className="data-row"><span>Statut</span><span>{selectedUser.status === "blocked" ? "Bloqué" : "Actif"}</span></div>
+                            <div className="data-row"><span>Mot de passe à changer</span><span>{selectedUser.mustChangePassword ? "Oui" : "Non"}</span></div>
+                            <div className="data-row"><span>Blocage</span><span>{selectedUser.blockedAt ? formatDate(selectedUser.blockedAt, locale) : "—"}</span></div>
+                            <div className="data-row"><span>Motif blocage</span><span>{selectedUser.blockedReason || "—"}</span></div>
+                            <div className="data-row"><span>Plan billing</span><span>{selectedUser.planStatus || "—"}</span></div>
+                          </div>
+                        </div>
+
+                        <div className="data-block">
+                          <div>
+                            <div className="eyebrow">Volumes métier</div>
+                            <h3 className="panel-title">Modules utilisés</h3>
+                          </div>
+                          <div className="data-list">
+                            <div className="data-row"><span>Notes</span><span>{formatNumber(selectedUser.metrics?.notes, locale)}</span></div>
+                            <div className="data-row"><span>Tâches</span><span>{formatNumber(selectedUser.metrics?.tasks, locale)}</span></div>
+                            <div className="data-row"><span>Événements</span><span>{formatNumber(selectedUser.metrics?.events, locale)}</span></div>
+                            <div className="data-row"><span>Habitudes</span><span>{formatNumber(selectedUser.metrics?.habits, locale)}</span></div>
+                            <div className="data-row"><span>Objectifs</span><span>{formatNumber(selectedUser.metrics?.goals, locale)}</span></div>
+                            <div className="data-row"><span>Signets</span><span>{formatNumber(selectedUser.metrics?.bookmarks, locale)}</span></div>
+                            <div className="data-row"><span>Notifications</span><span>{formatNumber(selectedUser.metrics?.notifications, locale)}</span></div>
+                            <div className="data-row"><span>Non lues</span><span>{formatNumber(selectedUser.metrics?.unreadNotifications, locale)}</span></div>
+                            <div className="data-row"><span>Activité</span><span>{formatNumber(selectedUser.metrics?.activity, locale)}</span></div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
+            </section>
+
             <section className={`flow-card section-card ${openSection === "support" ? "open" : ""}`}>
               <button type="button" className="section-toggle" onClick={() => toggleSection("support")}>
                 <div className="section-toggle-main">
@@ -1132,12 +1281,12 @@ export default function AdminDashboard() {
                               <div className="soft">{conversation.participants?.map((participant) => participant.name).join(", ")}</div>
                             </div>
                             <div className={`badge ${conversation.supportStatus === "closed" ? "blocked" : ""}`}>{conversation.supportStatus === "closed" ? "Fermée" : "Ouverte"}</div>
-                          </div>
-                          <div className="user-meta">
-                            <span>{conversation.unreadCount || 0} non lu</span>
-                            <span>{conversation.lastMessageAt ? formatDate(conversation.lastMessageAt) : "Pas de message"}</span>
-                          </div>
-                        </button>
+                            </div>
+                            <div className="user-meta">
+                              <span>{conversation.unreadCount || 0} non lu</span>
+                              <span>{conversation.lastMessageAt ? formatDate(conversation.lastMessageAt, locale) : "Pas de message"}</span>
+                            </div>
+                          </button>
                       ))}
                     </div>
 
@@ -1157,8 +1306,8 @@ export default function AdminDashboard() {
                             {(selectedSupportConversation.messages || []).map((message) => (
                               <div key={message.id} className={`support-message ${message.sender?.email === data?.admin?.email ? "admin" : ""}`}>
                                 <strong>{message.sender?.name || "Système"}</strong>
-                                <div className="soft" style={{ marginTop: 6 }}>{message.body || "Message système"}</div>
-                                <div className="support-meta">{formatDate(message.createdAt)}</div>
+                              <div className="soft" style={{ marginTop: 6 }}>{message.body || "Message système"}</div>
+                                <div className="support-meta">{formatDate(message.createdAt, locale)}</div>
                               </div>
                             ))}
                           </div>
@@ -1185,7 +1334,7 @@ export default function AdminDashboard() {
                   <div className="panel-sub">Messages signalés et bugs interface dans une modération unique.</div>
                 </div>
                 <div className="section-summary">
-                  <div className="section-kpi">{nf.format(data?.stats?.reportsOpen || 0)} ouverts</div>
+                  <div className="section-kpi">{formatNumber(data?.stats?.reportsOpen || 0, locale)} ouverts</div>
                   <div className="section-kpi">{selectedReport?.reason || "Aucune sélection"}</div>
                   <div className="section-chevron">⌄</div>
                 </div>
@@ -1206,7 +1355,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="user-meta">
                             <span>{report.conversationTitle || "Flow"}</span>
-                            <span>{relativeTime(report.createdAt)}</span>
+                            <span>{relativeTime(report.createdAt, locale)}</span>
                           </div>
                         </button>
                       ))}
@@ -1222,7 +1371,7 @@ export default function AdminDashboard() {
                               {selectedReport.reporter?.name || "Utilisateur"} · {selectedReport.reporter?.email || "—"} · {selectedReport.type === "bug" ? "Bug interface" : "Message signalé"}
                             </div>
                             <div className="soft" style={{ marginTop: 6 }}>
-                              {selectedReport.conversationTitle || "Flow"} · envoyé {formatDate(selectedReport.createdAt)}
+                              {selectedReport.conversationTitle || "Flow"} · envoyé {formatDate(selectedReport.createdAt, locale)}
                             </div>
                             <div className="inline-actions" style={{ marginTop: 12 }}>
                               <button
@@ -1264,7 +1413,7 @@ export default function AdminDashboard() {
                             {selectedReport.resolvedAt ? (
                               <div className="activity-item">
                                 <strong>Clôture</strong>
-                                <span>{reportStatusLabel(selectedReport.status)} le {formatDate(selectedReport.resolvedAt)}</span>
+                                <span>{reportStatusLabel(selectedReport.status)} le {formatDate(selectedReport.resolvedAt, locale)}</span>
                                 <span>{selectedReport.resolver?.name || "Admin"}{selectedReport.resolutionNote ? ` · ${selectedReport.resolutionNote}` : ""}</span>
                               </div>
                             ) : null}

@@ -9191,11 +9191,9 @@ export default function FlowApp() {
     if (view === "calendar") return ViewCalendar();
     if (view === "conversations") return ViewConversations();
     if (view === "habits") return ViewHabits();
-    if (view === "journal") return ViewJournal();
     if (view === "goals") return ViewGoals();
     if (view === "focus") return ViewFocus();
     if (view === "bookmarks") return ViewBookmarks();
-    if (view === "finance") return ViewFinance();
     return ViewDashboard();
   };
 
