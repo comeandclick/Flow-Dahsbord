@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.36
+### 1.22.37
 
-- **Date** : 03/04/2026 13:44
-- **Résumé** : Flow verrouille la passe admin bilingue avec un shell plus propre, des libellés mieux alignés et une base React explicitement sûre.
+- **Date** : 03/04/2026 14:02
+- **Résumé** : Flow élargit fortement la couverture FR/EN visible et resserre son thème global avec un shell plus premium sur tout le produit.
 
-- **Base React admin explicitée** : Le dashboard admin déclare maintenant explicitement ses hooks critiques et garde une structure de fichier plus propre pour la suite de la refonte.
-- **Libellés admin encore resserrés** : Les derniers titres, méta-libellés et compteurs restants du dashboard admin sont mieux harmonisés entre français et anglais.
-- **Code, release et dépôt réalignés** : La production, le fichier de release et le dépôt GitHub restent synchronisés après cette passe de consolidation admin.
+- **Couche FR/EN beaucoup plus large** : Le dictionnaire partagé couvre maintenant bien plus de titres, états, placeholders, réglages, notifications et libellés Flow/Admin.
+- **Placeholders et attributs mieux traduits** : La traduction DOM applique aussi davantage les placeholders, titres et aria-labels sans réintroduire les anciens bugs de focus.
+- **Thème global resserré** : Le shell, l’auth, les fonds, les contrastes et les transitions communes gagnent une direction visuelle plus propre en sombre comme en clair.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 
