@@ -809,6 +809,24 @@ export default function AdminDashboard() {
           color:rgba(242,243,248,.64);
           line-height:1.5;
         }
+        .presence-strip{
+          display:flex;
+          flex-wrap:wrap;
+          gap:8px;
+        }
+        .presence-pill{
+          padding:10px 12px;
+          border-radius:14px;
+          border:1px solid rgba(255,255,255,.08);
+          background:#17191f;
+          display:grid;
+          gap:3px;
+          min-width:88px;
+        }
+        .presence-pill strong{
+          font-size:16px;
+          line-height:1;
+        }
         .conversation-shell{
           min-height:0;
           display:grid;
@@ -1010,20 +1028,50 @@ export default function AdminDashboard() {
                     <div className="flow-card panel">
                       <div className="panel-head">
                         <div>
-                          <div className="eyebrow">Activité comptes</div>
-                          <h3 className="panel-title">Profils les plus actifs</h3>
+                          <div className="eyebrow">Présence live</div>
+                          <h3 className="panel-title">Comptes en mouvement</h3>
+                        </div>
+                      </div>
+                      <div className="presence-strip">
+                        <div className="presence-pill">
+                          <div className="meta">Now</div>
+                          <strong>{formatNumber(data?.stats?.onlineNow || 0, locale)}</strong>
+                        </div>
+                        <div className="presence-pill">
+                          <div className="meta">5 min</div>
+                          <strong>{formatNumber(data?.stats?.active5m || 0, locale)}</strong>
+                        </div>
+                        <div className="presence-pill">
+                          <div className="meta">24 h</div>
+                          <strong>{formatNumber(data?.stats?.active24h || 0, locale)}</strong>
+                        </div>
+                        <div className="presence-pill">
+                          <div className="meta">7 j</div>
+                          <strong>{formatNumber(data?.stats?.active7d || 0, locale)}</strong>
+                        </div>
+                        <div className="presence-pill">
+                          <div className="meta">+7 j</div>
+                          <strong>{formatNumber(data?.stats?.newUsers7d || 0, locale)}</strong>
                         </div>
                       </div>
                       <div className="stack-scroll">
-                        {(data?.analytics?.topActiveUsers || []).map((entry) => (
+                        {(data?.users || []).slice(0, 8).map((entry) => (
                           <div key={entry.uid} className="activity-item">
                             <strong>{entry.name}</strong>
-                            <span>{entry.email}</span>
-                            <span>{entry.metrics.notes} notes · {entry.metrics.tasks} tâches · {entry.metrics.events} événements · {entry.metrics.bookmarks} signets · {entry.metrics.goals} objectifs</span>
-                            <span>Dernière connexion: {formatDate(entry.lastLoginAt, locale)} · score: {entry.metrics.activity}</span>
+                            <span>{entry.email} · @{entry.profile?.username || "sans-identifiant"}</span>
+                            <span>{entry.status === "blocked" ? "Bloqué" : "Actif"} · forfait {entry.plan} · vu {relativeTime(entry.lastSeenAt || entry.lastLoginAt, locale)}</span>
+                            <span>{entry.metrics.notes} notes · {entry.metrics.tasks} tâches · {entry.metrics.events} événements · {entry.metrics.unreadNotifications} notif. non lues</span>
                           </div>
                         ))}
-                        {!(data?.analytics?.topActiveUsers || []).length && <div className="empty">Aucune donnée d’activité disponible.</div>}
+                        {!(data?.users || []).length && <div className="empty">Aucune donnée d’activité disponible.</div>}
+                        {!!(data?.analytics?.recentSignups || []).length && (
+                          <div className="activity-item">
+                            <strong>Nouveaux cette semaine</strong>
+                            <span>
+                              {data.analytics.recentSignups.slice(0, 3).map((entry) => `${entry.name} · ${entry.email}`).join(" | ")}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1094,7 +1142,7 @@ export default function AdminDashboard() {
                             <div className="detail-box">
                               <div className="meta">Connexion</div>
                               <strong>{formatDate(selectedUser.lastLoginAt, locale)}</strong>
-                              <div className="soft">{selectedUser.loginCount} connexions</div>
+                              <div className="soft">{selectedUser.loginCount} connexions · présence {relativeTime(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)}</div>
                             </div>
                           </div>
 

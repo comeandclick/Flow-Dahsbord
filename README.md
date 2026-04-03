@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.33
+### 1.22.34
 
-- **Date** : 03/04/2026 12:15
-- **Résumé** : Flow nettoie le périmètre visible, stabilise l’entrée admin et rend le dashboard admin plus lisible avec une vraie zone données live.
+- **Date** : 03/04/2026 13:05
+- **Résumé** : Flow protège mieux les créations locales contre les retours serveur en retard et affine la lecture live du dashboard admin.
 
-- **Périmètre visible resserré** : Journal et Finance sortent du routing visible Flow sans suppression des données stockées ni des backups existants.
-- **Zone données live admin** : Le dashboard admin expose maintenant un panneau dédié au compte sélectionné avec profil, sécurité, forfait, activité et volumes module par module.
-- **Entrée admin stabilisée** : La page de connexion admin ne dépend plus du traducteur DOM pour ses textes critiques et reste plus stable côté focus et rendu.
+- **Réconciliation du store renforcée** : Les retours serveur du workspace fusionnent maintenant mieux avec l’état local pour éviter les disparitions de notes ou tâches juste après création.
+- **Création notes et tâches stabilisée** : Les créations rapides et modales Notes/Tâches passent par un flux plus cohérent, avec ouverture plus fiable juste après insertion.
+- **Présence live admin clarifiée** : La vue générale admin met davantage en avant la présence récente, les nouveaux comptes et les données live réellement utiles.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

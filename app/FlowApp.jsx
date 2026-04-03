@@ -2429,6 +2429,20 @@ export default function FlowApp() {
     };
   }, []);
 
+  const applyServerDbSnapshot = useCallback((incomingDb, { preserveLocalDrafts = true, nextUser = user } = {}) => {
+    const normalizedIncoming = incomingDb || emptyDB();
+    const nextDb = preserveLocalDrafts
+      ? mergeBackupDb(dbRef.current || emptyDB(), normalizedIncoming)
+      : normalizedIncoming;
+    dbRef.current = nextDb;
+    setDb(nextDb);
+    if (nextUser) {
+      writeLocalDbCache(nextUser, nextDb);
+      writeLocalSessionSnapshot(nextUser);
+    }
+    return nextDb;
+  }, [mergeBackupDb, user]);
+
   const applyBackupImport = useCallback(async (raw, mode = "merge") => {
     if (!raw) return;
     try {
@@ -2463,6 +2477,7 @@ export default function FlowApp() {
     setDb(prev => {
       const next = { ...prev };
       fn(next);
+      dbRef.current = next;
       save(next);
       return next;
     });
@@ -2709,45 +2724,58 @@ export default function FlowApp() {
     setNoteModalCategory(category || selectedNoteCategory || firstNoteCategoryKey);
     setModal("note");
   }, [firstNoteCategoryKey, selectedNoteCategory]);
+  const insertNoteRecord = useCallback((draft, {
+    id,
+    title = "",
+    content = "",
+    category = firstNoteCategoryKey,
+    detail = "",
+  } = {}) => {
+    const createdAt = new Date().toISOString();
+    draft.notes.push({
+      id: id || uid(),
+      title,
+      content,
+      cat: category || firstNoteCategoryKey,
+      color: draft.settings?.accent || "#3f97ff",
+      createdAt,
+      updatedAt: createdAt,
+      links: createEmptyLinks(),
+      attachments: [],
+      favorite: false,
+      locked: false,
+      sharedWith: [],
+      sharedByName: "",
+      sharedImportToken: "",
+      sharedRole: "",
+    });
+    addActivityEntry(draft, { type: "note", title: "Note créée", detail: detail || title || category || firstNoteCategoryKey });
+    return createdAt;
+  }, [firstNoteCategoryKey]);
+  const openCreatedNote = useCallback((noteId, category) => {
+    const targetCategory = category || selectedNoteCategory || firstNoteCategoryKey;
+    pendingNoteIdRef.current = noteId;
+    const applyOpen = () => {
+      setSelectedNoteCategory(targetCategory);
+      setNoteView("note");
+      setEditNote(noteId);
+      setNoteEditorMenu("");
+    };
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(applyOpen);
+    } else {
+      applyOpen();
+    }
+  }, [firstNoteCategoryKey, selectedNoteCategory]);
   const createQuickNote = useCallback((category = selectedNoteCategory) => {
     const nextId = uid();
     const targetCategory = category || selectedNoteCategory || firstNoteCategoryKey;
-    pendingNoteIdRef.current = nextId;
     updateDb((draft) => {
-      draft.notes.push({
-        id: nextId,
-        title: "",
-        content: "",
-        cat: targetCategory,
-        color: draft.settings?.accent || "#3f97ff",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        links: createEmptyLinks(),
-        attachments: [],
-        favorite: false,
-        locked: false,
-        sharedWith: [],
-        sharedByName: "",
-        sharedImportToken: "",
-        sharedRole: "",
-      });
-      addActivityEntry(draft, { type: "note", title: "Note créée", detail: targetCategory });
+      insertNoteRecord(draft, { id: nextId, category: targetCategory, detail: targetCategory });
     });
-    if (typeof window !== "undefined") {
-      window.requestAnimationFrame(() => {
-        setSelectedNoteCategory(targetCategory);
-        setNoteView("note");
-        setEditNote(nextId);
-        setNoteEditorMenu("");
-      });
-    } else {
-      setSelectedNoteCategory(targetCategory);
-      setNoteView("note");
-      setEditNote(nextId);
-      setNoteEditorMenu("");
-    }
+    openCreatedNote(nextId, targetCategory);
     return nextId;
-  }, [firstNoteCategoryKey, selectedNoteCategory, updateDb]);
+  }, [firstNoteCategoryKey, insertNoteRecord, openCreatedNote, selectedNoteCategory, updateDb]);
 
   const openHabitModal = useCallback((habit = null) => {
     setHabitDraft({
@@ -2854,8 +2882,7 @@ export default function FlowApp() {
       if (!ok) return;
       const payload = await api("/api/billing/cancel", { method: "POST" });
       if (payload?.db) {
-        setDb(payload.db);
-        writeLocalDbCache(user, payload.db);
+        applyServerDbSnapshot(payload.db, { preserveLocalDrafts: true });
       }
       toast("Abonnement annulé en fin de période");
     } catch (error) {
@@ -2863,7 +2890,7 @@ export default function FlowApp() {
     } finally {
       setBillingBusy("");
     }
-  }, [requestConfirm, toast, user]);
+  }, [applyServerDbSnapshot, requestConfirm, toast, user]);
 
   useEffect(() => {
     if (!user || typeof window === "undefined") return;
@@ -2882,8 +2909,7 @@ export default function FlowApp() {
         .then((payload) => {
           if (payload?.user) {
             setUser(payload.user);
-            setDb(payload.db || emptyDB());
-            writeLocalDbCache(payload.user, payload.db || emptyDB());
+            applyServerDbSnapshot(payload.db || emptyDB(), { preserveLocalDrafts: false, nextUser: payload.user });
           }
         })
         .catch(() => {});
@@ -2894,7 +2920,7 @@ export default function FlowApp() {
     params.delete("billing");
     const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
     window.history.replaceState({}, "", nextUrl);
-  }, [openSettingsSection, toast, user]);
+  }, [applyServerDbSnapshot, openSettingsSection, toast, user]);
 
   const createTaskFromTemplate = useCallback((template) => {
     if (!template?.id) return;
@@ -3305,16 +3331,12 @@ export default function FlowApp() {
       const payload = await api("/api/session", { method: "GET" });
       if (payload?.user) {
         setIsAdmin(Boolean(payload.admin));
-        setDb((prev) => {
-          const next = payload.db || prev;
-          dbRef.current = next;
-          return next;
-        });
+        applyServerDbSnapshot(payload.db || dbRef.current, { preserveLocalDrafts: true });
       } else {
         setIsAdmin(false);
       }
     } catch {}
-  }, [saveState, user]);
+  }, [applyServerDbSnapshot, saveState, user]);
 
   const reloadWorkspaceData = useCallback(async ({ silent = false } = {}) => {
     if (!user || pullRefreshBusy) return false;
@@ -3324,8 +3346,7 @@ export default function FlowApp() {
       if (!payload?.user) return false;
       const loadedDb = payload.db || emptyDB();
       setIsAdmin(Boolean(payload.admin));
-      setDb(loadedDb);
-      dbRef.current = loadedDb;
+      applyServerDbSnapshot(loadedDb, { preserveLocalDrafts: false });
       setTheme(loadedDb.settings?.theme || "dark");
       await Promise.all([
         refreshConversations({ force: true }),
@@ -3341,7 +3362,7 @@ export default function FlowApp() {
       setPullRefreshOffset(0);
       setPullRefreshArmed(false);
     }
-  }, [pullRefreshBusy, refreshConversations, refreshReports, settingsTab, toast, user]);
+  }, [applyServerDbSnapshot, pullRefreshBusy, refreshConversations, refreshReports, settingsTab, toast, user]);
 
   useEffect(() => {
     if (!user) {
@@ -5006,7 +5027,7 @@ export default function FlowApp() {
           links: isEditingEvent ? eventDraft.links : createEmptyLinks(),
         }),
       });
-      setDb(payload.db || dbRef.current);
+      applyServerDbSnapshot(payload.db || dbRef.current, { preserveLocalDrafts: true });
       selectCalendarDate(eventDraft.date, { openDay: true });
       setEventDraft(buildEventDraft());
       setModal(null);
@@ -5037,7 +5058,7 @@ export default function FlowApp() {
           status,
         }),
       });
-      setDb(payload.db || dbRef.current);
+      applyServerDbSnapshot(payload.db || dbRef.current, { preserveLocalDrafts: true });
       toast(`Invitation ${status === "confirmed" ? "acceptée" : status === "maybe" ? "mise en peut-être" : "refusée"}`);
     } catch (error) {
       toast(error.message || "Réponse impossible", "err");
@@ -5065,7 +5086,7 @@ export default function FlowApp() {
           eventId,
         }),
       });
-      setDb(payload.db || dbRef.current);
+      applyServerDbSnapshot(payload.db || dbRef.current, { preserveLocalDrafts: true });
       toast("Événement supprimé");
     } catch (error) {
       toast(error.message || "Suppression impossible", "err");
@@ -5397,8 +5418,7 @@ export default function FlowApp() {
       });
       addActivityEntry(draft, { type: "note", title: "Note dupliquée", detail: note.title || "Note" });
     });
-    setSelectedNoteCategory(note.cat || firstNoteCategoryKey);
-    setEditNote(nextId);
+    openCreatedNote(nextId, note.cat || firstNoteCategoryKey);
     setNoteContextMenu(null);
   };
 
@@ -5471,13 +5491,12 @@ export default function FlowApp() {
             const t = document.getElementById("m-n-title")?.value?.trim();
             if (!t) return toast("Titre requis", "err");
             const nextId = uid();
+            const targetCategory = noteModalCategory || firstNoteCategoryKey;
             updateDb(d => {
-              d.notes.push({ id: nextId, title: t, content: "", cat: noteModalCategory || firstNoteCategoryKey, color: d.settings?.accent || "#3f97ff", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), links: createEmptyLinks(), attachments: [], favorite: false, locked: false, sharedWith: [], sharedByName: "", sharedImportToken: "", sharedRole: "" });
-              addActivityEntry(d, { type: "note", title: "Note créée", detail: t });
+              insertNoteRecord(d, { id: nextId, title: t, category: targetCategory, detail: t });
               addNotificationEntry(d, { type: "note", title: "Nouvelle note enregistrée", detail: t, href: "notes" });
             });
-            setSelectedNoteCategory(noteModalCategory || firstNoteCategoryKey);
-            setEditNote(nextId);
+            openCreatedNote(nextId, targetCategory);
             close(); toast("Note créée");
           }}>Créer</button></div>
         </div>
@@ -5596,6 +5615,7 @@ export default function FlowApp() {
               addActivityEntry(d, { type: "task", title: "Tâche ajoutée", detail: t });
               addNotificationEntry(d, { type: "task", title: "Nouvelle tâche ajoutée", detail: t, href: "projects", entityId: taskId });
             });
+            setView("projects");
             setSelectedTaskId(taskId);
             close(); toast("Tâche créée");
           }}>Créer</button></div>
@@ -8748,7 +8768,7 @@ export default function FlowApp() {
 
         setUser(payload.user);
         setIsAdmin(Boolean(payload.admin));
-        setDb(payload.db);
+        applyServerDbSnapshot(payload.db, { preserveLocalDrafts: true, nextUser: payload.user });
         setTheme(payload.db.settings?.theme || "dark");
         setSaveState("saved");
         setProfileDraft((prev) => ({ ...prev, currentPassword: "", newPassword: "", confirmPassword: "" }));
