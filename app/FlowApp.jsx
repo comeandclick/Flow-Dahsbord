@@ -25,7 +25,7 @@ import {
   reorderKeys,
   sortConversationsList,
 } from "../lib/flow/ui-helpers";
-import { getStoredLocale, installDomTranslator, storeLocale } from "../lib/i18n";
+import { getStoredLocale, installDomTranslator, storeLocale, translateString } from "../lib/i18n";
 import { RELEASE } from "../lib/release";
 
 /* ═══════════════════════════════════════════════════════════
@@ -2142,11 +2142,20 @@ export default function FlowApp() {
   });
 
   // ── Toast ──
+  const localizeUiText = useCallback((msg) => {
+    if (typeof msg !== "string") return msg;
+    const locale = db.settings?.locale === "en" ? "en" : "fr";
+    return translateString(msg, locale);
+  }, [db.settings?.locale]);
   const toast = useCallback((msg, type = "ok") => {
     const id = uid();
-    setToasts(p => [...p, { id, msg, type }]);
+    const nextMessage = localizeUiText(msg);
+    setToasts(p => [...p, { id, msg: nextMessage, type }]);
     setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3000);
-  }, []);
+  }, [localizeUiText]);
+  const setLocalizedAuthErr = useCallback((msg) => {
+    setAuthErr(msg ? localizeUiText(msg) : "");
+  }, [localizeUiText]);
 
   const isEditingSettingsPane = useCallback((pane) => {
     if (typeof document === "undefined") return false;
@@ -2246,8 +2255,8 @@ export default function FlowApp() {
     if (authMode === "forgot") setAuthRecoveryMode("request");
     if (googleStatus) {
       if (googleStatus === "success") toast("Connexion Google active");
-      else if (googleStatus === "cancelled") setAuthErr("Connexion Google annulee");
-      else setAuthErr("Connexion Google impossible pour le moment");
+      else if (googleStatus === "cancelled") setLocalizedAuthErr("Connexion Google annulee");
+      else setLocalizedAuthErr("Connexion Google impossible pour le moment");
     }
     void api("/api/auth/providers", { method: "GET" })
       .then((payload) => {
@@ -2258,7 +2267,7 @@ export default function FlowApp() {
         setAuthGoogleEnabled(false);
         setAuthEmailRecoveryEnabled(false);
       });
-  }, [toast]);
+  }, [setLocalizedAuthErr, toast]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -2803,6 +2812,17 @@ export default function FlowApp() {
   const openCreatedNote = useCallback((noteId, category) => {
     const targetCategory = category || selectedNoteCategory || firstNoteCategoryKey;
     pendingNoteIdRef.current = noteId;
+    if (pendingNoteTimeoutRef.current) window.clearTimeout(pendingNoteTimeoutRef.current);
+    if (typeof window !== "undefined") {
+      pendingNoteTimeoutRef.current = window.setTimeout(() => {
+        if (pendingNoteIdRef.current !== noteId) return;
+        pendingNoteIdRef.current = "";
+        setEditNote(null);
+        setNoteView(targetCategory ? "category" : "overview");
+        if (targetCategory) setSelectedNoteCategory(targetCategory);
+        toast("Ouverture de note impossible", "err");
+      }, 5000);
+    }
     const applyOpen = () => {
       setSelectedNoteCategory(targetCategory);
       setNoteView("note");
@@ -2814,7 +2834,7 @@ export default function FlowApp() {
     } else {
       applyOpen();
     }
-  }, [firstNoteCategoryKey, selectedNoteCategory]);
+  }, [firstNoteCategoryKey, selectedNoteCategory, toast]);
   const createQuickNote = useCallback((category = selectedNoteCategory) => {
     const nextId = uid();
     const targetCategory = category || selectedNoteCategory || firstNoteCategoryKey;
@@ -3559,9 +3579,22 @@ export default function FlowApp() {
 
   useEffect(() => {
     if (pendingNoteIdRef.current && db.notes.some((note) => note.id === pendingNoteIdRef.current)) {
+      if (pendingNoteTimeoutRef.current) {
+        window.clearTimeout(pendingNoteTimeoutRef.current);
+        pendingNoteTimeoutRef.current = null;
+      }
       pendingNoteIdRef.current = "";
     }
   }, [db.notes]);
+
+  useEffect(() => {
+    if (!editNote) return;
+    if (pendingNoteIdRef.current === editNote) return;
+    const existingNote = db.notes.find((note) => note.id === editNote);
+    if (existingNote) return;
+    setEditNote(null);
+    setNoteView(selectedNoteCategory ? "category" : "overview");
+  }, [db.notes, editNote, selectedNoteCategory]);
 
   useEffect(() => {
     if (view === "journal" || view === "finance") {
@@ -3582,6 +3615,8 @@ export default function FlowApp() {
   useEffect(() => {
     setNoteEditorMenu("");
     setNoteContextMenu(null);
+    setNoteShareDialog({ open: false, noteId: "", target: "", role: "reader" });
+    setNoteUnlockDialog({ open: false, noteId: "", password: "", busy: false });
   }, [editNote, noteView, view]);
 
   useEffect(() => {
@@ -3950,17 +3985,17 @@ export default function FlowApp() {
     const pwd = authPasswordInputRef.current?.value;
     const name = authNameInputRef.current?.value?.trim();
     const pwd2 = authPasswordConfirmInputRef.current?.value;
-    setAuthErr("");
-    if (!email || !pwd) return setAuthErr("Email et mot de passe requis");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setAuthErr("Email invalide");
-    if (pwd.length < 8) return setAuthErr("Mot de passe : 8 caractères minimum");
+    setLocalizedAuthErr("");
+    if (!email || !pwd) return setLocalizedAuthErr("Email et mot de passe requis");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setLocalizedAuthErr("Email invalide");
+    if (pwd.length < 8) return setLocalizedAuthErr("Mot de passe : 8 caractères minimum");
 
     try {
       setAuthBusy(true);
 
       if (isRegister) {
-        if (!name) return setAuthErr("Nom requis");
-        if (pwd !== pwd2) return setAuthErr("Les mots de passe ne correspondent pas");
+        if (!name) return setLocalizedAuthErr("Nom requis");
+        if (pwd !== pwd2) return setLocalizedAuthErr("Les mots de passe ne correspondent pas");
       }
 
       const payload = await api(isRegister ? "/api/auth/register" : "/api/auth/login", {
@@ -3987,7 +4022,7 @@ export default function FlowApp() {
       setIntroPhase("hidden");
       toast(isRegister ? "Compte créé !" : "Connecté !");
     } catch (error) {
-      setAuthErr(error.message || "Connexion impossible");
+      setLocalizedAuthErr(error.message || "Connexion impossible");
     } finally {
       setAuthBusy(false);
       setAuthScreenClosing(false);
@@ -3996,9 +4031,9 @@ export default function FlowApp() {
 
   const requestPasswordReset = async () => {
     const email = authEmailInputRef.current?.value?.trim();
-    setAuthErr("");
-    if (!email) return setAuthErr("Entrez votre email");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setAuthErr("Email invalide");
+    setLocalizedAuthErr("");
+    if (!email) return setLocalizedAuthErr("Entrez votre email");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setLocalizedAuthErr("Email invalide");
 
     try {
       setAuthRecoveryBusy(true);
@@ -4020,7 +4055,7 @@ export default function FlowApp() {
         toast(payload?.message || "Si un compte existe pour cet email, un message sera envoyé.");
       }
     } catch (error) {
-      setAuthErr(error.message || "Envoi impossible");
+      setLocalizedAuthErr(error.message || "Envoi impossible");
     } finally {
       setAuthRecoveryBusy(false);
     }
@@ -4029,8 +4064,8 @@ export default function FlowApp() {
   const verifyPasswordResetCode = async () => {
     const email = authRecoveryEmail.trim().toLowerCase();
     const code = authRecoveryCode.trim();
-    setAuthErr("");
-    if (!email || !code) return setAuthErr("Email et code requis");
+    setLocalizedAuthErr("");
+    if (!email || !code) return setLocalizedAuthErr("Email et code requis");
     try {
       setAuthRecoveryBusy(true);
       await api("/api/auth/reset-password", {
@@ -4040,7 +4075,7 @@ export default function FlowApp() {
       setAuthRecoveryMode("reset");
       toast("Code validé");
     } catch (error) {
-      setAuthErr(error.message || "Vérification impossible");
+      setLocalizedAuthErr(error.message || "Vérification impossible");
     } finally {
       setAuthRecoveryBusy(false);
     }
@@ -4049,10 +4084,10 @@ export default function FlowApp() {
   const applyPasswordReset = async () => {
     const pwd = authPasswordInputRef.current?.value || "";
     const pwd2 = authPasswordConfirmInputRef.current?.value || "";
-    setAuthErr("");
-    if (!authRecoveryEmail.trim() || !authRecoveryCode.trim()) return setAuthErr("Code invalide ou expiré");
-    if (pwd.length < 8) return setAuthErr("Mot de passe : 8 caractères minimum");
-    if (pwd !== pwd2) return setAuthErr("Les mots de passe ne correspondent pas");
+    setLocalizedAuthErr("");
+    if (!authRecoveryEmail.trim() || !authRecoveryCode.trim()) return setLocalizedAuthErr("Code invalide ou expiré");
+    if (pwd.length < 8) return setLocalizedAuthErr("Mot de passe : 8 caractères minimum");
+    if (pwd !== pwd2) return setLocalizedAuthErr("Les mots de passe ne correspondent pas");
 
     try {
       setAuthRecoveryBusy(true);
@@ -4063,7 +4098,7 @@ export default function FlowApp() {
       setAuthRecoveryMode("done");
       toast("Mot de passe réinitialisé");
     } catch (error) {
-      setAuthErr(error.message || "Réinitialisation impossible");
+      setLocalizedAuthErr(error.message || "Réinitialisation impossible");
     } finally {
       setAuthRecoveryBusy(false);
     }
@@ -4082,7 +4117,7 @@ export default function FlowApp() {
     setView("dashboard");
     setSaveState("saved");
     setAuthTab("login");
-    setAuthErr("");
+    setLocalizedAuthErr("");
     setAuthRecoveryMode("idle");
     setAuthRecoveryEmail("");
     setAuthRecoveryCode("");
@@ -4853,7 +4888,7 @@ export default function FlowApp() {
                   <div className="field"><label>Mot de passe</label><input ref={authPasswordInputRef} className="finput" id="a-pwd" type="password" placeholder="8 caractères min." autoComplete="off" /></div>
                   {authTab === "login" && (
                     <div className="auth-inline-link">
-                      <button type="button" disabled={authRecoveryBusy || !authEmailRecoveryEnabled} onClick={() => { setAuthRecoveryMode("request"); setAuthErr(""); syncAuthUrl("forgot"); }}>Mot de passe oublié ?</button>
+                      <button type="button" disabled={authRecoveryBusy || !authEmailRecoveryEnabled} onClick={() => { setAuthRecoveryMode("request"); setLocalizedAuthErr(""); syncAuthUrl("forgot"); }}>Mot de passe oublié ?</button>
                     </div>
                   )}
                   {authTab === "register" && (
@@ -4869,14 +4904,14 @@ export default function FlowApp() {
                 <div className="auth-helper-card">
                   <strong>Mot de passe mis à jour</strong>
                   <div className="auth-helper-actions">
-                    <button className="btn btn-g" type="button" onClick={() => { setAuthRecoveryMode("idle"); setAuthRecoveryCode(""); setAuthRecoveryEmail(""); setAuthTab("login"); setAuthErr(""); syncAuthUrl("login"); }}>Retour à la connexion</button>
+                    <button className="btn btn-g" type="button" onClick={() => { setAuthRecoveryMode("idle"); setAuthRecoveryCode(""); setAuthRecoveryEmail(""); setAuthTab("login"); setLocalizedAuthErr(""); syncAuthUrl("login"); }}>Retour à la connexion</button>
                   </div>
                 </div>
               )}
               {!isForgotFlow && <button className="auth-btn" id="auth-submit" disabled={authBusy}>{authBusy ? "Patientez…" : authTab === "login" ? "Se connecter" : "Créer un compte"}</button>}
               {(authRecoveryMode === "request" || authRecoveryMode === "code" || authRecoveryMode === "reset") && (
                 <div className="auth-helper-actions" style={{ marginTop: 12 }}>
-                  <button className="btn btn-g" type="button" onClick={() => { setAuthRecoveryMode("idle"); setAuthRecoveryCode(""); setAuthErr(""); syncAuthUrl("login"); }}>Retour à la connexion</button>
+                  <button className="btn btn-g" type="button" onClick={() => { setAuthRecoveryMode("idle"); setAuthRecoveryCode(""); setLocalizedAuthErr(""); syncAuthUrl("login"); }}>Retour à la connexion</button>
                 </div>
               )}
               {!isForgotFlow && authGoogleEnabled && (
@@ -4891,7 +4926,7 @@ export default function FlowApp() {
               {!isForgotFlow && (
                 <div className="auth-switch-copy">
                   {authTab === "login" ? "Pas encore de compte ?" : "Déjà un compte ?"}
-                  <button type="button" onClick={() => { setAuthTab((prev) => prev === "login" ? "register" : "login"); setAuthErr(""); setAuthRecoveryMode("idle"); syncAuthUrl("login"); }}>
+                  <button type="button" onClick={() => { setAuthTab((prev) => prev === "login" ? "register" : "login"); setLocalizedAuthErr(""); setAuthRecoveryMode("idle"); syncAuthUrl("login"); }}>
                     {authTab === "login" ? "S'inscrire" : "Se connecter"}
                   </button>
                 </div>
@@ -6621,9 +6656,10 @@ export default function FlowApp() {
     };
     const goBackInNotes = () => {
       if (noteView === "note") {
-        setSelectedNoteCategory("");
+        const fallbackCategory = selectedNoteCategory || editingNote?.cat || firstNoteCategoryKey;
         setEditNote(null);
-        setNoteView("overview");
+        setSelectedNoteCategory(fallbackCategory || "");
+        setNoteView(fallbackCategory ? "category" : "overview");
         return;
       }
       if (noteView === "category") {
@@ -7129,7 +7165,7 @@ export default function FlowApp() {
               if (!note) return null;
               return (
                 <div className="note-menu-list">
-                  <button className="note-menu-btn" onClick={() => { setEditNote(note.id); setNoteContextMenu(null); }}>{I.edit}<span>Ouvrir</span></button>
+                  <button className="note-menu-btn" onClick={() => { openNote(note.id, note.cat || firstNoteCategoryKey); setNoteContextMenu(null); }}>{I.edit}<span>Ouvrir</span></button>
                   <button className="note-menu-btn" onClick={() => {
                     updateNoteField(note.id, { favorite: !note.favorite });
                     setNoteContextMenu(null);

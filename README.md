@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.38
+### 1.22.39
 
-- **Date** : 03/04/2026 14:14
-- **Résumé** : Flow stabilise mieux les réglages pendant l’édition, élargit encore sa couverture FR/EN et garde un thème global plus propre.
+- **Date** : 03/04/2026 23:58
+- **Résumé** : Flow restaure les comptes retrouvés, réactive un store sain et bloque enfin la suppression destructrice côté admin.
 
-- **Réglages plus stables pendant l’édition** : Les drafts profil et apparence évitent mieux les resynchronisations brutales quand l’utilisateur est en train d’écrire ou de cliquer.
-- **Couche FR/EN encore élargie** : Le dictionnaire partagé couvre plus de titres, états, placeholders, réglages, notifications et libellés visibles sur Flow et l’admin.
-- **Thème global resserré** : Le shell, l’auth, les fonds, les contrastes et les transitions communes gagnent une direction visuelle plus propre en sombre comme en clair.
+- **Comptes restaurés depuis les exports retrouvés** : Le store a été recréé à partir des exports admin disponibles et remet en ligne les identités retrouvées sans effacer de données additionnelles.
+- **Store distant réactivé proprement** : Flow pointe de nouveau vers un store valide en local et sur Vercel pour éviter les erreurs d’écriture 404.
+- **Suppression admin rendue non destructive** : L’action admin archive maintenant un compte au lieu de supprimer son profil, ses notes et ses données liées.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

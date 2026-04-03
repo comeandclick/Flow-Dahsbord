@@ -342,17 +342,21 @@ export async function POST(request) {
           return Response.json({ error: "Impossible de supprimer votre propre compte admin" }, { status: 400 });
         }
 
-        cleanupConversations(store, target.uid);
-        cleanupEvents(store.users, target.uid);
-        store.reports = (Array.isArray(store.reports) ? store.reports : []).filter((entry) => (
-          `${entry?.reporterId || ""}` !== target.uid
-          && `${entry?.senderId || ""}` !== target.uid
-        ));
-        store.users = store.users.filter((entry) => entry.uid !== target.uid);
-        addAdminAudit(account, "Compte supprimé", `${target.name} · ${target.email}`);
+        target.status = "blocked";
+        target.blockedAt = new Date().toISOString();
+        target.blockedReason = "archived_by_admin";
+        target.archivedAt = target.blockedAt;
+        target.archivedBy = account.uid;
+        appendAdminNotification(target, {
+          type: "security",
+          title: "Compte archivé",
+          detail: "Votre compte a été archivé par l'administration. Contactez le support Flow pour réactivation.",
+          href: "settings",
+        });
+        addAdminAudit(account, "Compte archivé", `${target.name} · ${target.email}`);
         await writeStore(store);
         await flushPendingPushes();
-        return Response.json({ ok: true, deletedUid: target.uid });
+        return Response.json({ ok: true, archivedUid: target.uid, user: sanitizeAdminUser(target, store) });
       }
 
       return Response.json({ error: "Action inconnue" }, { status: 400 });
