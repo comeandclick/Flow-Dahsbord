@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.34
+### 1.22.36
 
-- **Date** : 03/04/2026 13:05
-- **Résumé** : Flow protège mieux les créations locales contre les retours serveur en retard et affine la lecture live du dashboard admin.
+- **Date** : 03/04/2026 13:44
+- **Résumé** : Flow verrouille la passe admin bilingue avec un shell plus propre, des libellés mieux alignés et une base React explicitement sûre.
 
-- **Réconciliation du store renforcée** : Les retours serveur du workspace fusionnent maintenant mieux avec l’état local pour éviter les disparitions de notes ou tâches juste après création.
-- **Création notes et tâches stabilisée** : Les créations rapides et modales Notes/Tâches passent par un flux plus cohérent, avec ouverture plus fiable juste après insertion.
-- **Présence live admin clarifiée** : La vue générale admin met davantage en avant la présence récente, les nouveaux comptes et les données live réellement utiles.
+- **Base React admin explicitée** : Le dashboard admin déclare maintenant explicitement ses hooks critiques et garde une structure de fichier plus propre pour la suite de la refonte.
+- **Libellés admin encore resserrés** : Les derniers titres, méta-libellés et compteurs restants du dashboard admin sont mieux harmonisés entre français et anglais.
+- **Code, release et dépôt réalignés** : La production, le fichier de release et le dépôt GitHub restent synchronisés après cette passe de consolidation admin.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

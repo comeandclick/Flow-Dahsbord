@@ -1,59 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { getStoredLocale, installDomTranslator } from "../../lib/i18n";
-
-const PERMISSIONS = [
-  { key: "dashboard.read", label: "Dashboard" },
-  { key: "users.read", label: "Lecture utilisateurs" },
-  { key: "users.manage", label: "Gestion utilisateurs" },
-  { key: "messages.send", label: "Notifications" },
-  { key: "accounts.block", label: "Blocage comptes" },
-  { key: "accounts.reset_password", label: "Reset mot de passe" },
-  { key: "accounts.delete", label: "Suppression comptes" },
-  { key: "admins.read", label: "Lecture admins" },
-  { key: "admins.create", label: "Creation admins" },
-  { key: "admins.manage", label: "Gestion admins" },
-  { key: "email.send", label: "Email transactionnel" },
-  { key: "exports.csv", label: "Export CSV" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "all", label: "Tous" },
-  { value: "active", label: "Actifs" },
-  { value: "blocked", label: "Bloques" },
-];
-
-const ADMIN_OPTIONS = [
-  { value: "all", label: "Tous roles" },
-  { value: "users", label: "Utilisateurs" },
-  { value: "admins", label: "Tous admins" },
-  { value: "admin", label: "Admins" },
-  { value: "super_admin", label: "Super admins" },
-];
-
-const PLAN_OPTIONS = [
-  { value: "all", label: "Tous forfaits" },
-  { value: "starter", label: "Starter" },
-  { value: "pro", label: "Pro" },
-  { value: "summit", label: "Summit" },
-];
-
-const RECIPIENT_OPTIONS = [
-  { value: "single", label: "Selection actuelle" },
-  { value: "all", label: "Tous" },
-  { value: "active", label: "Actifs" },
-  { value: "blocked", label: "Bloques" },
-  { value: "admins", label: "Admins" },
-  { value: "plan:starter", label: "Starter" },
-  { value: "plan:pro", label: "Pro" },
-  { value: "plan:summit", label: "Summit" },
-];
-
-const ROLE_OPTIONS = [
-  { value: "admin", label: "Admin" },
-  { value: "super_admin", label: "Super Admin" },
-];
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getStoredLocale } from "../../lib/i18n";
 
 function formatNumber(value, locale = "fr") {
   return new Intl.NumberFormat(locale === "en" ? "en-US" : "fr-FR").format(Number(value) || 0);
@@ -80,10 +28,10 @@ function relativeTime(value, locale = "fr") {
   return locale === "en" ? `${Math.round(hours / 24)} d ago` : `il y a ${Math.round(hours / 24)} j`;
 }
 
-function reportStatusLabel(status) {
-  if (status === "resolved") return "Résolu";
-  if (status === "dismissed") return "Classé";
-  return "Ouvert";
+function reportStatusLabel(status, locale = "fr") {
+  if (status === "resolved") return locale === "en" ? "Resolved" : "Résolu";
+  if (status === "dismissed") return locale === "en" ? "Dismissed" : "Classé";
+  return locale === "en" ? "Open" : "Ouvert";
 }
 
 async function api(path, options = {}) {
@@ -96,7 +44,7 @@ async function api(path, options = {}) {
     cache: "no-store",
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload?.error || "Requete impossible");
+  if (!response.ok) throw new Error(payload?.error || "Request failed");
   return payload;
 }
 
@@ -137,6 +85,58 @@ function DataMetric({ label, value, hint = "" }) {
   );
 }
 
+function buildAdminUi(locale = "fr") {
+  const en = locale === "en";
+  return {
+    permissions: [
+      { key: "dashboard.read", label: "Dashboard" },
+      { key: "users.read", label: en ? "Read users" : "Lecture utilisateurs" },
+      { key: "users.manage", label: en ? "Manage users" : "Gestion utilisateurs" },
+      { key: "messages.send", label: en ? "Notifications" : "Notifications" },
+      { key: "accounts.block", label: en ? "Block accounts" : "Blocage comptes" },
+      { key: "accounts.reset_password", label: en ? "Reset password" : "Reset mot de passe" },
+      { key: "accounts.delete", label: en ? "Delete accounts" : "Suppression comptes" },
+      { key: "admins.read", label: en ? "Read admins" : "Lecture admins" },
+      { key: "admins.create", label: en ? "Create admins" : "Creation admins" },
+      { key: "admins.manage", label: en ? "Manage admins" : "Gestion admins" },
+      { key: "email.send", label: en ? "Transactional email" : "Email transactionnel" },
+      { key: "exports.csv", label: en ? "CSV export" : "Export CSV" },
+    ],
+    statusOptions: [
+      { value: "all", label: en ? "All" : "Tous" },
+      { value: "active", label: en ? "Active" : "Actifs" },
+      { value: "blocked", label: en ? "Blocked" : "Bloques" },
+    ],
+    adminOptions: [
+      { value: "all", label: en ? "All roles" : "Tous roles" },
+      { value: "users", label: en ? "Users" : "Utilisateurs" },
+      { value: "admins", label: en ? "All admins" : "Tous admins" },
+      { value: "admin", label: en ? "Admins" : "Admins" },
+      { value: "super_admin", label: en ? "Super admins" : "Super admins" },
+    ],
+    planOptions: [
+      { value: "all", label: en ? "All plans" : "Tous forfaits" },
+      { value: "starter", label: "Starter" },
+      { value: "pro", label: "Pro" },
+      { value: "summit", label: "Summit" },
+    ],
+    recipientOptions: [
+      { value: "single", label: en ? "Current selection" : "Selection actuelle" },
+      { value: "all", label: en ? "All" : "Tous" },
+      { value: "active", label: en ? "Active" : "Actifs" },
+      { value: "blocked", label: en ? "Blocked" : "Bloques" },
+      { value: "admins", label: "Admins" },
+      { value: "plan:starter", label: "Starter" },
+      { value: "plan:pro", label: "Pro" },
+      { value: "plan:summit", label: "Summit" },
+    ],
+    roleOptions: [
+      { value: "admin", label: "Admin" },
+      { value: "super_admin", label: "Super Admin" },
+    ],
+  };
+}
+
 export default function AdminDashboard() {
   const [locale, setLocale] = useState(() => getStoredLocale());
   const [data, setData] = useState(null);
@@ -170,10 +170,11 @@ export default function AdminDashboard() {
     role: "admin",
     permissions: ["dashboard.read", "users.read", "messages.send"],
   });
+  const ui = useMemo(() => buildAdminUi(locale), [locale]);
+  const t = useCallback((fr, en) => (locale === "en" ? en : fr), [locale]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
-    return installDomTranslator(document.body, locale);
   }, [locale]);
 
   useEffect(() => {
@@ -267,7 +268,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({ action, uid: selectedUser?.uid || "", ...extra }),
       });
       if (payload?.temporaryPassword) setTempPassword(payload.temporaryPassword);
-      setNotice("Action appliquee.");
+      setNotice(t("Action appliquee.", "Action applied."));
       await loadOverview(true);
       await loadSupportConversations();
     } catch (err) {
@@ -297,12 +298,12 @@ export default function AdminDashboard() {
   }
 
   const topModules = [
-    { key: "overview", label: "Vue générale", value: `${formatNumber(data?.stats?.usersTotal || 0, locale)} comptes` },
-    { key: "users", label: "Utilisateurs", value: `${filteredUsers.length} visibles` },
-    { key: "data", label: "Données live", value: selectedUser ? (selectedUser.name || selectedUser.email) : "Aucune sélection" },
-    { key: "support", label: "Support", value: `${supportConversations.length} conversations` },
-    { key: "reports", label: "Signalements", value: `${reports.length} entrées` },
-    { key: "admins", label: "Administration", value: `${(data?.permissions || []).length} permissions` },
+    { key: "overview", label: t("Vue générale", "Overview"), value: `${formatNumber(data?.stats?.usersTotal || 0, locale)} ${t("comptes", "accounts")}` },
+    { key: "users", label: t("Utilisateurs", "Users"), value: `${filteredUsers.length} ${t("visibles", "visible")}` },
+    { key: "data", label: t("Données live", "Live data"), value: selectedUser ? (selectedUser.name || selectedUser.email) : t("Aucune sélection", "No selection") },
+    { key: "support", label: t("Support", "Support"), value: `${supportConversations.length} ${t("conversations", "conversations")}` },
+    { key: "reports", label: t("Signalements", "Reports"), value: `${reports.length} ${t("entrées", "entries")}` },
+    { key: "admins", label: t("Administration", "Administration"), value: `${(data?.permissions || []).length} ${t("permissions", "permissions")}` },
   ];
 
   function toggleSection(key) {
@@ -922,13 +923,13 @@ export default function AdminDashboard() {
         <aside className="flow-card sidebar">
           <div className="brand">
             <div className="logo">F</div>
-            <div className="eyebrow">Flow Control</div>
-            <h1>Admin Flow</h1>
-            <div className="soft">Shell admin simplifié, même identité que Flow, avec seulement les panneaux utiles.</div>
+            <div className="eyebrow">{t("Flow Control", "Flow Control")}</div>
+            <h1>{t("Admin Flow", "Admin Flow")}</h1>
+            <div className="soft">{t("Shell admin simplifié, même identité que Flow, avec seulement les panneaux utiles.", "Cleaner admin shell, same Flow identity, only useful panels.")}</div>
           </div>
 
           <div className="nav-group">
-            <div className="eyebrow">Navigation admin</div>
+            <div className="eyebrow">{t("Navigation admin", "Admin navigation")}</div>
             {topModules.map((item, index) => (
               <button
                 key={item.key}
@@ -943,12 +944,12 @@ export default function AdminDashboard() {
           </div>
 
           <div className="nav-group" style={{ marginTop: "auto" }}>
-            <div className="eyebrow">Actions</div>
+            <div className="eyebrow">{t("Actions", "Actions")}</div>
             <div className="nav-actions">
-              <a className="btn soft" href="/">Ouvrir Flow</a>
-              <a className="btn soft" href="/api/admin/export">Export CSV</a>
-              <button className="btn soft" onClick={() => loadOverview()} disabled={loading || sending}>Rafraichir</button>
-              <button className="btn soft" onClick={async () => { await api("/api/admin/auth/logout", { method: "POST" }); window.location.href = "/admin/login"; }}>Deconnexion</button>
+              <a className="btn soft" href="/">{t("Ouvrir Flow", "Open Flow")}</a>
+              <a className="btn soft" href="/api/admin/export">{t("Export CSV", "Export CSV")}</a>
+              <button className="btn soft" onClick={() => loadOverview()} disabled={loading || sending}>{t("Rafraichir", "Refresh")}</button>
+              <button className="btn soft" onClick={async () => { await api("/api/admin/auth/logout", { method: "POST" }); window.location.href = "/admin/login"; }}>{t("Deconnexion", "Log out")}</button>
             </div>
           </div>
         </aside>
@@ -956,26 +957,26 @@ export default function AdminDashboard() {
         <main className="admin-main">
           <section className="flow-card hero">
             <div className="hero-copy">
-              <div className="eyebrow">Flow Admin Dashboard</div>
-              <h2>Piloter Flow avec des sections nettes.</h2>
-              <div className="soft">Un panneau par usage: vue globale, comptes, données live, support, signalements et administration. Moins de bruit, plus d’action utile.</div>
+              <div className="eyebrow">{t("Dashboard admin Flow", "Flow Admin Dashboard")}</div>
+              <h2>{t("Piloter Flow avec des sections nettes.", "Operate Flow with cleaner sections.")}</h2>
+              <div className="soft">{t("Un panneau par usage: vue globale, comptes, données live, support, signalements et administration. Moins de bruit, plus d’action utile.", "One panel per use: overview, accounts, live data, support, reports and administration. Less noise, more useful action.")}</div>
               <div className="hero-actions">
-                <button className="btn primary" type="button" onClick={() => setOpenSection("users")}>Ouvrir les comptes</button>
-                <button className="btn soft" type="button" onClick={() => setOpenSection("data")}>Ouvrir les données live</button>
-                <button className="btn soft" type="button" onClick={() => setOpenSection("support")}>Ouvrir le support</button>
-                <button className="btn soft" type="button" onClick={() => setOpenSection("reports")}>Ouvrir les signalements</button>
+                <button className="btn primary" type="button" onClick={() => setOpenSection("users")}>{t("Ouvrir les comptes", "Open accounts")}</button>
+                <button className="btn soft" type="button" onClick={() => setOpenSection("data")}>{t("Ouvrir les données live", "Open live data")}</button>
+                <button className="btn soft" type="button" onClick={() => setOpenSection("support")}>{t("Ouvrir le support", "Open support")}</button>
+                <button className="btn soft" type="button" onClick={() => setOpenSection("reports")}>{t("Ouvrir les signalements", "Open reports")}</button>
               </div>
             </div>
             <div className="summary-box">
               <div className="mini-stat">
-                <div className="meta">Santé du store</div>
+                <div className="meta">{t("Santé du store", "Store health")}</div>
                 <strong>{data?.health?.status || "—"}</strong>
-                <div className="soft">Version {data?.release?.version ? `v${data.release.version}` : "—"}</div>
+                <div className="soft">{t("Version", "Version")} {data?.release?.version ? `v${data.release.version}` : "—"}</div>
               </div>
               <div className="mini-stat">
-                <div className="meta">Dernière mise à jour</div>
+                <div className="meta">{t("Dernière mise à jour", "Latest update")}</div>
                 <strong style={{ fontSize: 16, lineHeight: 1.35 }}>{formatDate(data?.release?.deployedAt, locale)}</strong>
-                <div className="soft">{data?.health?.latencyMs ? `${data.health.latencyMs} ms` : "Latence indisponible"}</div>
+                <div className="soft">{data?.health?.latencyMs ? `${data.health.latencyMs} ms` : t("Latence indisponible", "Latency unavailable")}</div>
               </div>
             </div>
           </section>
@@ -983,23 +984,23 @@ export default function AdminDashboard() {
           {error ? <div className="error-box">{error}</div> : null}
 
           <section className="stats-grid">
-            <StatCard label="Utilisateurs" value={formatNumber(data?.stats?.usersTotal || 0, locale)} hint={`${data?.stats?.newUsers7d || 0} nouveaux sur 7 jours`} />
-            <StatCard label="En ligne" value={formatNumber(data?.stats?.onlineNow || 0, locale)} hint={`${data?.stats?.active5m || 0} actifs sur 5 min`} />
-            <StatCard label="Conversations" value={formatNumber(data?.stats?.conversations || 0, locale)} hint={`${data?.stats?.groupConversations || 0} groupes`} />
-            <StatCard label="Signalements" value={formatNumber(data?.stats?.reportsOpen || 0, locale)} hint={`${data?.stats?.blockedUsers || 0} comptes bloques`} />
+            <StatCard label={t("Utilisateurs", "Users")} value={formatNumber(data?.stats?.usersTotal || 0, locale)} hint={`${data?.stats?.newUsers7d || 0} ${t("nouveaux sur 7 jours", "new in 7 days")}`} />
+            <StatCard label={t("En ligne", "Online")} value={formatNumber(data?.stats?.onlineNow || 0, locale)} hint={`${data?.stats?.active5m || 0} ${t("actifs sur 5 min", "active in 5 min")}`} />
+            <StatCard label={t("Conversations", "Conversations")} value={formatNumber(data?.stats?.conversations || 0, locale)} hint={`${data?.stats?.groupConversations || 0} ${t("groupes", "groups")}`} />
+            <StatCard label={t("Signalements", "Reports")} value={formatNumber(data?.stats?.reportsOpen || 0, locale)} hint={`${data?.stats?.blockedUsers || 0} ${t("comptes bloques", "blocked accounts")}`} />
           </section>
 
           <section className="section-stack">
             <section className={`flow-card section-card ${openSection === "overview" ? "open" : ""}`}>
               <button type="button" className="section-toggle" onClick={() => toggleSection("overview")}>
                 <div className="section-toggle-main">
-                  <div className="eyebrow">Vue générale</div>
-                  <h3>Store, activité et état global</h3>
-                  <div className="panel-sub">Santé du store, activité admin et comptes les plus actifs dans un seul panneau.</div>
+                  <div className="eyebrow">{t("Vue générale", "Overview")}</div>
+                  <h3>{t("Store, activité et état global", "Store, activity and global state")}</h3>
+                  <div className="panel-sub">{t("Santé du store, activité admin et comptes les plus actifs dans un seul panneau.", "Store health, admin activity and live account presence in a single panel.")}</div>
                 </div>
                   <div className="section-summary">
-                  <div className="section-kpi">{formatNumber(data?.stats?.usersTotal || 0, locale)} comptes</div>
-                  <div className="section-kpi">{formatNumber(data?.stats?.onlineNow || 0, locale)} en ligne</div>
+                  <div className="section-kpi">{formatNumber(data?.stats?.usersTotal || 0, locale)} {t("comptes", "accounts")}</div>
+                  <div className="section-kpi">{formatNumber(data?.stats?.onlineNow || 0, locale)} {t("en ligne", "online")}</div>
                   <div className="section-chevron">⌄</div>
                 </div>
               </button>
@@ -1009,32 +1010,32 @@ export default function AdminDashboard() {
                     <div className="flow-card panel">
                       <div className="panel-head">
                         <div>
-                          <div className="eyebrow">Journal admin</div>
-                          <h3 className="panel-title">Actions récentes</h3>
+                          <div className="eyebrow">{t("Journal admin", "Admin journal")}</div>
+                          <h3 className="panel-title">{t("Actions récentes", "Recent actions")}</h3>
                         </div>
                       </div>
                       <div className="stack-scroll">
                         {(data?.analytics?.auditTrail || []).map((entry) => (
                           <div key={entry.id} className="activity-item">
-                            <strong>{entry.title || "Action admin"}</strong>
+                            <strong>{entry.title || t("Action admin", "Admin action")}</strong>
                             <span>{entry.detail || "—"}</span>
                             <span>{entry.actor?.name || "Admin"} · {entry.actor?.email || "—"} · {entry.actor?.role || "admin"} · {formatDate(entry.createdAt, locale)}</span>
                           </div>
                         ))}
-                        {!(data?.analytics?.auditTrail || []).length && <div className="empty">Aucune action admin récente.</div>}
+                        {!(data?.analytics?.auditTrail || []).length && <div className="empty">{t("Aucune action admin récente.", "No recent admin actions.")}</div>}
                       </div>
                     </div>
 
                     <div className="flow-card panel">
                       <div className="panel-head">
                         <div>
-                          <div className="eyebrow">Présence live</div>
-                          <h3 className="panel-title">Comptes en mouvement</h3>
+                          <div className="eyebrow">{t("Présence live", "Live presence")}</div>
+                          <h3 className="panel-title">{t("Comptes en mouvement", "Accounts in motion")}</h3>
                         </div>
                       </div>
                       <div className="presence-strip">
                         <div className="presence-pill">
-                          <div className="meta">Now</div>
+                          <div className="meta">{t("Maintenant", "Now")}</div>
                           <strong>{formatNumber(data?.stats?.onlineNow || 0, locale)}</strong>
                         </div>
                         <div className="presence-pill">
@@ -1050,7 +1051,7 @@ export default function AdminDashboard() {
                           <strong>{formatNumber(data?.stats?.active7d || 0, locale)}</strong>
                         </div>
                         <div className="presence-pill">
-                          <div className="meta">+7 j</div>
+                          <div className="meta">+7 {t("j", "d")}</div>
                           <strong>{formatNumber(data?.stats?.newUsers7d || 0, locale)}</strong>
                         </div>
                       </div>
@@ -1058,15 +1059,15 @@ export default function AdminDashboard() {
                         {(data?.users || []).slice(0, 8).map((entry) => (
                           <div key={entry.uid} className="activity-item">
                             <strong>{entry.name}</strong>
-                            <span>{entry.email} · @{entry.profile?.username || "sans-identifiant"}</span>
-                            <span>{entry.status === "blocked" ? "Bloqué" : "Actif"} · forfait {entry.plan} · vu {relativeTime(entry.lastSeenAt || entry.lastLoginAt, locale)}</span>
-                            <span>{entry.metrics.notes} notes · {entry.metrics.tasks} tâches · {entry.metrics.events} événements · {entry.metrics.unreadNotifications} notif. non lues</span>
+                            <span>{entry.email} · @{entry.profile?.username || t("sans-identifiant", "no-username")}</span>
+                            <span>{entry.status === "blocked" ? t("Bloqué", "Blocked") : t("Actif", "Active")} · {t("forfait", "plan")} {entry.plan} · {t("vu", "seen")} {relativeTime(entry.lastSeenAt || entry.lastLoginAt, locale)}</span>
+                            <span>{entry.metrics.notes} {t("notes", "notes")} · {entry.metrics.tasks} {t("tâches", "tasks")} · {entry.metrics.events} {t("événements", "events")} · {entry.metrics.unreadNotifications} {t("notif. non lues", "unread notifications")}</span>
                           </div>
                         ))}
-                        {!(data?.users || []).length && <div className="empty">Aucune donnée d’activité disponible.</div>}
+                        {!(data?.users || []).length && <div className="empty">{t("Aucune donnée d’activité disponible.", "No activity data available.")}</div>}
                         {!!(data?.analytics?.recentSignups || []).length && (
                           <div className="activity-item">
-                            <strong>Nouveaux cette semaine</strong>
+                            <strong>{t("Nouveaux cette semaine", "New this week")}</strong>
                             <span>
                               {data.analytics.recentSignups.slice(0, 3).map((entry) => `${entry.name} · ${entry.email}`).join(" | ")}
                             </span>
@@ -1082,13 +1083,13 @@ export default function AdminDashboard() {
             <section className={`flow-card section-card ${openSection === "users" ? "open" : ""}`}>
               <button type="button" className="section-toggle" onClick={() => toggleSection("users")}>
                 <div className="section-toggle-main">
-                  <div className="eyebrow">Comptes Flow</div>
-                  <h3>Utilisateurs</h3>
-                  <div className="panel-sub">Recherche, sélection, actions et modération sans surcharge visuelle.</div>
+                  <div className="eyebrow">{t("Comptes Flow", "Flow accounts")}</div>
+                  <h3>{t("Utilisateurs", "Users")}</h3>
+                  <div className="panel-sub">{t("Recherche, sélection, actions et modération sans surcharge visuelle.", "Search, selection, actions and moderation without visual overload.")}</div>
                 </div>
                 <div className="section-summary">
-                  <div className="section-kpi">{filteredUsers.length} affichés</div>
-                  <div className="section-kpi">{selectedUser?.name || "Aucun compte"}</div>
+                  <div className="section-kpi">{filteredUsers.length} {t("affichés", "shown")}</div>
+                  <div className="section-kpi">{selectedUser?.name || t("Aucun compte", "No account")}</div>
                   <div className="section-chevron">⌄</div>
                 </div>
               </button>
@@ -1096,13 +1097,13 @@ export default function AdminDashboard() {
                 <div className="section-content">
                   <div className="split-grid">
                     <div className="flow-card panel">
-                      <input className="search" placeholder="Rechercher par nom, email ou identifiant" value={query} onChange={(event) => setQuery(event.target.value)} />
-                      <ChoiceRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
-                      <ChoiceRow options={ADMIN_OPTIONS} value={adminFilter} onChange={setAdminFilter} />
-                      <ChoiceRow options={PLAN_OPTIONS} value={planFilter} onChange={setPlanFilter} />
+                      <input className="search" placeholder={t("Rechercher par nom, email ou identifiant", "Search by name, email or username")} value={query} onChange={(event) => setQuery(event.target.value)} />
+                      <ChoiceRow options={ui.statusOptions} value={statusFilter} onChange={setStatusFilter} />
+                      <ChoiceRow options={ui.adminOptions} value={adminFilter} onChange={setAdminFilter} />
+                      <ChoiceRow options={ui.planOptions} value={planFilter} onChange={setPlanFilter} />
                       <div className="stack-scroll">
-                        {loading ? <div className="empty">Chargement des utilisateurs…</div> : null}
-                        {!loading && !filteredUsers.length ? <div className="empty">Aucun utilisateur trouvé.</div> : null}
+                        {loading ? <div className="empty">{t("Chargement des utilisateurs…", "Loading users...")}</div> : null}
+                        {!loading && !filteredUsers.length ? <div className="empty">{t("Aucun utilisateur trouvé.", "No users found.")}</div> : null}
                         {!loading && filteredUsers.map((entry) => (
                           <button key={entry.uid} type="button" className={`user-row ${selectedUser?.uid === entry.uid ? "active" : ""}`} onClick={() => setSelectedUid(entry.uid)}>
                             <div className="user-top">
@@ -1110,10 +1111,10 @@ export default function AdminDashboard() {
                                 <strong>{entry.name}</strong>
                                 <div className="soft">{entry.email}</div>
                               </div>
-                              <div className={`badge ${entry.status === "blocked" ? "blocked" : ""}`}>{entry.status === "blocked" ? "Bloqué" : "Actif"}</div>
+                              <div className={`badge ${entry.status === "blocked" ? "blocked" : ""}`}>{entry.status === "blocked" ? t("Bloqué", "Blocked") : t("Actif", "Active")}</div>
                             </div>
                             <div className="user-meta">
-                              <span>@{entry.profile?.username || "sans-identifiant"}</span>
+                              <span>@{entry.profile?.username || t("sans-identifiant", "no-username")}</span>
                               <span>{entry.plan}</span>
                               <span>{relativeTime(entry.lastLoginAt, locale)}</span>
                               {entry.admin?.enabled ? <span>admin {entry.admin.role}</span> : null}
@@ -1126,56 +1127,56 @@ export default function AdminDashboard() {
                     <div className="flow-card panel">
                       <div className="panel-head">
                         <div>
-                          <div className="eyebrow">Sélection active</div>
-                          <h3 className="panel-title">{selectedUser?.name || "Sélectionner un utilisateur"}</h3>
-                          <div className="panel-sub">Tout le nécessaire pour agir sur le compte sélectionné.</div>
+                          <div className="eyebrow">{t("Sélection active", "Active selection")}</div>
+                          <h3 className="panel-title">{selectedUser?.name || t("Sélectionner un utilisateur", "Select a user")}</h3>
+                          <div className="panel-sub">{t("Tout le nécessaire pour agir sur le compte sélectionné.", "Everything needed to act on the selected account.")}</div>
                         </div>
                       </div>
-                      {!selectedUser ? <div className="empty">Sélectionne un utilisateur pour agir.</div> : (
+                      {!selectedUser ? <div className="empty">{t("Sélectionne un utilisateur pour agir.", "Select a user to act on it.")}</div> : (
                         <>
                           <div className="detail-grid">
                             <div className="detail-box">
-                              <div className="meta">Contact</div>
+                              <div className="meta">{t("Contact", "Contact")}</div>
                               <strong>{selectedUser.email}</strong>
-                              <div className="soft">Créé le {formatDate(selectedUser.createdAt, locale)}</div>
+                              <div className="soft">{t("Créé le", "Created on")} {formatDate(selectedUser.createdAt, locale)}</div>
                             </div>
                             <div className="detail-box">
-                              <div className="meta">Connexion</div>
+                              <div className="meta">{t("Connexion", "Login")}</div>
                               <strong>{formatDate(selectedUser.lastLoginAt, locale)}</strong>
-                              <div className="soft">{selectedUser.loginCount} connexions · présence {relativeTime(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)}</div>
+                              <div className="soft">{selectedUser.loginCount} {t("connexions", "logins")} · {t("présence", "presence")} {relativeTime(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)}</div>
                             </div>
                           </div>
 
                           <div className="two-col">
                             <div className="message-card" style={{ padding: 16 }}>
-                              <div className="meta">Message rapide</div>
-                              <div className="soft" style={{ marginTop: 6, marginBottom: 12 }}>Choisis l’audience, un titre court puis envoie.</div>
+                              <div className="meta">{t("Message rapide", "Quick message")}</div>
+                              <div className="soft" style={{ marginTop: 6, marginBottom: 12 }}>{t("Choisis l’audience, un titre court puis envoie.", "Choose the audience, a short title and send.")}</div>
                               <div className="composer-box">
-                                <ChoiceRow options={RECIPIENT_OPTIONS} value={form.recipientMode} onChange={(value) => setForm((prev) => ({ ...prev, recipientMode: value }))} />
+                                <ChoiceRow options={ui.recipientOptions} value={form.recipientMode} onChange={(value) => setForm((prev) => ({ ...prev, recipientMode: value }))} />
                                 <div>
-                                  <label>Titre</label>
-                                  <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Ex: mise à jour, rappel, action requise" />
+                                  <label>{t("Titre", "Title")}</label>
+                                  <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} placeholder={t("Ex: mise à jour, rappel, action requise", "Ex: update, reminder, action required")} />
                                 </div>
                                 <div>
-                                  <label>Message</label>
-                                  <textarea value={form.detail} onChange={(event) => setForm((prev) => ({ ...prev, detail: event.target.value }))} placeholder="Écris un message simple, clair et utile." />
+                                  <label>{t("Message", "Message")}</label>
+                                  <textarea value={form.detail} onChange={(event) => setForm((prev) => ({ ...prev, detail: event.target.value }))} placeholder={t("Écris un message simple, clair et utile.", "Write a simple, clear and useful message.")} />
                                 </div>
                                 <div className="inline-actions">
-                                  <button className="btn primary" type="button" disabled={sending} onClick={() => runAction("notify", form)}>Envoyer</button>
-                                  <button className="btn soft" type="button" disabled={sending || !capabilities.canExportCsv} onClick={() => { window.location.href = "/api/admin/export"; }}>Exporter CSV</button>
+                                  <button className="btn primary" type="button" disabled={sending} onClick={() => runAction("notify", form)}>{t("Envoyer", "Send")}</button>
+                                  <button className="btn soft" type="button" disabled={sending || !capabilities.canExportCsv} onClick={() => { window.location.href = "/api/admin/export"; }}>{t("Exporter CSV", "Export CSV")}</button>
                                 </div>
                               </div>
                             </div>
 
                             <div className="message-card" style={{ padding: 16 }}>
-                              <div className="meta">Compte et statut</div>
+                              <div className="meta">{t("Compte et statut", "Account and status")}</div>
                               <div className="inline-actions" style={{ marginTop: 12 }}>
-                                <button className="btn soft" type="button" disabled={sending || !capabilities.canManageUsers} onClick={() => runAction(selectedUser.status === "blocked" ? "unblock" : "block")}>{selectedUser.status === "blocked" ? "Débloquer" : "Bloquer"}</button>
-                                <button className="btn soft" type="button" disabled={sending || !capabilities.canManageUsers} onClick={() => runAction("reset-password")}>Reset MDP</button>
-                                <button className="btn soft" type="button" disabled={sending || !capabilities.canManageAdmins} onClick={() => runAction("update-admin-permissions", { role: selectedUser.admin?.role === "super_admin" ? "admin" : "super_admin", permissions: selectedUser.admin?.permissions || [] })}>{selectedUser.admin?.enabled ? "Basculer rôle" : "Promouvoir admin"}</button>
+                                <button className="btn soft" type="button" disabled={sending || !capabilities.canManageUsers} onClick={() => runAction(selectedUser.status === "blocked" ? "unblock" : "block")}>{selectedUser.status === "blocked" ? t("Débloquer", "Unblock") : t("Bloquer", "Block")}</button>
+                                <button className="btn soft" type="button" disabled={sending || !capabilities.canManageUsers} onClick={() => runAction("reset-password")}>{t("Reset MDP", "Reset password")}</button>
+                                <button className="btn soft" type="button" disabled={sending || !capabilities.canManageAdmins} onClick={() => runAction("update-admin-permissions", { role: selectedUser.admin?.role === "super_admin" ? "admin" : "super_admin", permissions: selectedUser.admin?.permissions || [] })}>{selectedUser.admin?.enabled ? t("Basculer rôle", "Switch role") : t("Promouvoir admin", "Promote admin")}</button>
                               </div>
                               <div className="soft" style={{ marginTop: 14 }}>
-                                Admin: {selectedUser.admin?.enabled ? `${selectedUser.admin.role} · ${(selectedUser.admin.permissions || []).length} permissions` : "non"}
+                                {t("Admin", "Admin")}: {selectedUser.admin?.enabled ? `${selectedUser.admin.role} · ${(selectedUser.admin.permissions || []).length} ${t("permissions", "permissions")}` : t("non", "no")}
                               </div>
                               {!!selectedUser.admin?.enabled && (
                                 <div className="permission-grid" style={{ marginTop: 12 }}>
@@ -1183,17 +1184,17 @@ export default function AdminDashboard() {
                                 </div>
                               )}
                               <div className="danger-box" style={{ marginTop: 14 }}>
-                                <div className="meta">Suppression compte</div>
-                                <div className="soft" style={{ marginTop: 6 }}>La confirmation reste dans la carte pour éviter les clics accidentels.</div>
+                                <div className="meta">{t("Suppression compte", "Delete account")}</div>
+                                <div className="soft" style={{ marginTop: 6 }}>{t("La confirmation reste dans la carte pour éviter les clics accidentels.", "Confirmation stays inside the card to avoid accidental clicks.")}</div>
                                 {!confirmDelete ? (
                                   <div className="inline-actions" style={{ marginTop: 12 }}>
-                                    <button className="btn danger" type="button" disabled={sending || !capabilities.canManageUsers} onClick={() => setConfirmDelete(true)}>Supprimer</button>
+                                    <button className="btn danger" type="button" disabled={sending || !capabilities.canManageUsers} onClick={() => setConfirmDelete(true)}>{t("Supprimer", "Delete")}</button>
                                   </div>
                                 ) : (
                                   <div className="warning-row" style={{ marginTop: 12 }}>
-                                    <span className="soft">Confirmer la suppression de {selectedUser.name} ?</span>
-                                    <button className="btn danger" type="button" disabled={sending || !capabilities.canManageUsers} onClick={() => { setConfirmDelete(false); void runAction("delete-user"); }}>Oui, supprimer</button>
-                                    <button className="btn soft" type="button" disabled={sending} onClick={() => setConfirmDelete(false)}>Annuler</button>
+                                    <span className="soft">{t("Confirmer la suppression de", "Confirm deletion of")} {selectedUser.name} ?</span>
+                                    <button className="btn danger" type="button" disabled={sending || !capabilities.canManageUsers} onClick={() => { setConfirmDelete(false); void runAction("delete-user"); }}>{t("Oui, supprimer", "Yes, delete")}</button>
+                                    <button className="btn soft" type="button" disabled={sending} onClick={() => setConfirmDelete(false)}>{t("Annuler", "Cancel")}</button>
                                   </div>
                                 )}
                               </div>
@@ -1201,7 +1202,7 @@ export default function AdminDashboard() {
                           </div>
 
                           {notice ? <div className="notice">{notice}</div> : null}
-                          {tempPassword ? <div className="notice">Mot de passe temporaire : {tempPassword}</div> : null}
+                          {tempPassword ? <div className="notice">{t("Mot de passe temporaire :", "Temporary password:")} {tempPassword}</div> : null}
                         </>
                       )}
                     </div>
@@ -1213,87 +1214,87 @@ export default function AdminDashboard() {
             <section className={`flow-card section-card ${openSection === "data" ? "open" : ""}`}>
               <button type="button" className="section-toggle" onClick={() => toggleSection("data")}>
                 <div className="section-toggle-main">
-                  <div className="eyebrow">Données live</div>
-                  <h3>Lecture complète du compte sélectionné</h3>
-                  <div className="panel-sub">Profil, sécurité, plan, activité, volumes métier et signaux de santé en direct.</div>
+                  <div className="eyebrow">{t("Données live", "Live data")}</div>
+                  <h3>{t("Lecture complète du compte sélectionné", "Full readout of the selected account")}</h3>
+                  <div className="panel-sub">{t("Profil, sécurité, plan, activité, volumes métier et signaux de santé en direct.", "Profile, security, plan, activity, business volumes and health signals in real time.")}</div>
                 </div>
                 <div className="section-summary">
-                  <div className="section-kpi">{selectedUser?.name || "Aucune sélection"}</div>
-                  <div className="section-kpi">{selectedUser?.email || "Choisis un compte"}</div>
+                  <div className="section-kpi">{selectedUser?.name || t("Aucune sélection", "No selection")}</div>
+                  <div className="section-kpi">{selectedUser?.email || t("Choisis un compte", "Choose an account")}</div>
                   <div className="section-chevron">⌄</div>
                 </div>
               </button>
               {openSection === "data" ? (
                 <div className="section-content">
-                  {!selectedUser ? <div className="empty">Sélectionne un utilisateur dans la section comptes pour afficher ses données live.</div> : (
+                  {!selectedUser ? <div className="empty">{t("Sélectionne un utilisateur dans la section comptes pour afficher ses données live.", "Select a user in the accounts section to display live data.")}</div> : (
                     <>
                       <div className="data-grid">
-                        <DataMetric label="Nom affiché" value={selectedUser.name} hint={selectedUser.profile?.fullName || "Nom complet non renseigné"} />
-                        <DataMetric label="Identifiant" value={selectedUser.profile?.username ? `@${selectedUser.profile.username}` : "Aucun"} hint={selectedUser.email} />
-                        <DataMetric label="Forfait" value={selectedUser.plan} hint={`Statut: ${selectedUser.planStatus || "—"}`} />
-                        <DataMetric label="Dernière présence" value={relativeTime(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)} hint={formatDate(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)} />
+                        <DataMetric label={t("Nom affiché", "Display name")} value={selectedUser.name} hint={selectedUser.profile?.fullName || t("Nom complet non renseigné", "Full name not set")} />
+                        <DataMetric label={t("Identifiant", "Username")} value={selectedUser.profile?.username ? `@${selectedUser.profile.username}` : t("Aucun", "None")} hint={selectedUser.email} />
+                        <DataMetric label={t("Forfait", "Plan")} value={selectedUser.plan} hint={`${t("Statut", "Status")}: ${selectedUser.planStatus || "—"}`} />
+                        <DataMetric label={t("Dernière présence", "Last presence")} value={relativeTime(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)} hint={formatDate(selectedUser.lastSeenAt || selectedUser.lastLoginAt, locale)} />
                       </div>
 
                       <div className="activity-grid">
                         <div className="data-block">
                           <div>
-                            <div className="eyebrow">Compte</div>
+                            <div className="eyebrow">{t("Compte", "Account")}</div>
                             <h3 className="panel-title">{selectedUser.name}</h3>
                           </div>
                           <div className="data-list">
-                            <div className="data-row"><span>Email</span><span>{selectedUser.email}</span></div>
+                            <div className="data-row"><span>{t("Email", "Email")}</span><span>{selectedUser.email}</span></div>
                             <div className="data-row"><span>UID</span><span>{selectedUser.uid}</span></div>
-                            <div className="data-row"><span>Création</span><span>{formatDate(selectedUser.createdAt, locale)}</span></div>
-                            <div className="data-row"><span>Dernière connexion</span><span>{formatDate(selectedUser.lastLoginAt, locale)}</span></div>
-                            <div className="data-row"><span>Dernière activité</span><span>{formatDate(selectedUser.lastSeenAt, locale)}</span></div>
-                            <div className="data-row"><span>Connexions</span><span>{formatNumber(selectedUser.loginCount, locale)}</span></div>
+                            <div className="data-row"><span>{t("Création", "Creation")}</span><span>{formatDate(selectedUser.createdAt, locale)}</span></div>
+                            <div className="data-row"><span>{t("Dernière connexion", "Last login")}</span><span>{formatDate(selectedUser.lastLoginAt, locale)}</span></div>
+                            <div className="data-row"><span>{t("Dernière activité", "Last activity")}</span><span>{formatDate(selectedUser.lastSeenAt, locale)}</span></div>
+                            <div className="data-row"><span>{t("Connexions", "Logins")}</span><span>{formatNumber(selectedUser.loginCount, locale)}</span></div>
                           </div>
                         </div>
 
                         <div className="data-block">
                           <div>
-                            <div className="eyebrow">Profil</div>
-                            <h3 className="panel-title">Identité et contact</h3>
+                            <div className="eyebrow">{t("Profil", "Profile")}</div>
+                            <h3 className="panel-title">{t("Identité et contact", "Identity and contact")}</h3>
                           </div>
                           <div className="data-list">
-                            <div className="data-row"><span>Nom complet</span><span>{selectedUser.profile?.fullName || "—"}</span></div>
-                            <div className="data-row"><span>Téléphone</span><span>{selectedUser.profile?.phone || "—"}</span></div>
-                            <div className="data-row"><span>Téléphone visible</span><span>{selectedUser.profile?.phoneVisible ? "Oui" : "Non"}</span></div>
-                            <div className="data-row"><span>Photo profil</span><span>{selectedUser.profile?.photoUrl ? "Configurée" : "Absente"}</span></div>
-                            <div className="data-row"><span>Admin</span><span>{selectedUser.admin?.enabled ? selectedUser.admin.role : "Non"}</span></div>
-                            <div className="data-row"><span>Permissions</span><span>{formatNumber((selectedUser.admin?.permissions || []).length, locale)}</span></div>
+                            <div className="data-row"><span>{t("Nom complet", "Full name")}</span><span>{selectedUser.profile?.fullName || "—"}</span></div>
+                            <div className="data-row"><span>{t("Téléphone", "Phone")}</span><span>{selectedUser.profile?.phone || "—"}</span></div>
+                            <div className="data-row"><span>{t("Téléphone visible", "Phone visible")}</span><span>{selectedUser.profile?.phoneVisible ? t("Oui", "Yes") : t("Non", "No")}</span></div>
+                            <div className="data-row"><span>{t("Photo profil", "Profile photo")}</span><span>{selectedUser.profile?.photoUrl ? t("Configurée", "Configured") : t("Absente", "Missing")}</span></div>
+                            <div className="data-row"><span>{t("Admin", "Admin")}</span><span>{selectedUser.admin?.enabled ? selectedUser.admin.role : t("Non", "No")}</span></div>
+                            <div className="data-row"><span>{t("Permissions", "Permissions")}</span><span>{formatNumber((selectedUser.admin?.permissions || []).length, locale)}</span></div>
                           </div>
                         </div>
 
                         <div className="data-block">
                           <div>
-                            <div className="eyebrow">Sécurité</div>
-                            <h3 className="panel-title">État et signaux</h3>
+                            <div className="eyebrow">{t("Sécurité", "Security")}</div>
+                            <h3 className="panel-title">{t("État et signaux", "State and signals")}</h3>
                           </div>
                           <div className="data-list">
-                            <div className="data-row"><span>Statut</span><span>{selectedUser.status === "blocked" ? "Bloqué" : "Actif"}</span></div>
-                            <div className="data-row"><span>Mot de passe à changer</span><span>{selectedUser.mustChangePassword ? "Oui" : "Non"}</span></div>
-                            <div className="data-row"><span>Blocage</span><span>{selectedUser.blockedAt ? formatDate(selectedUser.blockedAt, locale) : "—"}</span></div>
-                            <div className="data-row"><span>Motif blocage</span><span>{selectedUser.blockedReason || "—"}</span></div>
-                            <div className="data-row"><span>Plan billing</span><span>{selectedUser.planStatus || "—"}</span></div>
+                            <div className="data-row"><span>{t("Statut", "Status")}</span><span>{selectedUser.status === "blocked" ? t("Bloqué", "Blocked") : t("Actif", "Active")}</span></div>
+                            <div className="data-row"><span>{t("Mot de passe à changer", "Must change password")}</span><span>{selectedUser.mustChangePassword ? t("Oui", "Yes") : t("Non", "No")}</span></div>
+                            <div className="data-row"><span>{t("Blocage", "Block date")}</span><span>{selectedUser.blockedAt ? formatDate(selectedUser.blockedAt, locale) : "—"}</span></div>
+                            <div className="data-row"><span>{t("Motif blocage", "Block reason")}</span><span>{selectedUser.blockedReason || "—"}</span></div>
+                            <div className="data-row"><span>{t("Plan billing", "Billing plan")}</span><span>{selectedUser.planStatus || "—"}</span></div>
                           </div>
                         </div>
 
                         <div className="data-block">
                           <div>
-                            <div className="eyebrow">Volumes métier</div>
-                            <h3 className="panel-title">Modules utilisés</h3>
+                            <div className="eyebrow">{t("Volumes métier", "Business volume")}</div>
+                            <h3 className="panel-title">{t("Modules utilisés", "Modules used")}</h3>
                           </div>
                           <div className="data-list">
-                            <div className="data-row"><span>Notes</span><span>{formatNumber(selectedUser.metrics?.notes, locale)}</span></div>
-                            <div className="data-row"><span>Tâches</span><span>{formatNumber(selectedUser.metrics?.tasks, locale)}</span></div>
-                            <div className="data-row"><span>Événements</span><span>{formatNumber(selectedUser.metrics?.events, locale)}</span></div>
-                            <div className="data-row"><span>Habitudes</span><span>{formatNumber(selectedUser.metrics?.habits, locale)}</span></div>
-                            <div className="data-row"><span>Objectifs</span><span>{formatNumber(selectedUser.metrics?.goals, locale)}</span></div>
-                            <div className="data-row"><span>Signets</span><span>{formatNumber(selectedUser.metrics?.bookmarks, locale)}</span></div>
-                            <div className="data-row"><span>Notifications</span><span>{formatNumber(selectedUser.metrics?.notifications, locale)}</span></div>
-                            <div className="data-row"><span>Non lues</span><span>{formatNumber(selectedUser.metrics?.unreadNotifications, locale)}</span></div>
-                            <div className="data-row"><span>Activité</span><span>{formatNumber(selectedUser.metrics?.activity, locale)}</span></div>
+                            <div className="data-row"><span>{t("Notes", "Notes")}</span><span>{formatNumber(selectedUser.metrics?.notes, locale)}</span></div>
+                            <div className="data-row"><span>{t("Tâches", "Tasks")}</span><span>{formatNumber(selectedUser.metrics?.tasks, locale)}</span></div>
+                            <div className="data-row"><span>{t("Événements", "Events")}</span><span>{formatNumber(selectedUser.metrics?.events, locale)}</span></div>
+                            <div className="data-row"><span>{t("Habitudes", "Habits")}</span><span>{formatNumber(selectedUser.metrics?.habits, locale)}</span></div>
+                            <div className="data-row"><span>{t("Objectifs", "Goals")}</span><span>{formatNumber(selectedUser.metrics?.goals, locale)}</span></div>
+                            <div className="data-row"><span>{t("Signets", "Bookmarks")}</span><span>{formatNumber(selectedUser.metrics?.bookmarks, locale)}</span></div>
+                            <div className="data-row"><span>{t("Notifications", "Notifications")}</span><span>{formatNumber(selectedUser.metrics?.notifications, locale)}</span></div>
+                            <div className="data-row"><span>{t("Non lues", "Unread")}</span><span>{formatNumber(selectedUser.metrics?.unreadNotifications, locale)}</span></div>
+                            <div className="data-row"><span>{t("Activité", "Activity")}</span><span>{formatNumber(selectedUser.metrics?.activity, locale)}</span></div>
                           </div>
                         </div>
                       </div>
@@ -1306,13 +1307,13 @@ export default function AdminDashboard() {
             <section className={`flow-card section-card ${openSection === "support" ? "open" : ""}`}>
               <button type="button" className="section-toggle" onClick={() => toggleSection("support")}>
                 <div className="section-toggle-main">
-                  <div className="eyebrow">Support Flow</div>
-                  <h3>Conversations utilisateurs</h3>
-                  <div className="panel-sub">Messages support ouverts depuis Flow, avec réponse admin directe.</div>
+                  <div className="eyebrow">{t("Support Flow", "Flow support")}</div>
+                  <h3>{t("Conversations utilisateurs", "User conversations")}</h3>
+                  <div className="panel-sub">{t("Messages support ouverts depuis Flow, avec réponse admin directe.", "Support messages opened from Flow, with direct admin reply.")}</div>
                 </div>
                 <div className="section-summary">
-                  <div className="section-kpi">{supportConversations.length} conversations</div>
-                  <div className="section-kpi">{selectedSupportConversation?.title || "Aucune sélection"}</div>
+                  <div className="section-kpi">{supportConversations.length} {t("conversations", "conversations")}</div>
+                  <div className="section-kpi">{selectedSupportConversation?.title || t("Aucune sélection", "No selection")}</div>
                   <div className="section-chevron">⌄</div>
                 </div>
               </button>
@@ -1320,7 +1321,7 @@ export default function AdminDashboard() {
                 <div className="section-content">
                   <div className="conversation-shell">
                     <div className="stack-scroll">
-                      {!supportConversations.length && <div className="empty">Aucune conversation support pour le moment.</div>}
+                      {!supportConversations.length && <div className="empty">{t("Aucune conversation support pour le moment.", "No support conversation yet.")}</div>}
                       {supportConversations.map((conversation) => (
                         <button key={conversation.id} type="button" className={`user-row ${selectedSupportConversation?.id === conversation.id ? "active" : ""}`} onClick={() => setSelectedSupportId(conversation.id)}>
                           <div className="user-top">
@@ -1328,42 +1329,42 @@ export default function AdminDashboard() {
                               <strong>{conversation.title}</strong>
                               <div className="soft">{conversation.participants?.map((participant) => participant.name).join(", ")}</div>
                             </div>
-                            <div className={`badge ${conversation.supportStatus === "closed" ? "blocked" : ""}`}>{conversation.supportStatus === "closed" ? "Fermée" : "Ouverte"}</div>
+                            <div className={`badge ${conversation.supportStatus === "closed" ? "blocked" : ""}`}>{conversation.supportStatus === "closed" ? t("Fermée", "Closed") : t("Ouverte", "Open")}</div>
                             </div>
                             <div className="user-meta">
-                              <span>{conversation.unreadCount || 0} non lu</span>
-                              <span>{conversation.lastMessageAt ? formatDate(conversation.lastMessageAt, locale) : "Pas de message"}</span>
+                              <span>{conversation.unreadCount || 0} {t("non lus", "unread")}</span>
+                              <span>{conversation.lastMessageAt ? formatDate(conversation.lastMessageAt, locale) : t("Pas de message", "No message")}</span>
                             </div>
                           </button>
                       ))}
                     </div>
 
                     <div className="support-thread">
-                      {!selectedSupportConversation ? <div className="empty">Sélectionne une conversation support.</div> : (
+                      {!selectedSupportConversation ? <div className="empty">{t("Sélectionne une conversation support.", "Select a support conversation.")}</div> : (
                         <>
                           <div className="detail-box">
-                            <div className="meta">Conversation active</div>
+                            <div className="meta">{t("Conversation active", "Active conversation")}</div>
                             <strong>{selectedSupportConversation.title}</strong>
                             <div className="soft">{selectedSupportConversation.participants?.map((participant) => participant.name).join(", ")}</div>
                             <div className="inline-actions" style={{ marginTop: 12 }}>
-                              <button className="btn soft" type="button" disabled={sending} onClick={() => runSupportAction("mark-read")}>Marquer lu</button>
-                              <button className="btn soft" type="button" disabled={sending} onClick={() => runSupportAction("toggle-support-status")}>{selectedSupportConversation.supportStatus === "closed" ? "Réouvrir" : "Clore"}</button>
+                              <button className="btn soft" type="button" disabled={sending} onClick={() => runSupportAction("mark-read")}>{t("Marquer lu", "Mark as read")}</button>
+                              <button className="btn soft" type="button" disabled={sending} onClick={() => runSupportAction("toggle-support-status")}>{selectedSupportConversation.supportStatus === "closed" ? t("Réouvrir", "Reopen") : t("Clore", "Close")}</button>
                             </div>
                           </div>
                           <div className="stack-scroll">
                             {(selectedSupportConversation.messages || []).map((message) => (
                               <div key={message.id} className={`support-message ${message.sender?.email === data?.admin?.email ? "admin" : ""}`}>
-                                <strong>{message.sender?.name || "Système"}</strong>
-                              <div className="soft" style={{ marginTop: 6 }}>{message.body || "Message système"}</div>
+                                <strong>{message.sender?.name || t("Système", "System")}</strong>
+                              <div className="soft" style={{ marginTop: 6 }}>{message.body || t("Message système", "System message")}</div>
                                 <div className="support-meta">{formatDate(message.createdAt, locale)}</div>
                               </div>
                             ))}
                           </div>
                           <div className="message-card" style={{ padding: 16 }}>
-                            <label>Réponse admin</label>
-                            <textarea value={supportReply} onChange={(event) => setSupportReply(event.target.value)} placeholder="Répondre à l’utilisateur depuis le dashboard admin..." />
+                            <label>{t("Réponse admin", "Admin reply")}</label>
+                            <textarea value={supportReply} onChange={(event) => setSupportReply(event.target.value)} placeholder={t("Répondre à l’utilisateur depuis le dashboard admin...", "Reply to the user from the admin dashboard...")} />
                             <div className="inline-actions" style={{ marginTop: 12 }}>
-                              <button className="btn primary" type="button" disabled={sending || !supportReply.trim()} onClick={() => runSupportAction("send-message", { text: supportReply })}>Envoyer</button>
+                              <button className="btn primary" type="button" disabled={sending || !supportReply.trim()} onClick={() => runSupportAction("send-message", { text: supportReply })}>{t("Envoyer", "Send")}</button>
                             </div>
                           </div>
                         </>
@@ -1377,13 +1378,13 @@ export default function AdminDashboard() {
             <section className={`flow-card section-card ${openSection === "reports" ? "open" : ""}`}>
               <button type="button" className="section-toggle" onClick={() => toggleSection("reports")}>
                 <div className="section-toggle-main">
-                  <div className="eyebrow">Signalements</div>
-                  <h3>Messages et bugs remontés</h3>
-                  <div className="panel-sub">Messages signalés et bugs interface dans une modération unique.</div>
+                  <div className="eyebrow">{t("Signalements", "Reports")}</div>
+                  <h3>{t("Messages et bugs remontés", "Messages and bugs reported")}</h3>
+                  <div className="panel-sub">{t("Messages signalés et bugs interface dans une modération unique.", "Reported messages and interface bugs in a single moderation area.")}</div>
                 </div>
                 <div className="section-summary">
-                  <div className="section-kpi">{formatNumber(data?.stats?.reportsOpen || 0, locale)} ouverts</div>
-                  <div className="section-kpi">{selectedReport?.reason || "Aucune sélection"}</div>
+                  <div className="section-kpi">{formatNumber(data?.stats?.reportsOpen || 0, locale)} {t("ouverts", "open")}</div>
+                  <div className="section-kpi">{selectedReport?.reason || t("Aucune sélection", "No selection")}</div>
                   <div className="section-chevron">⌄</div>
                 </div>
               </button>
@@ -1391,15 +1392,15 @@ export default function AdminDashboard() {
                 <div className="section-content">
                   <div className="conversation-shell">
                     <div className="stack-scroll">
-                      {!reports.length && <div className="empty">Aucun signalement dans le store pour le moment.</div>}
+                      {!reports.length && <div className="empty">{t("Aucun signalement dans le store pour le moment.", "No report in the store right now.")}</div>}
                       {reports.map((report) => (
                         <button key={report.id} type="button" className={`user-row ${selectedReport?.id === report.id ? "active" : ""}`} onClick={() => setSelectedReportId(report.id)}>
                           <div className="user-top">
                             <div style={{ textAlign: "left" }}>
-                              <strong>{report.reason || "Signalement Flow"}</strong>
-                              <div className="soft">{report.reporter?.name || "Utilisateur"} · {report.type === "bug" ? "bug" : "message"}</div>
+                              <strong>{report.reason || t("Signalement Flow", "Flow report")}</strong>
+                              <div className="soft">{report.reporter?.name || t("Utilisateur", "User")} · {report.type === "bug" ? t("bug", "bug") : t("message", "message")}</div>
                             </div>
-                            <div className={`badge ${report.status !== "open" ? "blocked" : ""}`}>{reportStatusLabel(report.status)}</div>
+                            <div className={`badge ${report.status !== "open" ? "blocked" : ""}`}>{reportStatusLabel(report.status, locale)}</div>
                           </div>
                           <div className="user-meta">
                             <span>{report.conversationTitle || "Flow"}</span>
@@ -1410,16 +1411,16 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="support-thread">
-                      {!selectedReport ? <div className="empty">Sélectionne un signalement pour l’analyser.</div> : (
+                      {!selectedReport ? <div className="empty">{t("Sélectionne un signalement pour l’analyser.", "Select a report to review it.")}</div> : (
                         <>
                           <div className="detail-box">
-                            <div className="meta">Signalement actif</div>
-                            <strong>{selectedReport.reason || "Signalement Flow"}</strong>
+                            <div className="meta">{t("Signalement actif", "Active report")}</div>
+                            <strong>{selectedReport.reason || t("Signalement Flow", "Flow report")}</strong>
                             <div className="soft">
-                              {selectedReport.reporter?.name || "Utilisateur"} · {selectedReport.reporter?.email || "—"} · {selectedReport.type === "bug" ? "Bug interface" : "Message signalé"}
+                              {selectedReport.reporter?.name || t("Utilisateur", "User")} · {selectedReport.reporter?.email || "—"} · {selectedReport.type === "bug" ? t("Bug interface", "Interface bug") : t("Message signalé", "Reported message")}
                             </div>
                             <div className="soft" style={{ marginTop: 6 }}>
-                              {selectedReport.conversationTitle || "Flow"} · envoyé {formatDate(selectedReport.createdAt, locale)}
+                              {selectedReport.conversationTitle || "Flow"} · {t("envoyé", "sent")} {formatDate(selectedReport.createdAt, locale)}
                             </div>
                             <div className="inline-actions" style={{ marginTop: 12 }}>
                               <button
@@ -1428,7 +1429,7 @@ export default function AdminDashboard() {
                                 disabled={sending || !capabilities.canModerateReports || selectedReport.status === "resolved"}
                                 onClick={() => runAction("update-report-status", { reportId: selectedReport.id, status: "resolved", resolutionNote: reportResolutionNote })}
                               >
-                                Marquer résolu
+                                {t("Marquer résolu", "Mark resolved")}
                               </button>
                               <button
                                 className="btn soft"
@@ -1436,42 +1437,42 @@ export default function AdminDashboard() {
                                 disabled={sending || !capabilities.canModerateReports || selectedReport.status === "dismissed"}
                                 onClick={() => runAction("update-report-status", { reportId: selectedReport.id, status: "dismissed", resolutionNote: reportResolutionNote })}
                               >
-                                Classer sans suite
+                                {t("Classer sans suite", "Dismiss")}
                               </button>
                             </div>
                           </div>
                           <div className="stack-scroll">
                             <div className="activity-item">
-                              <strong>Reporter</strong>
-                              <span>{selectedReport.reporter?.name || "Utilisateur"} · {selectedReport.reporter?.email || "—"}</span>
-                              <span>@{selectedReport.reporter?.profile?.username || "sans-identifiant"}</span>
+                              <strong>{t("Reporter", "Reporter")}</strong>
+                              <span>{selectedReport.reporter?.name || t("Utilisateur", "User")} · {selectedReport.reporter?.email || "—"}</span>
+                              <span>@{selectedReport.reporter?.profile?.username || t("sans-identifiant", "no-username")}</span>
                             </div>
                             {selectedReport.sender ? (
                               <div className="activity-item">
-                                <strong>Auteur du message</strong>
+                                <strong>{t("Auteur du message", "Message author")}</strong>
                                 <span>{selectedReport.sender.name} · {selectedReport.sender.email}</span>
-                                <span>@{selectedReport.sender.profile?.username || "sans-identifiant"}</span>
+                                <span>@{selectedReport.sender.profile?.username || t("sans-identifiant", "no-username")}</span>
                               </div>
                             ) : null}
                             <div className="activity-item">
-                              <strong>Détail</strong>
-                              <span>{selectedReport.details || "Aucun détail supplémentaire."}</span>
-                              {selectedReport.messagePreview ? <span>Aperçu: {selectedReport.messagePreview}</span> : null}
+                              <strong>{t("Détail", "Detail")}</strong>
+                              <span>{selectedReport.details || t("Aucun détail supplémentaire.", "No extra detail.")}</span>
+                              {selectedReport.messagePreview ? <span>{t("Aperçu:", "Preview:")} {selectedReport.messagePreview}</span> : null}
                             </div>
                             {selectedReport.resolvedAt ? (
                               <div className="activity-item">
-                                <strong>Clôture</strong>
-                                <span>{reportStatusLabel(selectedReport.status)} le {formatDate(selectedReport.resolvedAt, locale)}</span>
+                                <strong>{t("Clôture", "Closure")}</strong>
+                                <span>{reportStatusLabel(selectedReport.status, locale)} {t("le", "on")} {formatDate(selectedReport.resolvedAt, locale)}</span>
                                 <span>{selectedReport.resolver?.name || "Admin"}{selectedReport.resolutionNote ? ` · ${selectedReport.resolutionNote}` : ""}</span>
                               </div>
                             ) : null}
                           </div>
                           <div className="message-card" style={{ padding: 16 }}>
-                            <label>Note de résolution</label>
+                            <label>{t("Note de résolution", "Resolution note")}</label>
                             <textarea
                               value={reportResolutionNote}
                               onChange={(event) => setReportResolutionNote(event.target.value)}
-                              placeholder="Précise la décision prise ou le suivi envoyé à l'utilisateur."
+                              placeholder={t("Précise la décision prise ou le suivi envoyé à l'utilisateur.", "Describe the decision or the follow-up sent to the user.")}
                             />
                           </div>
                         </>
@@ -1485,13 +1486,13 @@ export default function AdminDashboard() {
             <section className={`flow-card section-card ${openSection === "admins" ? "open" : ""}`}>
               <button type="button" className="section-toggle" onClick={() => toggleSection("admins")}>
                 <div className="section-toggle-main">
-                  <div className="eyebrow">Administration</div>
-                  <h3>Admin actif et création de comptes</h3>
-                  <div className="panel-sub">Rôle courant, permissions et création d’admin dans une zone dédiée.</div>
+                  <div className="eyebrow">{t("Administration", "Administration")}</div>
+                  <h3>{t("Admin actif et création de comptes", "Active admin and account creation")}</h3>
+                  <div className="panel-sub">{t("Rôle courant, permissions et création d’admin dans une zone dédiée.", "Current role, permissions and admin creation in one dedicated area.")}</div>
                 </div>
                 <div className="section-summary">
                   <div className="section-kpi">{data?.admin?.admin?.role || "—"}</div>
-                  <div className="section-kpi">{(data?.permissions || []).length} permissions</div>
+                  <div className="section-kpi">{(data?.permissions || []).length} {t("permissions", "permissions")}</div>
                   <div className="section-chevron">⌄</div>
                 </div>
               </button>
@@ -1501,18 +1502,18 @@ export default function AdminDashboard() {
                     <div className="flow-card panel">
                       <div className="panel-head">
                         <div>
-                          <div className="eyebrow">Admin actif</div>
+                          <div className="eyebrow">{t("Admin actif", "Active admin")}</div>
                           <h3 className="panel-title">{data?.admin?.name || "—"}</h3>
                           <div className="panel-sub">{data?.admin?.email || "—"}</div>
                         </div>
                       </div>
                       <div className="detail-grid">
                         <div className="detail-box">
-                          <div className="meta">Rôle</div>
+                          <div className="meta">{t("Rôle", "Role")}</div>
                           <strong>{data?.admin?.admin?.role || "—"}</strong>
                         </div>
                         <div className="detail-box">
-                          <div className="meta">Permissions</div>
+                          <div className="meta">{t("Permissions", "Permissions")}</div>
                           <strong>{(data?.permissions || []).length}</strong>
                         </div>
                       </div>
@@ -1524,41 +1525,41 @@ export default function AdminDashboard() {
                     <div className="flow-card panel">
                       <div className="panel-head">
                         <div>
-                          <div className="eyebrow">Créer un admin</div>
-                          <h3 className="panel-title">Nouveau compte admin</h3>
-                          <div className="panel-sub">Compte, rôle et permissions dans une seule carte.</div>
+                          <div className="eyebrow">{t("Créer un admin", "Create admin")}</div>
+                          <h3 className="panel-title">{t("Nouveau compte admin", "New admin account")}</h3>
+                          <div className="panel-sub">{t("Compte, rôle et permissions dans une seule carte.", "Account, role and permissions in a single card.")}</div>
                         </div>
                       </div>
                       <div className="stack-scroll">
                         <div className="composer-box">
                           <div>
-                            <label>Nom</label>
+                            <label>{t("Nom", "Name")}</label>
                             <input value={adminForm.name} onChange={(event) => setAdminForm((prev) => ({ ...prev, name: event.target.value }))} />
                           </div>
                           <div>
-                            <label>Email</label>
+                            <label>{t("Email", "Email")}</label>
                             <input value={adminForm.email} onChange={(event) => setAdminForm((prev) => ({ ...prev, email: event.target.value }))} />
                           </div>
                           <div>
-                            <label>Mot de passe</label>
+                            <label>{t("Mot de passe", "Password")}</label>
                             <input value={adminForm.password} onChange={(event) => setAdminForm((prev) => ({ ...prev, password: event.target.value }))} />
                           </div>
                           <div>
-                            <label>Rôle</label>
+                            <label>{t("Rôle", "Role")}</label>
                             <ChoiceRow
-                              options={ROLE_OPTIONS}
+                              options={ui.roleOptions}
                               value={adminForm.role}
                               onChange={(value) => setAdminForm((prev) => ({
                                 ...prev,
                                 role: value,
-                                permissions: value === "super_admin" ? PERMISSIONS.map((item) => item.key) : prev.permissions,
+                                permissions: value === "super_admin" ? ui.permissions.map((item) => item.key) : prev.permissions,
                               }))}
                             />
                           </div>
                           <div>
-                            <label>Permissions</label>
+                            <label>{t("Permissions", "Permissions")}</label>
                             <div className="permission-grid">
-                              {PERMISSIONS.map((permission) => (
+                              {ui.permissions.map((permission) => (
                                 <label key={permission.key} className="permission-toggle">
                                   <input
                                     type="checkbox"
@@ -1589,15 +1590,15 @@ export default function AdminDashboard() {
                             try {
                               await runAction("create-admin", adminForm);
                               setAdminForm({ name: "", email: "", password: "", role: "admin", permissions: ["dashboard.read", "users.read", "messages.send"] });
-                              setNotice("Administrateur créé.");
+                              setNotice(t("Administrateur créé.", "Administrator created."));
                             } finally {
                               setSending(false);
                             }
                           }}
                         >
-                          Créer l'admin
+                          {t("Créer l'admin", "Create admin")}
                         </button>
-                        <button className="btn soft" type="button" disabled={sending} onClick={() => setAdminForm({ name: "", email: "", password: "", role: "admin", permissions: ["dashboard.read", "users.read", "messages.send"] })}>Réinitialiser</button>
+                        <button className="btn soft" type="button" disabled={sending} onClick={() => setAdminForm({ name: "", email: "", password: "", role: "admin", permissions: ["dashboard.read", "users.read", "messages.send"] })}>{t("Réinitialiser", "Reset")}</button>
                       </div>
                     </div>
                   </div>
