@@ -2087,6 +2087,7 @@ export default function FlowApp() {
   const noteSearchInputRef = useRef(null);
   const noteSavedSelectionRef = useRef(null);
   const pendingNoteIdRef = useRef("");
+  const pendingNoteTimeoutRef = useRef(null);
   const authEmailInputRef = useRef(null);
   const authPasswordInputRef = useRef(null);
   const authNameInputRef = useRef(null);
@@ -2101,6 +2102,8 @@ export default function FlowApp() {
   const uiStudioImportRef = useRef(null);
   const appearanceAutoSaveRef = useRef(null);
   const appearanceReadyRef = useRef(false);
+  const profileDraftSnapshotRef = useRef("");
+  const appearanceDraftSnapshotRef = useRef("");
   const longPressRef = useRef(null);
   const editMessageRef = useRef(null);
   const seenBrowserNotificationsRef = useRef(new Set());
@@ -2145,6 +2148,23 @@ export default function FlowApp() {
     setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3000);
   }, []);
 
+  const isEditingSettingsPane = useCallback((pane) => {
+    if (typeof document === "undefined") return false;
+    const active = document.activeElement;
+    if (!active) return false;
+    const panel = active.closest?.(".settings-panel");
+    if (!panel) return false;
+    if (pane === "profile") {
+      return active.classList?.contains("finput")
+        || Boolean(active.closest?.(".choice-row"))
+        || active === profilePhotoInputRef.current;
+    }
+    if (pane === "appearance") {
+      return Boolean(active.closest?.(".choice-row"));
+    }
+    return false;
+  }, []);
+
   const runFlowIntro = useCallback(({ reload = false } = {}) => {
     if (typeof window === "undefined") return;
     introTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -2181,6 +2201,7 @@ export default function FlowApp() {
       introTimersRef.current.forEach((timer) => window.clearTimeout(timer));
       if (authAutofillTimerRef.current) window.clearTimeout(authAutofillTimerRef.current);
       if (releaseReloadTimerRef.current) window.clearTimeout(releaseReloadTimerRef.current);
+      if (pendingNoteTimeoutRef.current) window.clearTimeout(pendingNoteTimeoutRef.current);
     };
   }, [runFlowIntro]);
 
@@ -2421,9 +2442,14 @@ export default function FlowApp() {
     const incoming = importedDb || emptyDB();
     const mergeById = (left = [], right = []) => {
       const map = new Map();
-      [...left, ...right].forEach((item) => {
+      left.forEach((item) => {
         const key = `${item?.id || uid()}`;
-        if (!map.has(key)) map.set(key, item);
+        map.set(key, item);
+      });
+      right.forEach((item) => {
+        const key = `${item?.id || uid()}`;
+        const prev = map.get(key) || {};
+        map.set(key, { ...prev, ...item });
       });
       return [...map.values()];
     };
@@ -2476,14 +2502,13 @@ export default function FlowApp() {
         body: JSON.stringify({ db: nextPayloadDb }),
       });
       const nextDb = payload.db || emptyDB();
-      setDb(nextDb);
-      writeLocalDbCache(user, nextDb);
+      applyServerDbSnapshot(nextDb, { preserveLocalDrafts: false });
       setBackupImportDialog({ open: false, raw: "", name: "" });
       toast(mode === "replace" ? "Backup remplacé" : "Backup fusionné");
     } catch (error) {
       toast(error.message || "Import impossible", "err");
     }
-  }, [mergeBackupDb, toast, user]);
+  }, [applyServerDbSnapshot, mergeBackupDb, toast]);
 
   const importBackupFile = useCallback(async (file) => {
     if (!file) return;
@@ -3084,12 +3109,22 @@ export default function FlowApp() {
   useEffect(() => { dbRef.current = db; }, [db]);
 
   useEffect(() => {
-    setProfileDraft(buildProfileDraft(db, user || { name: "", email: "" }));
-  }, [db.profile, user?.email, user?.name]);
+    const nextDraft = buildProfileDraft(db, user || { name: "", email: "" });
+    const nextSnapshot = JSON.stringify(nextDraft);
+    if (profileDraftSnapshotRef.current === nextSnapshot) return;
+    if (settingsTab === "profile" && isEditingSettingsPane("profile")) return;
+    profileDraftSnapshotRef.current = nextSnapshot;
+    setProfileDraft(nextDraft);
+  }, [db.profile, isEditingSettingsPane, settingsTab, user?.email, user?.name]);
 
   useEffect(() => {
-    setAppearanceDraft(buildAppearanceDraft(db));
-  }, [db.settings]);
+    const nextDraft = buildAppearanceDraft(db);
+    const nextSnapshot = JSON.stringify(nextDraft);
+    if (appearanceDraftSnapshotRef.current === nextSnapshot) return;
+    if (settingsTab === "appearance" && isEditingSettingsPane("appearance")) return;
+    appearanceDraftSnapshotRef.current = nextSnapshot;
+    setAppearanceDraft(nextDraft);
+  }, [db.settings, isEditingSettingsPane, settingsTab]);
 
   const applyAppearanceChoice = useCallback((patch) => {
     setAppearanceDraft((prev) => ({ ...prev, ...patch }));

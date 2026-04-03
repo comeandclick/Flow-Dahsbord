@@ -56,13 +56,13 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.37
+### 1.22.38
 
-- **Date** : 03/04/2026 14:02
-- **Résumé** : Flow élargit fortement la couverture FR/EN visible et resserre son thème global avec un shell plus premium sur tout le produit.
+- **Date** : 03/04/2026 14:14
+- **Résumé** : Flow stabilise mieux les réglages pendant l’édition, élargit encore sa couverture FR/EN et garde un thème global plus propre.
 
-- **Couche FR/EN beaucoup plus large** : Le dictionnaire partagé couvre maintenant bien plus de titres, états, placeholders, réglages, notifications et libellés Flow/Admin.
-- **Placeholders et attributs mieux traduits** : La traduction DOM applique aussi davantage les placeholders, titres et aria-labels sans réintroduire les anciens bugs de focus.
+- **Réglages plus stables pendant l’édition** : Les drafts profil et apparence évitent mieux les resynchronisations brutales quand l’utilisateur est en train d’écrire ou de cliquer.
+- **Couche FR/EN encore élargie** : Le dictionnaire partagé couvre plus de titres, états, placeholders, réglages, notifications et libellés visibles sur Flow et l’admin.
 - **Thème global resserré** : Le shell, l’auth, les fonds, les contrastes et les transitions communes gagnent une direction visuelle plus propre en sombre comme en clair.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
