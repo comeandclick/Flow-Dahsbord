@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.40
+### 1.22.41
 
-- **Date** : 04/04/2026 16:58
-- **Résumé** : Flow adopte une nouvelle direction visuelle, stabilise le menu latéral et nettoie enfin la recherche Ctrl+K.
+- **Date** : 04/04/2026 19:45
+- **Résumé** : Flow ajoute une variante publique Aurora sur un lien dédié, sans toucher au site principal ni aux comptes existants.
 
-- **Shell premium retravaillé sur tout le site** : Le fond, les cartes, la sidebar et la topbar passent sur un rendu plus premium et plus stable, sans halo agressif ni effet d’ampoule défectueuse.
-- **Sidebar hover / lock fiabilisée et mémorisée** : Le menu ne se ferme plus au clic en mode desktop ouvert, se referme seulement à la sortie du hover, et retient maintenant l’état verrouillé ou déverrouillé entre les visites.
-- **Command palette animée et résultats épurés** : Ctrl+K gagne une animation d’entrée et de sortie, retire les doublons de navigation et affiche des aperçus plus utiles dans les résultats.
+- **Nouvelle variante Aurora accessible sur un lien dédié** : Le site principal garde sa DA actuelle tandis qu’une seconde entrée publique expose exactement la même app sur `/aurora` avec une identité visuelle distincte.
+- **Theme Aurora sombre et clair injecté comme skin** : La variante Aurora applique une nouvelle palette, des rayons plus généreux, des surfaces plus profondes et des états interactifs plus lumineux sans casser les réglages du reste de l’app.
+- **Même backend, mêmes comptes, mêmes fonctionnalités** : La nouvelle entrée réutilise la même application Flow et les mêmes APIs, ce qui garde la connexion, les données et les modules alignés entre les deux liens.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 
