@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.42
+### 1.22.43
 
-- **Date** : 04/04/2026 19:45
-- **Résumé** : Flow transforme `/aurora` en vraie variante Apple-like, avec une refonte visuelle complète sans changer les fonctionnalités ni les comptes.
+- **Date** : 04/04/2026 22:54
+- **Résumé** : Flow ajoute `/atelier`, une nouvelle variante premium repartie du brief produit, tout en renforçant la QA utilisateur et la fiabilité du chargement client.
 
-- **La route `/aurora` devient une variante Apple-like** : Le lien dédié garde exactement les mêmes modules et le même backend, mais bascule désormais sur une identité visuelle beaucoup plus proche d’une app Apple.
-- **Shell, sidebar et surfaces complètement refondus** : La variante abandonne l’ancien rendu Aurora pour des matériaux verre, des contrastes plus doux, des formes plus organiques et des composants repensés dans un langage Apple-like.
-- **Compatibilité fonctionnelle conservée** : La refonte reste purement visuelle: les comptes, les données, les APIs et les fonctionnalités restent identiques entre le site principal et la variante `/aurora`.
+- **Nouvelle route publique `/atelier`** : La variante Atelier repart du brief produit et du code fonctionnel existant pour proposer un environnement visuel totalement distinct, sans changer les comptes, les données ni les modules.
+- **Thème Atelier entièrement séparé** : Sidebar, shell, cartes, topbar, auth et composants principaux ont reçu une identité plus chaleureuse et habitable, indépendante des variantes déjà créées.
+- **QA utilisateur renforcée et bug middleware corrigé** : Un script `check:ux` et le skill `flow-user-qa` valident les routes clés en desktop/mobile, tandis que le middleware n’intercepte plus les chunks statiques Next.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

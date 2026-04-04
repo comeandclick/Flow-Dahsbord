@@ -1,5 +1,19 @@
 # FLOW DASHBORD - MEMOIRE PROJET
 
+## Etat courant prioritaire
+
+- variante publique supplementaire ajoutee:
+  - route `/atelier`
+  - theme completement distinct des variantes precedentes
+  - meme logique produit, memes comptes et memes donnees
+- routine QA utilisateur ajoutee:
+  - script repo: `scripts/check-user-journey.mjs`
+  - commande: `npm run check:ux -- <url>`
+  - skill local: `/Users/aymen/.codex/skills/flow-user-qa/`
+- bug structurel corrige:
+  - `middleware.js` n'intercepte plus les chunks `/_next/static`
+  - le chargement client et l'hydratation des routes publiques redeviennent sains
+
 ## Ce que fait le code
 
 Flow Dashbord est une application workspace personnelle multi-modules:

@@ -9,7 +9,7 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 ## Site en ligne
 
 - URL principale a conserver: `https://flow-online-aymen.vercel.app`
-- URL Vercel de production actuelle: `https://flow-online-aymen-9lqk7d3ip-meinays-projects.vercel.app`
+- URL Vercel de production actuelle: `https://flow-online-aymen.vercel.app`
 
 ## Regles absolues
 
@@ -53,7 +53,34 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
   - orange: en cours
   - rouge: a faire
 - A chaque nouvelle passe, remplacer le contenu du widget par l'etat actuel plutot que garder un historique infini
-- Version actuelle: `v1.22.0`
+- Version actuelle: `v1.22.43`
+
+## Passe produit 17 - 04/04/2026 22:54
+
+### Fait dans cette passe
+
+- nouvelle variante publique:
+  - ajout de la route `/atelier`
+  - cette variante repart du brief produit plutot que des themes precedents
+  - elle garde les memes comptes, le meme backend et les memes fonctionnalites
+- theme atelier:
+  - nouvelle DA plus chaleureuse et plus habitable
+  - shell, sidebar, topbar, auth, cartes et composants principaux differencies du site principal et de `/aurora`
+- QA utilisateur:
+  - ajout du script `npm run check:ux`
+  - verification route par route en desktop et mobile:
+    - `/`
+    - `/aurora`
+    - `/atelier`
+    - `/admin/login`
+  - ajout du skill local `/Users/aymen/.codex/skills/flow-user-qa/`
+- correctifs:
+  - debordement horizontal corrige sur `/admin/login` en mobile
+  - middleware corrige pour ne plus intercepter `/_next/static` et casser le chargement des chunks
+- checks locaux:
+  - `npm run build` OK
+  - `npm run check:ux -- http://127.0.0.1:3100` OK
+  - `npm run check:client -- http://127.0.0.1:3100` OK
 
 ## Passe produit 16 - 31/03/2026 15:50
 

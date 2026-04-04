@@ -57,7 +57,7 @@ export default function AdminLogin() {
   return (
     <div className="shell">
       <style jsx>{`
-        :global(html),:global(body){margin:0;min-height:100%}
+        :global(html),:global(body){margin:0;min-height:100%;overflow-x:hidden}
         :global(body){
           font-family:"Geist",system-ui,sans-serif;
           background:
@@ -85,6 +85,7 @@ export default function AdminLogin() {
           display:grid;
           place-items:center;
           padding:20px;
+          width:100%;
         }
         .card{
           width:min(480px,100%);

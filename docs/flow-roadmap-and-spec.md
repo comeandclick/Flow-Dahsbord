@@ -26,6 +26,29 @@ Flow doit rester une workspace app simple, belle et rapide, avec:
 - une sensation premium sans complexifier l'interface
 - une direction visuelle monochrome noir / gris / blanc commune au shell principal, au back-office et aux icones
 
+## 1.b Variantes publiques a conserver
+
+- `/` = experience Flow principale
+- `/aurora` = variante visuelle Apple-like existante
+- `/atelier` = variante visuelle plus editoriale et chaleureuse, repartie du brief produit sans changer les fonctionnalites
+
+Toutes ces routes doivent garder:
+- les memes comptes
+- le meme backend
+- les memes modules
+- les memes donnees
+
+## 1.c Verification utilisateur
+
+- le script `npm run check:ux -- <url>` doit verifier le site comme un utilisateur:
+  - desktop + mobile
+  - `/`, `/aurora`, `/atelier`, `/admin/login`
+  - erreurs console / runtime
+  - fallback de crash
+  - overflow horizontal
+  - ouverture fermeture de la command palette quand le shell est disponible
+- le skill local `flow-user-qa` dans `/Users/aymen/.codex/skills/flow-user-qa/` doit servir de routine de reprise pour cette verification
+
 ## 2. Inventaire des pages
 
 ### Authentification

@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "check:client": "node scripts/check-client.mjs",
+    "check:ux": "node scripts/check-user-journey.mjs",
     "publish:release": "node scripts/publish-release.mjs"
   },
   "dependencies": {
