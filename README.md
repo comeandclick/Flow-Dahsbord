@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.41
+### 1.22.42
 
 - **Date** : 04/04/2026 19:45
-- **Résumé** : Flow ajoute une variante publique Aurora sur un lien dédié, sans toucher au site principal ni aux comptes existants.
+- **Résumé** : Flow transforme `/aurora` en vraie variante Apple-like, avec une refonte visuelle complète sans changer les fonctionnalités ni les comptes.
 
-- **Nouvelle variante Aurora accessible sur un lien dédié** : Le site principal garde sa DA actuelle tandis qu’une seconde entrée publique expose exactement la même app sur `/aurora` avec une identité visuelle distincte.
-- **Theme Aurora sombre et clair injecté comme skin** : La variante Aurora applique une nouvelle palette, des rayons plus généreux, des surfaces plus profondes et des états interactifs plus lumineux sans casser les réglages du reste de l’app.
-- **Même backend, mêmes comptes, mêmes fonctionnalités** : La nouvelle entrée réutilise la même application Flow et les mêmes APIs, ce qui garde la connexion, les données et les modules alignés entre les deux liens.
+- **La route `/aurora` devient une variante Apple-like** : Le lien dédié garde exactement les mêmes modules et le même backend, mais bascule désormais sur une identité visuelle beaucoup plus proche d’une app Apple.
+- **Shell, sidebar et surfaces complètement refondus** : La variante abandonne l’ancien rendu Aurora pour des matériaux verre, des contrastes plus doux, des formes plus organiques et des composants repensés dans un langage Apple-like.
+- **Compatibilité fonctionnelle conservée** : La refonte reste purement visuelle: les comptes, les données, les APIs et les fonctionnalités restent identiques entre le site principal et la variante `/aurora`.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

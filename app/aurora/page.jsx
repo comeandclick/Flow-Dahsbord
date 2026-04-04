@@ -4,7 +4,7 @@ import FlowApp from "../FlowApp";
 export default function AuroraPage() {
   return (
     <AppCrashGuard>
-      <FlowApp siteSkin="aurora" />
+      <FlowApp siteSkin="apple" />
     </AppCrashGuard>
   );
 }
