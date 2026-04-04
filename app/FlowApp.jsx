@@ -64,6 +64,26 @@ const notePreviewFromContent = (value, limit = 140) => {
   const text = noteTextFromHtml(value);
   return text.length > limit ? `${text.slice(0, limit)}…` : text;
 };
+const commandPalettePreview = (value, fallback = "", limit = 88) => {
+  const text = noteTextFromHtml(value || fallback || "");
+  if (!text) return fallback || "";
+  return text.length > limit ? `${text.slice(0, limit)}…` : text;
+};
+const dedupeCommandPaletteItems = (items = []) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = [
+      item.kind || "",
+      item.view || "",
+      item.entityId || "",
+      normalizeSearchText(item.title || ""),
+      normalizeSearchText(item.meta || ""),
+    ].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 const encodeSharedNotePayload = (payload) => {
   try {
     return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -903,34 +923,40 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg:#0d0f14;--bg2:#141821;--bg3:#1a1f2a;--bg4:#232938;--line:#242a37;--line2:#353e53;
-  --muted:#7d8596;--sub:#a8afbd;--sub2:#eef2fb;--text:#f6f8fd;--text2:#d9deea;
-  --accent:#dfe8ff;--accent2:#ffffff;--accent-d:rgba(126,153,255,.12);--accent-b:rgba(165,183,255,.22);--accent-rgb:223 232 255;
-  --red:#ff9e9e;--red-d:rgba(255,158,158,.14);--green:#9fe0b8;--green-d:rgba(159,224,184,.14);
-  --blue:#7ea4ff;--blue-d:rgba(126,164,255,.18);--orange:#e6c089;--violet:#bcaeff;
+  --bg:#07080a;--bg2:#101317;--bg3:#161a20;--bg4:#1f252d;--line:#212733;--line2:#313a49;
+  --muted:#7f8796;--sub:#aeb5c3;--sub2:#f3f5fb;--text:#f7f8fb;--text2:#dde1ea;
+  --accent:#edf3ff;--accent2:#ffffff;--accent-d:rgba(126,153,255,.12);--accent-b:rgba(165,183,255,.22);--accent-rgb:223 232 255;
+  --red:#ffaaa1;--red-d:rgba(255,170,161,.14);--green:#63d692;--green-d:rgba(99,214,146,.14);
+  --blue:#74a8ff;--blue-d:rgba(116,168,255,.18);--orange:#f29a4a;--violet:#bda7ff;
   --r:18px;--r-sm:14px;--serif:'Instrument Serif',Georgia,serif;--sans:'Geist',system-ui,sans-serif;--mono:'Geist Mono',monospace;--menu-font:'Geist',system-ui,sans-serif;
-  --shell:#10141d;--shell-2:#151a24;--shell-border:#212838;--shell-card:#171d29;--shell-input:#141925;
-  --shadow:0 28px 90px rgba(4,8,18,.48);
+  --shell:#0f1217;--shell-2:#151920;--shell-border:#1e2530;--shell-card:#151920;--shell-input:#12161d;
+  --shadow:0 28px 90px rgba(0,0,0,.42);
   --ease-premium:cubic-bezier(.22,.84,.24,1);
   --dur-fast:.18s;
   --dur-mid:.28s;
 }
-[data-t="light"]{--bg:#eef2f8;--bg2:#f8faff;--bg3:#edf2fb;--bg4:#e3eaf6;--line:#d5deec;--line2:#bcc8dc;--muted:#687287;--sub:#4e576a;--sub2:#202634;--text:#121723;--text2:#1f2633;--shell:#f5f8ff;--shell-2:#fbfcff;--shell-border:#d2dced;--shell-card:#f9fbff;--shell-input:#edf2fb;--shadow:0 18px 42px rgba(38,52,82,.11)}
+[data-t="light"]{--bg:#f3f0e8;--bg2:#fbf8f1;--bg3:#f3eee4;--bg4:#ebe4d5;--line:#ddd4c3;--line2:#c9bda8;--muted:#746f66;--sub:#5e574d;--sub2:#1f1d19;--text:#171511;--text2:#27231d;--shell:#f8f3ea;--shell-2:#fdfaf3;--shell-border:#d8cebc;--shell-card:#fbf7ef;--shell-input:#f2ece1;--shadow:0 18px 42px rgba(72,55,24,.09)}
 
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body,#root{height:100%;overflow:hidden;overflow-x:hidden;background:var(--bg)}
 body{font-family:var(--sans);background:
-  radial-gradient(circle at 8% -6%,rgba(127 155 255 / .18) 0%,rgba(127 155 255 / .07) 16%,transparent 38%),
-  radial-gradient(circle at 100% 0%,rgba(255 255 255 / .04) 0%,transparent 24%),
-  linear-gradient(180deg,#121621 0%,#0d1017 100%);
+  radial-gradient(circle at 12% 8%,rgba(255 255 255 / .05) 0%,transparent 26%),
+  radial-gradient(circle at 82% 16%,rgba(116 168 255 / .10) 0%,transparent 22%),
+  radial-gradient(circle at 50% 100%,rgba(99 214 146 / .06) 0%,transparent 24%),
+  linear-gradient(180deg,#050607 0%,#090b0e 100%);
 color:var(--text);font-size:var(--app-font-size,14px);line-height:1.5;-webkit-font-smoothing:antialiased;transition:background var(--dur-mid) var(--ease-premium),color var(--dur-mid) var(--ease-premium),font-size .2s;overscroll-behavior:none}
 html[data-t="light"] body{background:
-  radial-gradient(circle at 8% -6%,rgba(155 184 255 / .52) 0%,rgba(155 184 255 / .18) 18%,transparent 40%),
-  radial-gradient(circle at 100% 0%,rgba(255 255 255 / .86) 0%,transparent 22%),
-  linear-gradient(180deg,#f7faff 0%,#eef3fb 100%);
+  radial-gradient(circle at 10% 4%,rgba(255 255 255 / .85) 0%,transparent 26%),
+  radial-gradient(circle at 90% 12%,rgba(239 217 167 / .42) 0%,transparent 24%),
+  linear-gradient(180deg,#f6f2ea 0%,#efe7d8 100%);
 color:var(--text)}
-body::after{content:'';position:fixed;inset:auto;pointer-events:none;z-index:0;border-radius:999px;opacity:.16;width:300px;height:300px;right:-72px;bottom:-72px;filter:blur(90px);background:radial-gradient(circle,rgba(126 164 255 / .14) 0%,transparent 72%)}
-html[data-t="light"] body::after{opacity:.22}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.22;background:
+  linear-gradient(180deg,rgba(255,255,255,.028),transparent 22%),
+  repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 160px),
+  repeating-linear-gradient(180deg,rgba(255,255,255,.012) 0 1px,transparent 1px 160px)}
+html[data-t="light"] body::before{opacity:.12}
+body::after{content:'';position:fixed;inset:auto;pointer-events:none;z-index:0;border-radius:999px;opacity:.10;width:280px;height:280px;right:-84px;bottom:-84px;filter:blur(96px);background:radial-gradient(circle,rgba(116 168 255 / .16) 0%,transparent 72%)}
+html[data-t="light"] body::after{opacity:.08}
 input,textarea,select,button{font-family:inherit;font-size:inherit;color:inherit;border:none;background:none;outline:none}
 button{cursor:pointer}
 *{scrollbar-width:none}
@@ -1018,8 +1044,8 @@ filter:blur(30px);opacity:.86;animation:flowSplashGlow 1.9s ease forwards}
 .flow-splash-logo img{width:clamp(164px,15vw,232px)!important;height:clamp(164px,15vw,232px)!important}
 .flow-splash-word{font-family:var(--serif);font-size:clamp(82px,14vw,168px);letter-spacing:-.065em;line-height:.88;color:#fff;text-shadow:0 24px 60px rgba(255,255,255,.18)}
 
-.app{display:flex;height:100dvh;min-height:100dvh;max-width:100vw;overflow:hidden;position:relative;isolation:isolate;padding:12px;background:color-mix(in srgb,var(--bg) 96%, black 4%)}
-.sb{width:258px;flex-shrink:0;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008) 18%,transparent 44%),var(--shell);border:1px solid var(--shell-border);display:flex;flex-direction:column;z-index:220;transition:transform .34s cubic-bezier(.22,1,.36,1),background .3s,width .24s,left .24s;position:absolute;left:12px;top:12px;bottom:12px;overflow:visible;box-shadow:0 30px 80px rgba(0,0,0,.28);border-radius:30px;will-change:transform,width}
+.app{display:flex;height:100dvh;min-height:100dvh;max-width:100vw;overflow:hidden;position:relative;isolation:isolate;padding:12px;background:color-mix(in srgb,var(--bg) 97%, black 3%)}
+.sb{width:258px;flex-shrink:0;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012) 16%,transparent 44%),color-mix(in srgb,var(--shell) 96%, black 4%);border:1px solid color-mix(in srgb,var(--shell-border) 88%, rgba(255,255,255,.05));display:flex;flex-direction:column;z-index:220;transition:transform .34s cubic-bezier(.22,1,.36,1),background .3s,width .24s,left .24s;position:absolute;left:12px;top:12px;bottom:12px;overflow:visible;box-shadow:0 34px 90px rgba(0,0,0,.34);border-radius:30px;will-change:transform,width;backdrop-filter:blur(18px)}
 .sb,.sb *{font-family:var(--menu-font)}
 .sb-top{padding:18px 18px 14px;border-bottom:1px solid var(--line)}
 .sb-logo{display:flex;align-items:center;gap:9px}
@@ -1075,9 +1101,9 @@ filter:blur(30px);opacity:.86;animation:flowSplashGlow 1.9s ease forwards}
 .sb.compact .sb-user{justify-content:center;padding:10px 0 12px}
 .sb.compact .sb-user-main{padding:12px;justify-content:center;flex:none;width:56px;height:56px;border-radius:20px}
 
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;max-width:100%;position:relative;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 26%),var(--shell);border:1px solid var(--shell-border);border-radius:32px;box-shadow:0 24px 80px rgba(0,0,0,.32);margin-left:108px;transition:margin-left .28s cubic-bezier(.22,1,.36,1)}
-.app.sidebar-pinned .main{margin-left:282px}
-.topbar{height:78px;min-height:78px;display:flex;align-items:center;padding:0 22px;border-bottom:1px solid var(--line);gap:14px;background:color-mix(in srgb,var(--shell) 94%, transparent);backdrop-filter:blur(16px);position:relative;z-index:5}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;max-width:100%;position:relative;background:linear-gradient(180deg,rgba(255,255,255,.028),transparent 24%),color-mix(in srgb,var(--shell) 95%, black 5%);border:1px solid color-mix(in srgb,var(--shell-border) 90%, rgba(255,255,255,.05));border-radius:32px;box-shadow:0 24px 80px rgba(0,0,0,.30);margin-left:108px;transition:margin-left .28s cubic-bezier(.22,1,.36,1),background .28s var(--ease-premium)}
+.app.sidebar-pinned .main,.app.sidebar-expanded .main{margin-left:282px}
+.topbar{height:78px;min-height:78px;display:flex;align-items:center;padding:0 22px;border-bottom:1px solid color-mix(in srgb,var(--line) 88%, transparent);gap:14px;background:color-mix(in srgb,var(--shell) 92%, rgba(255,255,255,.02));backdrop-filter:blur(16px);position:relative;z-index:5}
 .tb-menu{display:none;color:var(--sub);padding:4px}
 .tb-search{width:min(360px,34vw);position:relative;flex-shrink:0}
 .tb-search input{width:100%;padding:14px 84px 14px 44px;background:var(--shell-input);border:1px solid color-mix(in srgb,var(--line2) 80%, transparent);border-radius:18px;font-size:13px;color:var(--text);transition:border-color .15s,box-shadow .15s}
@@ -1127,6 +1153,10 @@ filter:blur(30px);opacity:.86;animation:flowSplashGlow 1.9s ease forwards}
 @keyframes panelIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes drawerIn{from{opacity:0;transform:translate3d(28px,0,0)}to{opacity:1;transform:none}}
 @keyframes sidebarSlideIn{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:none}}
+@keyframes cpOverlayIn{from{opacity:0}to{opacity:1}}
+@keyframes cpOverlayOut{from{opacity:1}to{opacity:0}}
+@keyframes cpShellIn{from{opacity:0;transform:translateY(-14px) scale(.975)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes cpShellOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-8px) scale(.985)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes drift{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(14px,18px,0)}}
 @keyframes wiggle{0%,100%{transform:rotate(-1.5deg) scale(1.02)}50%{transform:rotate(1.5deg) scale(1.02)}}
@@ -1135,13 +1165,13 @@ filter:blur(30px);opacity:.86;animation:flowSplashGlow 1.9s ease forwards}
 @keyframes pulseDot{0%{box-shadow:0 0 0 0 rgba(74,158,110,.45)}70%{box-shadow:0 0 0 8px rgba(74,158,110,0)}100%{box-shadow:0 0 0 0 rgba(74,158,110,0)}}
 @keyframes pingDot{0%{box-shadow:0 0 0 0 rgba(74,126,200,.45)}70%{box-shadow:0 0 0 8px rgba(74,126,200,0)}100%{box-shadow:0 0 0 0 rgba(74,126,200,0)}}
 
-.card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015) 20%,transparent 48%),var(--bg2);border:1px solid var(--line);border-radius:22px;padding:18px;transition:background .3s,transform .18s,border-color .18s,box-shadow .18s}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012) 20%,transparent 48%),color-mix(in srgb,var(--bg2) 94%, black 6%);border:1px solid color-mix(in srgb,var(--line) 90%, rgba(255,255,255,.04));border-radius:22px;padding:18px;transition:background .3s,transform .18s,border-color .18s,box-shadow .18s}
 .card:hover{transform:translateY(-2px);border-color:var(--line2);box-shadow:var(--shadow)}
 .card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .card-title{font-family:var(--serif);font-size:15px}
 
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px}
-.stat{background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 30%),var(--bg2);border:1px solid var(--line);border-radius:16px;padding:14px;transition:background .3s,transform .18s,border-color .18s,box-shadow .18s}
+.stat{background:linear-gradient(180deg,rgba(255,255,255,.03),transparent 30%),color-mix(in srgb,var(--bg2) 95%, black 5%);border:1px solid color-mix(in srgb,var(--line) 90%, rgba(255,255,255,.04));border-radius:16px;padding:14px;transition:background .3s,transform .18s,border-color .18s,box-shadow .18s}
 .stat:hover{transform:translateY(-2px);border-color:var(--line2);box-shadow:var(--shadow)}
 .stat-label{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
 .stat-val{font-family:var(--serif);font-size:24px;letter-spacing:-1px}
@@ -1666,15 +1696,17 @@ filter:blur(30px);opacity:.86;animation:flowSplashGlow 1.9s ease forwards}
 @keyframes noteStageIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
 @keyframes noteStageBack{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
 .widget-hidden{display:none !important}
-.cp-overlay{position:fixed;inset:0;z-index:980;background:rgba(0,0,0,.56);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:88px 18px 18px}
-.cp-shell{width:min(720px,100%);border-radius:26px;border:1px solid var(--line2);background:linear-gradient(180deg,rgba(255,255,255,.04),transparent 18%),var(--bg2);box-shadow:var(--shadow);overflow:hidden}
+.cp-overlay{position:fixed;inset:0;z-index:980;background:rgba(0,0,0,.56);backdrop-filter:blur(12px);display:flex;align-items:flex-start;justify-content:center;padding:88px 18px 18px;opacity:0;animation:cpOverlayIn .18s ease forwards}
+.cp-overlay.closing{animation:cpOverlayOut .16s ease forwards}
+.cp-shell{width:min(720px,100%);border-radius:26px;border:1px solid var(--line2);background:linear-gradient(180deg,rgba(255,255,255,.04),transparent 18%),color-mix(in srgb,var(--bg2) 96%, black 4%);box-shadow:var(--shadow);overflow:hidden;transform-origin:top center;opacity:0;transform:translateY(-14px) scale(.975);animation:cpShellIn .22s var(--ease-premium) forwards}
+.cp-overlay.closing .cp-shell{animation:cpShellOut .16s ease forwards}
 .cp-head{padding:16px;border-bottom:1px solid var(--line)}
 .cp-search{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;border:1px solid var(--line);background:var(--bg3)}
 .cp-search svg{color:var(--muted);flex-shrink:0}
 .cp-search input{width:100%;font-size:15px}
 .cp-search-meta{display:flex;align-items:center;gap:8px;padding:10px 16px 0;color:var(--sub);font-size:11px}
 .cp-body{padding:8px;display:flex;flex-direction:column;gap:8px;max-height:min(62vh,560px);overflow:auto}
-.cp-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:18px;border:1px solid transparent;background:transparent;transition:border-color .15s,background .15s,transform .15s;text-align:left;width:100%}
+.cp-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:18px;border:1px solid transparent;background:transparent;transition:border-color .15s,background .15s,transform .15s,text-shadow .15s;text-align:left;width:100%}
 .cp-item:hover,.cp-item.on{background:var(--accent-d);border-color:var(--accent-b);transform:translateY(-1px)}
 .cp-item-copy{min-width:0}
 .cp-item-copy strong{display:block;font-size:14px}
@@ -1974,6 +2006,7 @@ export default function FlowApp() {
   const [uiStudioSelection, setUiStudioSelection] = useState("dashboard-hero");
   const [uiStudioDevice, setUiStudioDevice] = useState("desktop");
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandPaletteClosing, setCommandPaletteClosing] = useState(false);
   const [commandPaletteQuery, setCommandPaletteQuery] = useState("");
   const [commandPaletteIndex, setCommandPaletteIndex] = useState(0);
   const [draggingDashboardWidget, setDraggingDashboardWidget] = useState("");
@@ -2110,6 +2143,7 @@ export default function FlowApp() {
   const seenConnectionNoticeRef = useRef("");
   const conversationThreadRef = useRef(null);
   const commandPaletteInputRef = useRef(null);
+  const commandPaletteCloseTimerRef = useRef(null);
   const viewBackStackRef = useRef([]);
   const viewForwardStackRef = useRef([]);
   const skipViewHistoryRef = useRef(false);
@@ -2661,6 +2695,11 @@ export default function FlowApp() {
     () => PLAN_DEFS.find((plan) => plan.key === db.subscription?.plan) || PLAN_DEFS[2],
     [db.subscription?.plan],
   );
+  useEffect(() => {
+    if (typeof db.settings?.sidebarPinned === "boolean") {
+      setSidebarPinned(db.settings.sidebarPinned);
+    }
+  }, [db.settings?.sidebarPinned]);
   const uiOverrides = useMemo(() => {
     const raw = db.settings?.uiOverrides;
     if (!raw || typeof raw !== "object") return {};
@@ -2678,6 +2717,7 @@ export default function FlowApp() {
   );
   const liveUiDevice = isMobileViewport ? "mobile" : "desktop";
   const sidebarCompact = !isMobileViewport && !sidebarPinned && !sidebarHover;
+  const sidebarExpanded = !isMobileViewport && (sidebarPinned || sidebarHover);
   const closeTransientSidebar = useCallback(() => {
     if (isMobileViewport) {
       setSbOpen(false);
@@ -2685,11 +2725,18 @@ export default function FlowApp() {
       setToolbarPanel(null);
       return;
     }
-    if (!sidebarPinned) {
-      setSidebarHover(false);
-      setToolbarPanel(null);
-    }
-  }, [isMobileViewport, sidebarPinned]);
+    setToolbarPanel(null);
+  }, [isMobileViewport]);
+  const toggleSidebarPinned = useCallback(() => {
+    if (isMobileViewport) return;
+    setSidebarPinned((prev) => {
+      const next = !prev;
+      updateDb((draft) => {
+        draft.settings.sidebarPinned = next;
+      });
+      return next;
+    });
+  }, [isMobileViewport, updateDb]);
   const updateUiStudioValue = useCallback((blockKey, device, field, value) => {
     updateDb((draft) => {
       const currentProfile = normalizeUiOverrideProfile(draft.settings?.uiOverrides?.[blockKey] || {});
@@ -3039,13 +3086,27 @@ export default function FlowApp() {
   }, [taskTemplateDraft, toast, updateDb, user]);
 
   const closeCommandPalette = useCallback(() => {
+    if (commandPaletteCloseTimerRef.current) {
+      window.clearTimeout(commandPaletteCloseTimerRef.current);
+      commandPaletteCloseTimerRef.current = null;
+    }
+    setCommandPaletteClosing(true);
     setCommandPaletteOpen(false);
-    setCommandPaletteQuery("");
     setCommandPaletteIndex(0);
+    commandPaletteCloseTimerRef.current = window.setTimeout(() => {
+      setCommandPaletteClosing(false);
+      setCommandPaletteQuery("");
+      commandPaletteCloseTimerRef.current = null;
+    }, 170);
   }, []);
 
   const openCommandPalette = useCallback((nextQuery = "") => {
+    if (commandPaletteCloseTimerRef.current) {
+      window.clearTimeout(commandPaletteCloseTimerRef.current);
+      commandPaletteCloseTimerRef.current = null;
+    }
     setToolbarPanel(null);
+    setCommandPaletteClosing(false);
     setCommandPaletteQuery(nextQuery);
     setCommandPaletteIndex(0);
     setCommandPaletteOpen(true);
@@ -3841,30 +3902,19 @@ export default function FlowApp() {
         priority: 19,
         keywords: "template tache modele reutilisable kanban",
       },
-      ...modules.flatMap((module) => ([
-        {
-          id: `goto-${module.key}`,
-          title: `Aller à ${module.label}`,
-          meta: module.meta,
-          kind: "nav",
-          view: module.key,
-          priority: 18,
-          keywords: `${module.label} module navigation ouvrir`,
-        },
-        {
-          id: `module-${module.key}`,
-          title: module.label,
-          meta: module.meta,
-          kind: "nav",
-          view: module.key,
-          priority: 14,
-          keywords: `${module.label} module`,
-        },
-      ])),
+      ...modules.map((module) => ({
+        id: `module-${module.key}`,
+        title: module.label,
+        meta: module.meta,
+        kind: "nav",
+        view: module.key,
+        priority: 17,
+        keywords: `${module.label} module navigation ouvrir aller`,
+      })),
       ...db.notes.map((item) => ({
         id: `cp-note-${item.id}`,
         title: item.title || "Note",
-        meta: item.content || "Note",
+        meta: commandPalettePreview(item.content, "Note"),
         kind: "note",
         view: "notes",
         entityId: item.id,
@@ -3914,7 +3964,7 @@ export default function FlowApp() {
       ...db.bookmarks.map((item) => ({
         id: `cp-bookmark-${item.id}`,
         title: item.title || "Signet",
-        meta: item.url || item.note || "Signet",
+        meta: commandPalettePreview(item.note, item.url || "Signet"),
         kind: "bookmark",
         view: "bookmarks",
         entityId: item.id,
@@ -3924,7 +3974,7 @@ export default function FlowApp() {
       ...conversations.map((item) => ({
         id: `cp-conversation-${item.id}`,
         title: item.title || "Conversation",
-        meta: item.lastMessage?.body || "Conversation",
+        meta: commandPalettePreview(item.lastMessage?.body, "Conversation"),
         kind: "conversation",
         view: "conversations",
         entityId: item.id,
@@ -3937,11 +3987,11 @@ export default function FlowApp() {
   const commandPaletteResults = useMemo(() => {
     const needle = commandPaletteQuery.trim();
     const items = !needle
-      ? commandPaletteItems
+      ? dedupeCommandPaletteItems(commandPaletteItems)
         .slice()
         .sort((a, b) => (b.priority || 0) - (a.priority || 0))
         .slice(0, 10)
-      : commandPaletteItems
+      : dedupeCommandPaletteItems(commandPaletteItems)
         .map((item) => {
           const haystack = `${item.title} ${item.meta || ""} ${item.keywords || ""}`;
           const score = Math.max(
@@ -3950,7 +4000,7 @@ export default function FlowApp() {
           );
           return { item, score };
         })
-        .filter(({ score }) => score >= 0)
+        .filter(({ score, item }) => score >= (needle.length <= 2 ? 18 : 6) || normalizeSearchText(`${item.title} ${item.meta || ""}`).includes(normalizeSearchText(needle)))
         .sort((a, b) => {
           if (b.score !== a.score) return b.score - a.score;
           if ((b.item.priority || 0) !== (a.item.priority || 0)) return (b.item.priority || 0) - (a.item.priority || 0);
@@ -4674,6 +4724,11 @@ export default function FlowApp() {
   }, [toast, updateDb]);
 
   useEffect(() => { return () => clearInterval(focusRef.current); }, []);
+  useEffect(() => () => {
+    if (commandPaletteCloseTimerRef.current) {
+      window.clearTimeout(commandPaletteCloseTimerRef.current);
+    }
+  }, []);
   useEffect(() => {
     if (!releaseWidgetOpen) return undefined;
     const onKeyDown = (event) => {
@@ -9326,8 +9381,8 @@ export default function FlowApp() {
           event.target.value = "";
         }}
       />
-      {commandPaletteOpen && (
-        <div className="cp-overlay" onClick={(event) => { if (event.target === event.currentTarget) closeCommandPalette(); }}>
+      {(commandPaletteOpen || commandPaletteClosing) && (
+        <div className={`cp-overlay ${commandPaletteClosing ? "closing" : ""}`} onClick={(event) => { if (event.target === event.currentTarget) closeCommandPalette(); }}>
           <div className="cp-shell" role="dialog" aria-modal="true" aria-label="Command Palette Flow">
             <div className="cp-head">
               <div className="cp-search">
@@ -9382,7 +9437,7 @@ export default function FlowApp() {
           </div>
         </div>
       )}
-      <div className={`app ${isMobileViewport ? "mobile-shell" : ""} ${sidebarPinned ? "sidebar-pinned" : ""}`} onTouchStart={handleAppTouchStart} onTouchMove={handleAppTouchMove} onTouchEnd={handleAppTouchEnd}>
+      <div className={`app ${isMobileViewport ? "mobile-shell" : ""} ${sidebarPinned ? "sidebar-pinned" : ""} ${sidebarExpanded ? "sidebar-expanded" : ""}`} onTouchStart={handleAppTouchStart} onTouchMove={handleAppTouchMove} onTouchEnd={handleAppTouchEnd}>
         {/* Sidebar veil (mobile) */}
         <div className={`sb-veil ${sbOpen || mobileSidebarProgress > 0 ? "show" : ""}`} style={isMobileViewport ? { opacity: Math.max(0, Math.min(0.52, mobileSidebarProgress * 0.52)) } : undefined} onClick={() => { setSbOpen(false); setMobileSidebarProgress(0); }} />
 
@@ -9402,7 +9457,7 @@ export default function FlowApp() {
               {!sidebarCompact && (
                 <>
                   <ReleaseBadge className="sb-release" label={releaseBadgeLabel} onClick={() => setReleaseWidgetOpen(true)} />
-                  {!isMobileViewport && <button className={`sb-pin ${sidebarPinned ? "on" : ""}`} onClick={() => setSidebarPinned((prev) => !prev)} title={sidebarPinned ? "Déverrouiller le menu" : "Verrouiller le menu"}>{I.lock}</button>}
+                  {!isMobileViewport && <button className={`sb-pin ${sidebarPinned ? "on" : ""}`} onClick={toggleSidebarPinned} title={sidebarPinned ? "Déverrouiller le menu" : "Verrouiller le menu"}>{I.lock}</button>}
                 </>
               )}
             </div>
@@ -9411,7 +9466,7 @@ export default function FlowApp() {
             <div className="sb-nav-main">
               <div className="sb-sec">Main Menu</div>
               {spaceNav.map((n) => (
-                <div key={n.key} title={n.label} className={`ni ${view === n.key ? "on" : ""}`} onClick={() => { setView(n.key); if (n.key === "calendar") setCalendarDayOpen(false); setSbOpen(false); setEditNote(null); closeTransientSidebar(); }}>
+                <div key={n.key} title={n.label} className={`ni ${view === n.key ? "on" : ""}`} onClick={() => { setView(n.key); if (n.key === "calendar") setCalendarDayOpen(false); if (isMobileViewport) setSbOpen(false); setEditNote(null); closeTransientSidebar(); }}>
                   <span className="ni-icon">{n.icon}</span><span className="ni-label">{n.label}</span>{n.badge && <span className="ni-badge">{n.badge}</span>}
                 </div>
               ))}
@@ -9419,7 +9474,7 @@ export default function FlowApp() {
             <div className="sb-nav-bottom">
               <div className="sb-sec">Features</div>
               {organizationNav.map((n) => (
-                <div key={n.key} title={n.label} className={`ni ${view === n.key ? "on" : ""}`} onClick={() => { setView(n.key); setSbOpen(false); closeTransientSidebar(); }}>
+                <div key={n.key} title={n.label} className={`ni ${view === n.key ? "on" : ""}`} onClick={() => { setView(n.key); if (isMobileViewport) setSbOpen(false); closeTransientSidebar(); }}>
                   <span className="ni-icon">{n.icon}</span><span className="ni-label">{n.label}</span>{n.badge && <span className="ni-badge">{n.badge}</span>}
                 </div>
               ))}
