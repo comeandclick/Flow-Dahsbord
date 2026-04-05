@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.43
+### 1.22.45
 
-- **Date** : 04/04/2026 22:54
-- **Résumé** : Flow ajoute `/atelier`, une nouvelle variante premium repartie du brief produit, tout en renforçant la QA utilisateur et la fiabilité du chargement client.
+- **Date** : 05/04/2026 13:38
+- **Résumé** : Flow revient à une base claire avec un seul site principal, un dashboard admin amélioré et un périmètre produit nettoyé.
 
-- **Nouvelle route publique `/atelier`** : La variante Atelier repart du brief produit et du code fonctionnel existant pour proposer un environnement visuel totalement distinct, sans changer les comptes, les données ni les modules.
-- **Thème Atelier entièrement séparé** : Sidebar, shell, cartes, topbar, auth et composants principaux ont reçu une identité plus chaleureuse et habitable, indépendante des variantes déjà créées.
-- **QA utilisateur renforcée et bug middleware corrigé** : Un script `check:ux` et le skill `flow-user-qa` valident les routes clés en desktop/mobile, tandis que le middleware n’intercepte plus les chunks statiques Next.
+- **Suppression des routes parallèles** : Le dépôt et la production ne gardent plus que le Flow principal et le dashboard admin, sans routes annexes `aurora` ou `atelier`.
+- **Expérience admin rendue plus robuste** : Le login admin valide mieux les entrées, la section utilisateurs gagne un reset de filtres et les actions rapides sont plus sûres à utiliser.
+- **Documentation resynchronisée avec le périmètre réel** : Le journal de version et les documents de reprise reflètent maintenant un seul produit Flow public et son admin associé.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

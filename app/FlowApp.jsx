@@ -2129,7 +2129,7 @@ html[data-skin="atelier"] .settings-panel{border-radius:28px}
 // ═══════════════════════════════════════════════════════════
 // MAIN APP COMPONENT
 // ═══════════════════════════════════════════════════════════
-export default function FlowApp({ siteSkin = "default" }) {
+export default function FlowApp() {
   const releaseBadgeLabel = useMemo(() => `v${RELEASE.version}`, []);
   const releaseLabel = useMemo(() => `v${RELEASE.version} · ${fmtRelease(RELEASE.deployedAt)}`, []);
   const [releaseWidgetOpen, setReleaseWidgetOpen] = useState(false);
@@ -3344,7 +3344,7 @@ export default function FlowApp({ siteSkin = "default" }) {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-t", theme);
-    document.documentElement.setAttribute("data-skin", siteSkin || "default");
+    document.documentElement.setAttribute("data-skin", "default");
     document.documentElement.style.colorScheme = theme === "light" ? "light" : "dark";
     const accent = getAccentPreset(db.settings?.accent);
     document.documentElement.style.setProperty("--accent", accent.value);
@@ -3355,15 +3355,11 @@ export default function FlowApp({ siteSkin = "default" }) {
     document.documentElement.style.setProperty("--app-font-size", FONT_SCALE_MAP[db.settings?.fontScale] || FONT_SCALE_MAP.md);
     document.documentElement.style.setProperty(
       "--sans",
-      siteSkin === "apple"
-        ? "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif"
-        : siteSkin === "atelier"
-          ? "'Sora', system-ui, sans-serif"
-          : (FONT_FAMILY_MAP[db.settings?.fontFamily] || FONT_FAMILY_MAP.geist),
+      FONT_FAMILY_MAP[db.settings?.fontFamily] || FONT_FAMILY_MAP.geist,
     );
     document.documentElement.style.setProperty("--serif", "'Instrument Serif', Georgia, serif");
     document.documentElement.style.setProperty("--mono", "'Geist Mono', monospace");
-  }, [db.settings?.accent, db.settings?.fontFamily, db.settings?.fontScale, siteSkin, theme]);
+  }, [db.settings?.accent, db.settings?.fontFamily, db.settings?.fontScale, theme]);
 
   useEffect(() => { dbRef.current = db; }, [db]);
 

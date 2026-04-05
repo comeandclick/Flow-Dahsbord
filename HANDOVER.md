@@ -55,31 +55,22 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - A chaque nouvelle passe, remplacer le contenu du widget par l'etat actuel plutot que garder un historique infini
 - Version actuelle: `v1.22.43`
 
-## Passe produit 17 - 04/04/2026 22:54
+## Passe produit 18 - 05/04/2026 13:38
 
 ### Fait dans cette passe
 
-- nouvelle variante publique:
-  - ajout de la route `/atelier`
-  - cette variante repart du brief produit plutot que des themes precedents
-  - elle garde les memes comptes, le meme backend et les memes fonctionnalites
-- theme atelier:
-  - nouvelle DA plus chaleureuse et plus habitable
-  - shell, sidebar, topbar, auth, cartes et composants principaux differencies du site principal et de `/aurora`
-- QA utilisateur:
-  - ajout du script `npm run check:ux`
-  - verification route par route en desktop et mobile:
-    - `/`
-    - `/aurora`
-    - `/atelier`
-    - `/admin/login`
-  - ajout du skill local `/Users/aymen/.codex/skills/flow-user-qa/`
-- correctifs:
-  - debordement horizontal corrige sur `/admin/login` en mobile
-  - middleware corrige pour ne plus intercepter `/_next/static` et casser le chargement des chunks
+- perimetre produit nettoye:
+  - suppression des routes `/aurora` et `/atelier`
+  - le produit ne garde plus qu'un seul Flow public et un seul dashboard admin
+- admin:
+  - login admin plus robuste avec validation simple avant envoi
+  - section utilisateurs plus pratique avec remise a zero des filtres
+  - actions rapides mieux cadrees
+- continuite:
+  - comptes et donnees existantes conserves
+  - backend et compatibilite de store inchanges
 - checks locaux:
   - `npm run build` OK
-  - `npm run check:ux -- http://127.0.0.1:3100` OK
   - `npm run check:client -- http://127.0.0.1:3100` OK
 
 ## Passe produit 16 - 31/03/2026 15:50

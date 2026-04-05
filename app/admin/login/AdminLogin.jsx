@@ -54,6 +54,33 @@ export default function AdminLogin() {
     document.documentElement.lang = locale;
   }, [locale]);
 
+  async function submitLogin(event) {
+    event?.preventDefault?.();
+    if (busy) return;
+
+    const trimmedEmail = `${email || ""}`.trim();
+    const nextPassword = `${password || ""}`;
+
+    if (!trimmedEmail || !nextPassword) {
+      setError(locale === "en" ? "Enter your admin email and password." : "Entre l'email admin et le mot de passe.");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/admin/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: trimmedEmail, password: nextPassword }),
+      });
+      window.location.href = "/admin";
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="shell">
       <style jsx>{`
@@ -174,7 +201,7 @@ export default function AdminLogin() {
         .link a{color:#f0f0f3}
       `}</style>
 
-      <div className="card">
+      <form className="card" onSubmit={submitLogin}>
         <div className="logo">F</div>
         <div className="eyebrow">{copy.eyebrow}</div>
         <h1>{copy.title}</h1>
@@ -183,29 +210,12 @@ export default function AdminLogin() {
         <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder={copy.emailPlaceholder} autoComplete="username" />
         <label>{copy.password}</label>
         <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder={copy.passwordPlaceholder} autoComplete="current-password" />
-        <button
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            setError("");
-            try {
-              await api("/api/admin/auth/login", {
-                method: "POST",
-                body: JSON.stringify({ email, password }),
-              });
-              window.location.href = "/admin";
-            } catch (err) {
-              setError(err.message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
+        <button type="submit" disabled={busy}>
           {busy ? copy.pending : copy.submit}
         </button>
         {error ? <div className="error">{error}</div> : null}
         <div className="link"><a href="/">{copy.back}</a></div>
-      </div>
+      </form>
     </div>
   );
 }

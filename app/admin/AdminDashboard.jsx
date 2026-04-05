@@ -85,6 +85,14 @@ function DataMetric({ label, value, hint = "" }) {
   );
 }
 
+const DEFAULT_ADMIN_FORM = {
+  name: "",
+  email: "",
+  password: "",
+  role: "admin",
+  permissions: ["dashboard.read", "users.read", "messages.send"],
+};
+
 function buildAdminUi(locale = "fr") {
   const en = locale === "en";
   return {
@@ -163,13 +171,7 @@ export default function AdminDashboard() {
     detail: "",
     type: "admin",
   });
-  const [adminForm, setAdminForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "admin",
-    permissions: ["dashboard.read", "users.read", "messages.send"],
-  });
+  const [adminForm, setAdminForm] = useState(DEFAULT_ADMIN_FORM);
   const ui = useMemo(() => buildAdminUi(locale), [locale]);
   const t = useCallback((fr, en) => (locale === "en" ? en : fr), [locale]);
 
@@ -258,11 +260,39 @@ export default function AdminDashboard() {
     setReportResolutionNote(selectedReport?.resolutionNote || "");
   }, [selectedReport?.id, selectedReport?.resolutionNote]);
 
+  useEffect(() => {
+    if (!filteredUsers.length) {
+      if (selectedUid) setSelectedUid("");
+      return;
+    }
+    if (!filteredUsers.some((entry) => entry.uid === selectedUid)) {
+      setSelectedUid(filteredUsers[0].uid);
+    }
+  }, [filteredUsers, selectedUid]);
+
+  function resetUserFilters() {
+    setQuery("");
+    setStatusFilter("all");
+    setAdminFilter("all");
+    setPlanFilter("all");
+  }
+
   async function runAction(action, extra = {}) {
     setSending(true);
     setNotice("");
     setTempPassword("");
     try {
+      if (action === "notify") {
+        const nextTitle = `${extra?.title || ""}`.trim();
+        const nextDetail = `${extra?.detail || ""}`.trim();
+        const nextRecipientMode = `${extra?.recipientMode || "single"}`;
+        if (!nextTitle || !nextDetail) {
+          throw new Error(t("Le titre et le message sont requis.", "Title and message are required."));
+        }
+        if (nextRecipientMode === "single" && !selectedUser?.uid) {
+          throw new Error(t("Sélectionne un utilisateur avant d'envoyer un message ciblé.", "Select a user before sending a targeted message."));
+        }
+      }
       const payload = await api("/api/admin/actions", {
         method: "POST",
         body: JSON.stringify({ action, uid: selectedUser?.uid || "", ...extra }),
@@ -271,8 +301,49 @@ export default function AdminDashboard() {
       setNotice(t("Action appliquee.", "Action applied."));
       await loadOverview(true);
       await loadSupportConversations();
+      if (action === "notify") {
+        setForm({ recipientMode: "single", title: "", detail: "", type: "admin" });
+      }
     } catch (err) {
       setNotice(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function createAdminAccount() {
+    if (sending) return;
+
+    const nextName = `${adminForm.name || ""}`.trim();
+    const nextEmail = `${adminForm.email || ""}`.trim().toLowerCase();
+    const nextPassword = `${adminForm.password || ""}`;
+
+    if (!nextName || !nextEmail || !nextPassword) {
+      setNotice(t("Nom, email et mot de passe admin sont requis.", "Admin name, email and password are required."));
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      setNotice(t("Email admin invalide.", "Invalid admin email."));
+      return;
+    }
+
+    if (nextPassword.length < 8) {
+      setNotice(t("Le mot de passe admin doit contenir au moins 8 caractères.", "The admin password must be at least 8 characters long."));
+      return;
+    }
+
+    setSending(true);
+    setNotice("");
+    try {
+      await runAction("create-admin", {
+        ...adminForm,
+        name: nextName,
+        email: nextEmail,
+        password: nextPassword,
+      });
+      setAdminForm(DEFAULT_ADMIN_FORM);
+      setNotice(t("Administrateur créé.", "Administrator created."));
     } finally {
       setSending(false);
     }
@@ -1098,6 +1169,9 @@ export default function AdminDashboard() {
                   <div className="split-grid">
                     <div className="flow-card panel">
                       <input className="search" placeholder={t("Rechercher par nom, email ou identifiant", "Search by name, email or username")} value={query} onChange={(event) => setQuery(event.target.value)} />
+                      <div className="inline-actions" style={{ marginBottom: 8 }}>
+                        <button className="btn soft" type="button" disabled={loading || sending} onClick={resetUserFilters}>{t("Réinitialiser les filtres", "Reset filters")}</button>
+                      </div>
                       <ChoiceRow options={ui.statusOptions} value={statusFilter} onChange={setStatusFilter} />
                       <ChoiceRow options={ui.adminOptions} value={adminFilter} onChange={setAdminFilter} />
                       <ChoiceRow options={ui.planOptions} value={planFilter} onChange={setPlanFilter} />
@@ -1163,6 +1237,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="inline-actions">
                                   <button className="btn primary" type="button" disabled={sending} onClick={() => runAction("notify", form)}>{t("Envoyer", "Send")}</button>
+                                  <button className="btn soft" type="button" disabled={sending} onClick={() => setForm({ recipientMode: "single", title: "", detail: "", type: "admin" })}>{t("Vider", "Clear")}</button>
                                   <button className="btn soft" type="button" disabled={sending || !capabilities.canExportCsv} onClick={() => { window.location.href = "/api/admin/export"; }}>{t("Exporter CSV", "Export CSV")}</button>
                                 </div>
                               </div>
@@ -1584,21 +1659,11 @@ export default function AdminDashboard() {
                           className="btn primary"
                           type="button"
                           disabled={sending || !capabilities.canCreateAdmins}
-                          onClick={async () => {
-                            setSending(true);
-                            setNotice("");
-                            try {
-                              await runAction("create-admin", adminForm);
-                              setAdminForm({ name: "", email: "", password: "", role: "admin", permissions: ["dashboard.read", "users.read", "messages.send"] });
-                              setNotice(t("Administrateur créé.", "Administrator created."));
-                            } finally {
-                              setSending(false);
-                            }
-                          }}
+                          onClick={() => void createAdminAccount()}
                         >
                           {t("Créer l'admin", "Create admin")}
                         </button>
-                        <button className="btn soft" type="button" disabled={sending} onClick={() => setAdminForm({ name: "", email: "", password: "", role: "admin", permissions: ["dashboard.read", "users.read", "messages.send"] })}>{t("Réinitialiser", "Reset")}</button>
+                        <button className="btn soft" type="button" disabled={sending} onClick={() => setAdminForm(DEFAULT_ADMIN_FORM)}>{t("Réinitialiser", "Reset")}</button>
                       </div>
                     </div>
                   </div>
