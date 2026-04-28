@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.45
+### 1.22.46
 
-- **Date** : 05/04/2026 13:38
-- **Résumé** : Flow revient à une base claire avec un seul site principal, un dashboard admin amélioré et un périmètre produit nettoyé.
+- **Date** : 29/04/2026 00:33
+- **Résumé** : La production Flow est republiée proprement avec les routes principales restaurées et un périmètre recentré sur le site principal et l'admin.
 
-- **Suppression des routes parallèles** : Le dépôt et la production ne gardent plus que le Flow principal et le dashboard admin, sans routes annexes `aurora` ou `atelier`.
-- **Expérience admin rendue plus robuste** : Le login admin valide mieux les entrées, la section utilisateurs gagne un reset de filtres et les actions rapides sont plus sûres à utiliser.
-- **Documentation resynchronisée avec le périmètre réel** : Le journal de version et les documents de reprise reflètent maintenant un seul produit Flow public et son admin associé.
+- **Production rétablie sur les routes clés** : La republication remet en place correctement la page Flow, l'admin et l'API de release qui ne doivent plus répondre en 404.
+- **Périmètre Flow recentré** : Le dépôt reste limité au Flow principal et au dashboard admin, sans surfaces parallèles ni variantes annexes.
+- **Résidus locaux nettoyés** : Les reliquats de vérification réapparus localement sont retirés pour éviter toute confusion avant publication.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 
