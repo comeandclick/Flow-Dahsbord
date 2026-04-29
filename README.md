@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.23.0
+### 1.23.1
 
-- **Date** : 29/04/2026 13:32
-- **Résumé** : Nouveau socle Flow recentré sur les systèmes critiques: auth, Google, releases, notifications de mise à jour et déploiement prêt pour Vercel.
+- **Date** : 29/04/2026 17:04
+- **Résumé** : Le socle Flow passe sur un vrai shell produit: auth minimale, dashboard d’accueil, sidebar hover/lock, recherche globale, notifications et double layout dark/light.
 
-- **Surface principale reconstruite** : Le site public repart sur une base minimale dédiée à l'authentification, au statut du compte et aux releases.
-- **Pile d'auth conservée et recentrée** : Inscription, connexion, session mémorisée, reset mot de passe et Google OAuth restent branchés sur le backend existant.
-- **Mises à jour détectées puis rechargées** : Le client surveille la release courante, notifie l'utilisateur et recharge la page quand une nouvelle version est publiée.
+- **Connexion réduite au strict nécessaire** : La page d’accès ne garde plus que le bloc connexion, création de compte et reset, sans grand texte de présentation.
+- **Nouveau dashboard shell après connexion** : Le compte connecté entre maintenant dans un vrai dashboard avec topbar, recherche, sidebar hover + lock et thème persistant.
+- **Deux structures visuelles maintenues** : Le shell supporte déjà une vue tableau et une vue immersive, toutes deux branchées sur les mêmes données et sur le switch clair/sombre.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

@@ -2,19 +2,23 @@
 
 ## Etat courant prioritaire
 
-- le site public a ete reconstruit sur un socle minimal
-- le perimetre public actif se limite maintenant a:
-  - auth classique
-  - auth Google
-  - session memoire
-  - reset mot de passe
-  - journal de version
-  - detection de mise a jour + reload
+- la page publique `/` n'est plus un portail de présentation:
+  - elle affiche seulement le bloc d'auth tant que l'utilisateur n'est pas connecté
+- après connexion, l'utilisateur arrive directement sur un vrai dashboard shell
+- le shell déjà reconstruit inclut:
+  - dashboard d’accueil
+  - topbar avec recherche
+  - palette `Cmd+K` / `Ctrl+K`
+  - panneau notifications
+  - switch dark / light
+  - sidebar desktop hover + lock
+  - drawer mobile à gauche
+  - deux structures visuelles:
+    - `overview`
+    - `immersive`
 - le dashboard admin reste present a part
-- bug structurel corrige:
-  - `middleware.js` n'intercepte plus les chunks `/_next/static`
-  - le build Next nettoie `.next` avant compilation
-  - `ensure-build` verifie aussi `_not-found/page.js.nft.json`
+- mémoire de DA à suivre:
+  - `docs/design-theme-memory.md`
 
 ## Ce que fait le code
 

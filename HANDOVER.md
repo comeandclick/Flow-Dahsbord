@@ -61,7 +61,38 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.23.0`
+- Version actuelle: `v1.23.1`
+
+## Passe produit 20 - 29/04/2026 17:04
+
+### Fait dans cette passe
+
+- page de connexion allégée:
+  - plus de grand texte produit
+  - uniquement le bloc `connexion / création / mot de passe`
+  - bouton Google gardé visible
+- shell principal reconstruit après connexion:
+  - dashboard comme page d’accueil
+  - topbar avec recherche, notifications et switch thème
+  - sidebar hover sur desktop
+  - verrouillage manuel de la sidebar avec mémorisation
+  - drawer mobile depuis la gauche
+- recherche:
+  - dropdown sous la barre du haut
+  - `Cmd+K` / `Ctrl+K` ouvre une palette centrale
+  - index unifié sans doublons sur notes, tâches, événements, signets et contacts disponibles
+- notifications:
+  - panneau flottant inspiré des références
+  - lecture unitaire ou globale
+- double structure:
+  - `overview`
+  - `immersive`
+  - persistance dans les réglages du compte
+- thème:
+  - dark et light construits sur la même DA
+  - persistance côté compte
+- mémoire design ajoutée:
+  - `docs/design-theme-memory.md`
 
 ## Passe produit 19 - 29/04/2026 13:32
 

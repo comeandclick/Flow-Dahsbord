@@ -53,10 +53,14 @@ Ces routes doivent garder:
 - Inscription
 
 ### Espace principal actuel
-- Portail de connexion
-- Portail d'inscription
-- Portail de reset mot de passe
-- Ecran de session connectee
+- Bloc de connexion minimal
+- Bloc d'inscription minimal
+- Bloc de reset mot de passe minimal
+- Dashboard d’accueil après connexion
+- Sidebar hover + lock
+- Recherche topbar + palette clavier
+- Panneau notifications
+- Double structure `overview / immersive`
 - Journal de version
 
 ### Espace principal plus tard
@@ -106,6 +110,19 @@ Ces routes doivent garder:
   - force une derniere synchro si des changements ne sont pas encore pousses
   - supprime la session
   - renvoie sur l'ecran d'auth
+- `Verrouiller la sidebar`
+  - laisse la barre ouverte sur desktop
+  - l'etat doit être mémorisé entre les visites
+- `Recherche topbar`
+  - ouvre un dropdown sous l'input
+  - ne retourne pas de doublons
+  - cherche au minimum notes, contacts, événements, tâches
+- `Cmd+K / Ctrl+K`
+  - ouvre une palette flottante au centre
+  - partage le même index que la recherche du haut
+- `Notifications`
+  - ouvre un panneau flottant aligné à droite de la topbar
+  - permet de lire une notification ou tout marquer lu
 - `Notification de mise a jour`
   - doit pouvoir etre envoyee a tous les comptes apres publication
   - doit remonter dans le centre de notifications Flow

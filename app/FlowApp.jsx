@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ReleaseBadge, ReleaseWidget } from "./flow/release-ui";
+import { ReleaseWidget } from "./flow/release-ui";
 import { RELEASE } from "../lib/release";
+import { createEmptyDb } from "../lib/schema";
 
 const RELEASE_LABEL = formatReleaseLabel(RELEASE);
 const LAST_EMAIL_KEY = "flow:last-email";
+const DASHBOARD_LAYOUT_KEY = "flow:shell-layout";
+const SIDEBAR_LOCK_KEY = "flow:sidebar-lock";
 const UPDATE_POLL_MS = 45_000;
 const AUTO_RELOAD_SECONDS = 12;
 
@@ -52,6 +55,26 @@ function rememberEmail(email) {
   window.localStorage.setItem(LAST_EMAIL_KEY, normalized);
 }
 
+function readStoredLayout() {
+  if (typeof window === "undefined") return "overview";
+  return window.localStorage.getItem(DASHBOARD_LAYOUT_KEY) || "overview";
+}
+
+function rememberLayout(value) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DASHBOARD_LAYOUT_KEY, value);
+}
+
+function readStoredSidebarLock() {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(SIDEBAR_LOCK_KEY) === "true";
+}
+
+function rememberSidebarLock(value) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SIDEBAR_LOCK_KEY, value ? "true" : "false");
+}
+
 function normalizeMessage(error, fallback) {
   return error?.message || fallback;
 }
@@ -61,8 +84,289 @@ function isReleaseDifferent(remote) {
   return remote.version !== RELEASE.version || remote.deployedAt !== RELEASE.deployedAt;
 }
 
-function StatusPill({ tone = "neutral", children }) {
-  return <span className={`status-pill ${tone}`}>{children}</span>;
+function initialsFromName(name) {
+  return `${name || ""}`
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || "")
+    .join("")
+    .toUpperCase() || "FL";
+}
+
+function firstName(name) {
+  return `${name || ""}`.trim().split(/\s+/)[0] || "Flow";
+}
+
+function formatShortDate(value) {
+  if (!value) return "Sans date";
+  try {
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function formatRelative(value) {
+  if (!value) return "Maintenant";
+  const delta = Date.now() - new Date(value).getTime();
+  const abs = Math.abs(delta);
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (abs < minute) return "À l’instant";
+  if (abs < hour) return `${Math.round(abs / minute)} min`;
+  if (abs < day) return `${Math.round(abs / hour)} h`;
+  return `${Math.round(abs / day)} j`;
+}
+
+function createChartPoints(values, width = 520, height = 180) {
+  const safeValues = values.length ? values : [1, 2, 1, 3, 2];
+  const max = Math.max(...safeValues, 1);
+  const min = Math.min(...safeValues, 0);
+  const spread = Math.max(max - min, 1);
+  return safeValues
+    .map((value, index) => {
+      const x = (index / Math.max(safeValues.length - 1, 1)) * width;
+      const y = height - ((value - min) / spread) * (height - 18) - 9;
+      return `${x},${y}`;
+    })
+    .join(" ");
+}
+
+function buildSearchEntries(db, user) {
+  const source = db || createEmptyDb();
+  const seen = new Set();
+  const items = [];
+
+  function push(item) {
+    const key = item.key || `${item.kind}:${item.id || item.title}`;
+    if (!item.title || seen.has(key)) return;
+    seen.add(key);
+    items.push({ ...item, key });
+  }
+
+  push({
+    key: `contact:user:${user?.uid || "self"}`,
+    kind: "contact",
+    id: user?.uid || "self",
+    title: source.profile?.fullName || user?.name || "Mon compte",
+    subtitle: source.profile?.email || user?.email || "",
+    body: source.profile?.phone || "Compte principal",
+    section: "contacts",
+  });
+
+  source.notes.forEach((note) =>
+    push({
+      kind: "note",
+      id: note.id,
+      title: note.title || "Note sans titre",
+      subtitle: note.cat || "Note",
+      body: note.content || "",
+      section: "notes",
+    }),
+  );
+
+  source.tasks.forEach((task) =>
+    push({
+      kind: "task",
+      id: task.id,
+      title: task.title || "Tâche sans titre",
+      subtitle: task.status || "Tâche",
+      body: task.desc || "",
+      section: "tasks",
+    }),
+  );
+
+  source.events.forEach((event) => {
+    push({
+      kind: "event",
+      id: event.id,
+      title: event.title || "Événement sans titre",
+      subtitle: event.date || "Événement",
+      body: event.desc || "",
+      section: "events",
+    });
+
+    (event.attendees || []).forEach((attendee) =>
+      push({
+        key: `contact:${attendee.uid || attendee.email || attendee.name}`,
+        kind: "contact",
+        id: attendee.uid || attendee.email || attendee.name,
+        title: attendee.name || attendee.email || "Contact",
+        subtitle: attendee.email || attendee.username || "Participant",
+        body: attendee.phone || "",
+        section: "contacts",
+      }),
+    );
+  });
+
+  source.bookmarks.forEach((bookmark) =>
+    push({
+      kind: "bookmark",
+      id: bookmark.id,
+      title: bookmark.title || "Signet",
+      subtitle: bookmark.sourceLabel || bookmark.url || "Signet",
+      body: bookmark.note || bookmark.previewText || "",
+      section: "notes",
+    }),
+  );
+
+  return items;
+}
+
+function getShellSettings(db) {
+  const settings = db?.settings || {};
+  return {
+    theme: settings.theme === "light" ? "light" : "dark",
+    dashboardLayout: settings.dashboardLayout === "immersive" ? "immersive" : "overview",
+    sidebarLocked: Boolean(settings.sidebarLocked),
+  };
+}
+
+function Icon({ name, size = 18, stroke = 1.8 }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: stroke,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true",
+  };
+
+  switch (name) {
+    case "search":
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.8-3.8" />
+        </svg>
+      );
+    case "bell":
+      return (
+        <svg {...common}>
+          <path d="M6 9a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9" />
+          <path d="M10 21a2 2 0 0 0 4 0" />
+        </svg>
+      );
+    case "sun":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2.5M12 19.5V22M4.93 4.93l1.77 1.77M17.3 17.3l1.77 1.77M2 12h2.5M19.5 12H22M4.93 19.07l1.77-1.77M17.3 6.7l1.77-1.77" />
+        </svg>
+      );
+    case "moon":
+      return (
+        <svg {...common}>
+          <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 6.8 6.8 0 0 0 20 14.5Z" />
+        </svg>
+      );
+    case "menu":
+      return (
+        <svg {...common}>
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      );
+    case "lock":
+      return (
+        <svg {...common}>
+          <rect x="5" y="11" width="14" height="10" rx="3" />
+          <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+        </svg>
+      );
+    case "unlock":
+      return (
+        <svg {...common}>
+          <rect x="5" y="11" width="14" height="10" rx="3" />
+          <path d="M8 11V8a4 4 0 0 1 7-2.5" />
+        </svg>
+      );
+    case "grid":
+      return (
+        <svg {...common}>
+          <rect x="4" y="4" width="6" height="6" rx="1.5" />
+          <rect x="14" y="4" width="6" height="6" rx="1.5" />
+          <rect x="4" y="14" width="6" height="6" rx="1.5" />
+          <rect x="14" y="14" width="6" height="6" rx="1.5" />
+        </svg>
+      );
+    case "note":
+      return (
+        <svg {...common}>
+          <path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+          <path d="M14 3v6h6" />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg {...common}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+          <circle cx="9.5" cy="7" r="3.5" />
+          <path d="M20 21v-2a4 4 0 0 0-3-3.85" />
+          <path d="M15.5 3.15a3.5 3.5 0 0 1 0 6.7" />
+        </svg>
+      );
+    case "calendar":
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="16" rx="3" />
+          <path d="M16 3v4M8 3v4M3 10h18" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg {...common}>
+          <path d="m5 13 4 4L19 7" />
+        </svg>
+      );
+    case "activity":
+      return (
+        <svg {...common}>
+          <path d="M3 12h4l2-5 4 10 2-5h6" />
+        </svg>
+      );
+    case "spark":
+      return (
+        <svg {...common}>
+          <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" />
+        </svg>
+      );
+    case "arrow-right":
+      return (
+        <svg {...common}>
+          <path d="M5 12h14" />
+          <path d="m13 6 6 6-6 6" />
+        </svg>
+      );
+    case "close":
+      return (
+        <svg {...common}>
+          <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+      );
+    case "sliders":
+      return (
+        <svg {...common}>
+          <path d="M4 21v-7M4 10V3M12 21v-3M12 14V3M20 21v-9M20 8V3" />
+          <path d="M2 14h4M10 10h4M18 8h4" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8" />
+        </svg>
+      );
+  }
 }
 
 function AuthTabButton({ active, onClick, children }) {
@@ -90,13 +394,32 @@ function Field({ label, type = "text", value, onChange, placeholder, autoComplet
   );
 }
 
+function NavItem({ active, icon, label, collapsed, onClick }) {
+  return (
+    <button type="button" className={`nav-item ${active ? "active" : ""} ${collapsed ? "collapsed" : ""}`} onClick={onClick}>
+      <span className="nav-icon"><Icon name={icon} size={18} /></span>
+      <span className="nav-label">{label}</span>
+    </button>
+  );
+}
+
+function ResultIcon({ kind }) {
+  if (kind === "note" || kind === "bookmark") return <Icon name="note" size={16} />;
+  if (kind === "contact") return <Icon name="users" size={16} />;
+  if (kind === "event") return <Icon name="calendar" size={16} />;
+  if (kind === "task") return <Icon name="check" size={16} />;
+  return <Icon name="grid" size={16} />;
+}
+
 export default function FlowApp() {
   const [booting, setBooting] = useState(true);
   const [busy, setBusy] = useState("");
   const [providers, setProviders] = useState({ google: false, email: false });
   const [user, setUser] = useState(null);
+  const [db, setDb] = useState(createEmptyDb());
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
+  const [activeSection, setActiveSection] = useState("dashboard");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [releaseOpen, setReleaseOpen] = useState(false);
@@ -106,10 +429,77 @@ export default function FlowApp() {
   const [login, setLogin] = useState({ email: "", password: "" });
   const [register, setRegister] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [reset, setReset] = useState({ email: "", code: "", password: "" });
+  const [searchValue, setSearchValue] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarHover, setSidebarHover] = useState(false);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [shellTheme, setShellTheme] = useState("dark");
+  const [dashboardLayout, setDashboardLayout] = useState("overview");
+  const [sidebarLocked, setSidebarLocked] = useState(false);
   const intervalRef = useRef(null);
   const reloadTimerRef = useRef(null);
+  const searchWrapRef = useRef(null);
+  const notifRef = useRef(null);
+  const commandInputRef = useRef(null);
 
   const releaseMeta = useMemo(() => formatReleaseLabel(remoteRelease || RELEASE), [remoteRelease]);
+  const searchEntries = useMemo(() => buildSearchEntries(db, user), [db, user]);
+  const unreadNotifications = useMemo(
+    () => (db.notifications || []).filter((item) => !item.readAt).length,
+    [db.notifications],
+  );
+
+  const dashboardMetrics = useMemo(() => {
+    const uniqueContacts = new Map();
+    (db.events || []).forEach((event) => {
+      (event.attendees || []).forEach((attendee) => {
+        const key = attendee.uid || attendee.email || attendee.name;
+        if (key) uniqueContacts.set(key, attendee);
+      });
+    });
+
+    return {
+      notes: db.notes.length,
+      tasks: db.tasks.filter((item) => item.status !== "done").length,
+      events: db.events.length,
+      contacts: uniqueContacts.size + 1,
+      notifications: unreadNotifications,
+      activity: db.activity.length,
+      bookmarks: db.bookmarks.length,
+    };
+  }, [db, unreadNotifications]);
+
+  const searchResults = useMemo(() => {
+    const query = searchValue.trim().toLowerCase();
+    const items = query
+      ? searchEntries.filter((item) =>
+          [item.title, item.subtitle, item.body, item.kind]
+            .filter(Boolean)
+            .some((value) => `${value}`.toLowerCase().includes(query)),
+        )
+      : searchEntries.slice(0, 8);
+    return items.slice(0, 10);
+  }, [searchEntries, searchValue]);
+
+  const chartPoints = useMemo(
+    () =>
+      createChartPoints([
+        Math.max(dashboardMetrics.notes, 1),
+        Math.max(dashboardMetrics.tasks + 1, 1),
+        Math.max(dashboardMetrics.events + 1, 1),
+        Math.max(dashboardMetrics.contacts, 1),
+        Math.max(dashboardMetrics.notifications + 1, 1),
+        Math.max(dashboardMetrics.bookmarks + 1, 1),
+      ]),
+    [dashboardMetrics],
+  );
+
+  const sidebarExpanded = sidebarLocked || sidebarHover;
+  const shellCollapsedClass = !sidebarExpanded ? "collapsed" : "";
+  const themeClass = shellTheme === "light" ? "theme-light" : "theme-dark";
 
   useEffect(() => {
     const savedEmail = readStoredEmail();
@@ -126,24 +516,30 @@ export default function FlowApp() {
       try {
         const [providerPayload, sessionPayload, releasePayload] = await Promise.all([
           api("/api/auth/providers").catch(() => ({ google: false, email: false })),
-          api("/api/session").catch(() => ({ user: null, admin: false })),
+          api("/api/session").catch(() => ({ user: null, admin: false, db: createEmptyDb() })),
           api("/api/release/current").catch(() => RELEASE),
         ]);
 
         if (cancelled) return;
 
+        const nextDb = sessionPayload?.db || createEmptyDb();
+        const shellSettings = getShellSettings(nextDb);
         setProviders({
           google: Boolean(providerPayload?.google),
           email: Boolean(providerPayload?.email),
         });
         setUser(sessionPayload?.user || null);
+        setDb(nextDb);
         setIsAdmin(Boolean(sessionPayload?.admin));
         setRemoteRelease(releasePayload?.version ? releasePayload : RELEASE);
+        setShellTheme(shellSettings.theme);
+        setDashboardLayout(shellSettings.dashboardLayout || readStoredLayout());
+        setSidebarLocked(shellSettings.sidebarLocked || readStoredSidebarLock());
 
         const params = new URLSearchParams(window.location.search);
         const googleState = params.get("authGoogle");
         if (googleState === "success") {
-          setNotice("Connexion Google réussie. Ton compte est prêt.");
+          setNotice("Connexion Google réussie.");
         } else if (googleState === "missing-config") {
           setError("Google n'est pas encore configuré sur cet environnement.");
         } else if (googleState === "cancelled") {
@@ -151,7 +547,7 @@ export default function FlowApp() {
         } else if (googleState === "failed") {
           setError("Connexion Google impossible. Vérifie la configuration OAuth.");
         } else if (googleState === "invalid-state") {
-          setError("Etat OAuth invalide. Relance la connexion Google.");
+          setError("État OAuth invalide. Relance la connexion Google.");
         } else if (googleState === "missing-code") {
           setError("Code Google manquant. Relance la connexion.");
         }
@@ -179,7 +575,7 @@ export default function FlowApp() {
         setRemoteRelease(payload?.version ? payload : RELEASE);
         if (isReleaseDifferent(payload)) {
           setAvailableUpdate(payload);
-          setNotice(`Nouvelle version disponible: v${payload.version}. Rechargement en préparation.`);
+          setNotice(`Nouvelle version disponible: v${payload.version}.`);
         }
       } catch {}
     }
@@ -213,7 +609,7 @@ export default function FlowApp() {
       setAvailableUpdate({
         version: event?.data?.version || RELEASE.version,
         deployedAt: new Date().toISOString(),
-        summary: "Une nouvelle version a été poussée et attend ton rechargement.",
+        summary: "Une nouvelle version vient d’être publiée.",
       });
       setNotice("Une mise à jour a été détectée en direct.");
     };
@@ -248,6 +644,47 @@ export default function FlowApp() {
     };
   }, [availableUpdate]);
 
+  useEffect(() => {
+    function onKeyDown(event) {
+      const wantsPalette = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+      if (wantsPalette) {
+        event.preventDefault();
+        setCommandOpen(true);
+        setSearchOpen(false);
+        setNotificationOpen(false);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setSearchOpen(false);
+        setNotificationOpen(false);
+        setCommandOpen(false);
+        setMobileNavOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!commandOpen) return;
+    window.setTimeout(() => {
+      commandInputRef.current?.focus();
+    }, 40);
+  }, [commandOpen]);
+
+  useEffect(() => {
+    function onPointerDown(event) {
+      const target = event.target;
+      if (searchWrapRef.current && !searchWrapRef.current.contains(target)) setSearchOpen(false);
+      if (notifRef.current && !notifRef.current.contains(target)) setNotificationOpen(false);
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
   function syncEmailAcrossForms(email) {
     setLogin((current) => ({ ...current, email }));
     setRegister((current) => ({ ...current, email }));
@@ -256,9 +693,88 @@ export default function FlowApp() {
 
   async function refreshSession() {
     const payload = await api("/api/session");
+    const nextDb = payload?.db || createEmptyDb();
+    const settings = getShellSettings(nextDb);
     setUser(payload?.user || null);
+    setDb(nextDb);
     setIsAdmin(Boolean(payload?.admin));
+    setShellTheme(settings.theme);
+    setDashboardLayout(settings.dashboardLayout);
+    setSidebarLocked(settings.sidebarLocked);
     return payload;
+  }
+
+  async function persistDb(nextDb, optimistic = null) {
+    const previousDb = db;
+    setDb(nextDb);
+    if (optimistic) setNotice(optimistic);
+    try {
+      const payload = await api("/api/db", {
+        method: "PUT",
+        body: JSON.stringify({ db: nextDb }),
+      });
+      setDb(payload?.db || nextDb);
+      return payload?.db || nextDb;
+    } catch (persistError) {
+      setDb(previousDb);
+      setError(normalizeMessage(persistError, "Sauvegarde impossible."));
+      throw persistError;
+    }
+  }
+
+  function nextDbWithSettings(patch) {
+    return {
+      ...db,
+      settings: {
+        ...(db.settings || {}),
+        ...patch,
+      },
+    };
+  }
+
+  async function applyTheme(nextTheme) {
+    setShellTheme(nextTheme);
+    const nextDb = nextDbWithSettings({ theme: nextTheme });
+    try {
+      await persistDb(nextDb);
+    } catch {
+      setShellTheme(db?.settings?.theme === "light" ? "light" : "dark");
+    }
+  }
+
+  async function applyLayout(nextLayout) {
+    setDashboardLayout(nextLayout);
+    rememberLayout(nextLayout);
+    const nextDb = nextDbWithSettings({ dashboardLayout: nextLayout });
+    try {
+      await persistDb(nextDb);
+    } catch {
+      setDashboardLayout(getShellSettings(db).dashboardLayout);
+    }
+  }
+
+  async function applySidebarLock(nextValue) {
+    setSidebarLocked(nextValue);
+    rememberSidebarLock(nextValue);
+    const nextDb = nextDbWithSettings({ sidebarLocked: nextValue });
+    try {
+      await persistDb(nextDb);
+    } catch {
+      setSidebarLocked(getShellSettings(db).sidebarLocked);
+    }
+  }
+
+  async function markNotificationsAsRead(ids = []) {
+    const date = new Date().toISOString();
+    const nextDb = {
+      ...db,
+      notifications: db.notifications.map((item) =>
+        ids.length === 0 || ids.includes(item.id)
+          ? { ...item, readAt: item.readAt || date }
+          : item,
+      ),
+    };
+    await persistDb(nextDb);
   }
 
   async function submitLogin(event) {
@@ -275,8 +791,13 @@ export default function FlowApp() {
       rememberEmail(login.email);
       syncEmailAcrossForms(login.email);
       setUser(payload?.user || null);
+      setDb(payload?.db || createEmptyDb());
       setIsAdmin(Boolean(payload?.admin));
-      setNotice("Connexion réussie. La session est mémorisée.");
+      const settings = getShellSettings(payload?.db || createEmptyDb());
+      setShellTheme(settings.theme);
+      setDashboardLayout(settings.dashboardLayout || readStoredLayout());
+      setSidebarLocked(settings.sidebarLocked || readStoredSidebarLock());
+      setNotice("Connexion réussie.");
       setLogin((current) => ({ ...current, password: "" }));
     } catch (authError) {
       setError(normalizeMessage(authError, "Connexion impossible."));
@@ -315,9 +836,13 @@ export default function FlowApp() {
       rememberEmail(register.email);
       syncEmailAcrossForms(register.email);
       setUser(payload?.user || null);
+      setDb(payload?.db || createEmptyDb());
       setIsAdmin(Boolean(payload?.admin));
+      setShellTheme("dark");
+      setDashboardLayout(readStoredLayout());
+      setSidebarLocked(readStoredSidebarLock());
       setRegister((current) => ({ ...current, password: "", confirmPassword: "" }));
-      setNotice("Compte créé. La session est déjà ouverte.");
+      setNotice("Compte créé. La session est ouverte.");
     } catch (registerError) {
       setError(normalizeMessage(registerError, "Création de compte impossible."));
     } finally {
@@ -359,7 +884,7 @@ export default function FlowApp() {
       });
       rememberEmail(reset.email);
       syncEmailAcrossForms(reset.email);
-      setNotice("Mot de passe mis à jour. Tu peux te reconnecter.");
+      setNotice("Mot de passe mis à jour.");
       setLogin((current) => ({ ...current, email: reset.email, password: "" }));
       setReset((current) => ({ ...current, code: "", password: "" }));
       setActiveTab("login");
@@ -378,7 +903,10 @@ export default function FlowApp() {
     try {
       await api("/api/auth/logout", { method: "POST" });
       setUser(null);
+      setDb(createEmptyDb());
       setIsAdmin(false);
+      setSearchValue("");
+      setSelectedResult(null);
       setNotice("Session fermée.");
       await refreshSession().catch(() => {});
     } catch (logoutError) {
@@ -392,786 +920,2021 @@ export default function FlowApp() {
     window.location.href = "/api/auth/google/start?returnTo=/";
   }
 
+  function selectSearchResult(result) {
+    setSelectedResult(result);
+    setActiveSection(result.section || "dashboard");
+    setSearchOpen(false);
+    setCommandOpen(false);
+    setSearchValue(result.title);
+    setNotice(`Résultat chargé: ${result.title}`);
+  }
+
+  const notificationFeed = useMemo(() => {
+    return [...(db.notifications || [])]
+      .sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))
+      .slice(0, 8);
+  }, [db.notifications]);
+
   return (
-    <div className="flow-shell">
+    <div className={`flow-shell ${themeClass}`}>
       <style jsx>{`
         :global(html), :global(body) {
           margin: 0;
           min-height: 100%;
         }
         :global(body) {
-          background:
-            radial-gradient(circle at top, rgba(45, 85, 255, 0.15), transparent 30%),
-            radial-gradient(circle at right top, rgba(0, 204, 153, 0.12), transparent 25%),
-            linear-gradient(180deg, #09111f 0%, #0c1324 44%, #0b1020 100%);
-          color: #edf3ff;
+          background: #090a0d;
+          color: #f6f7fb;
           font-family: "Geist", system-ui, sans-serif;
         }
         :global(*) {
           box-sizing: border-box;
         }
+        :global(button),
+        :global(input) {
+          appearance: none;
+          -webkit-appearance: none;
+          border-radius: 0;
+          font: inherit;
+        }
+        :global(::-webkit-scrollbar) {
+          width: 10px;
+          height: 10px;
+        }
+        :global(::-webkit-scrollbar-thumb) {
+          background: rgba(140, 148, 168, 0.3);
+          border-radius: 999px;
+        }
+        .theme-dark {
+          --page-bg:
+            radial-gradient(circle at top right, rgba(116, 138, 97, 0.16), transparent 26%),
+            radial-gradient(circle at top left, rgba(255, 255, 255, 0.05), transparent 18%),
+            linear-gradient(180deg, #090a0d 0%, #0b0d10 40%, #0a0b0e 100%);
+          --shell-bg: rgba(15, 17, 21, 0.82);
+          --shell-border: rgba(255, 255, 255, 0.08);
+          --panel-bg: rgba(24, 27, 33, 0.72);
+          --panel-soft: rgba(33, 37, 44, 0.72);
+          --panel-strong: rgba(21, 23, 28, 0.92);
+          --text-main: #f6f7fb;
+          --text-soft: rgba(232, 235, 242, 0.72);
+          --text-faint: rgba(205, 211, 223, 0.48);
+          --line: rgba(255, 255, 255, 0.08);
+          --line-strong: rgba(255, 255, 255, 0.14);
+          --accent: #d7ddd4;
+          --accent-strong: #f2f5ef;
+          --accent-glow: rgba(151, 171, 132, 0.18);
+          --danger: rgba(149, 76, 71, 0.68);
+          --notice: rgba(52, 63, 81, 0.88);
+          --shadow: 0 40px 80px rgba(0, 0, 0, 0.45);
+          --map-veil: linear-gradient(180deg, rgba(9, 11, 14, 0.08), rgba(9, 11, 14, 0.86));
+        }
+        .theme-light {
+          --page-bg:
+            radial-gradient(circle at top right, rgba(180, 197, 165, 0.22), transparent 26%),
+            radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 20%),
+            linear-gradient(180deg, #f3f1ed 0%, #ece8e1 100%);
+          --shell-bg: rgba(255, 255, 255, 0.84);
+          --shell-border: rgba(17, 20, 26, 0.08);
+          --panel-bg: rgba(255, 255, 255, 0.78);
+          --panel-soft: rgba(247, 245, 241, 0.9);
+          --panel-strong: rgba(255, 255, 255, 0.95);
+          --text-main: #17181b;
+          --text-soft: rgba(23, 24, 27, 0.68);
+          --text-faint: rgba(23, 24, 27, 0.42);
+          --line: rgba(17, 20, 26, 0.08);
+          --line-strong: rgba(17, 20, 26, 0.14);
+          --accent: #1f2329;
+          --accent-strong: #0f1216;
+          --accent-glow: rgba(122, 148, 99, 0.12);
+          --danger: rgba(188, 121, 113, 0.28);
+          --notice: rgba(247, 245, 242, 0.98);
+          --shadow: 0 30px 70px rgba(28, 32, 44, 0.14);
+          --map-veil: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.84));
+        }
         .flow-shell {
           min-height: 100vh;
-          padding: 28px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          padding: 18px;
+          position: relative;
+          overflow-x: hidden;
+          background: var(--page-bg);
+          color: var(--text-main);
+          transition: background 0.35s ease, color 0.35s ease;
         }
-        .canvas {
-          width: min(1180px, 100%);
+        .toast-stack {
+          position: fixed;
+          top: 18px;
+          left: 50%;
+          transform: translateX(-50%);
           display: grid;
-          grid-template-columns: minmax(0, 1.05fr) minmax(360px, 460px);
-          gap: 24px;
-          align-items: stretch;
+          gap: 10px;
+          width: min(560px, calc(100vw - 32px));
+          z-index: 50;
         }
-        .hero,
-        .panel,
-        .release-card,
-        .support-card {
-          border: 1px solid rgba(203, 221, 255, 0.12);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
-            rgba(8, 14, 28, 0.84);
-          box-shadow:
-            0 30px 80px rgba(0, 0, 0, 0.38),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
-          backdrop-filter: blur(22px);
+        .toast {
+          border-radius: 20px;
+          border: 1px solid var(--line);
+          background: var(--notice);
+          backdrop-filter: blur(20px);
+          box-shadow: var(--shadow);
+          padding: 14px 16px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
         }
-        .hero {
+        .toast.error {
+          background: rgba(104, 38, 44, 0.9);
+          border-color: rgba(222, 114, 125, 0.18);
+        }
+        .toast strong {
+          display: block;
+          margin-bottom: 4px;
+          font-size: 13px;
+        }
+        .toast p {
+          margin: 0;
+          color: var(--text-soft);
+          line-height: 1.5;
+          font-size: 13px;
+        }
+        .toast button {
+          border: 0;
+          background: transparent;
+          color: inherit;
+          padding: 0;
+          cursor: pointer;
+        }
+        .auth-stage {
+          min-height: calc(100vh - 36px);
+          display: grid;
+          place-items: center;
+        }
+        .auth-card {
+          width: min(440px, 100%);
           border-radius: 32px;
-          padding: 30px;
-          display: flex;
-          flex-direction: column;
-          gap: 22px;
-          min-height: 720px;
+          border: 1px solid var(--shell-border);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent), var(--panel-strong);
+          box-shadow: var(--shadow);
+          padding: 28px;
+          backdrop-filter: blur(18px);
         }
-        .panel {
-          border-radius: 28px;
-          padding: 22px;
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
-        }
-        .eyebrow {
+        .auth-brand {
           display: flex;
           align-items: center;
-          gap: 10px;
-          color: rgba(225, 235, 255, 0.7);
-          font-size: 12px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          gap: 12px;
+          margin-bottom: 18px;
         }
-        .mark {
-          width: 42px;
-          height: 42px;
-          border-radius: 16px;
-          border: 1px solid rgba(221, 230, 255, 0.12);
+        .auth-brand-mark {
+          width: 52px;
+          height: 52px;
+          border-radius: 18px;
           display: grid;
           place-items: center;
           background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--line);
+          flex: none;
         }
-        .mark img {
-          width: 20px;
-          height: 20px;
+        .auth-brand img {
+          width: 24px;
+          height: 24px;
         }
-        h1 {
-          margin: 0;
-          font-size: clamp(40px, 6vw, 74px);
-          line-height: 0.94;
-          letter-spacing: -0.06em;
-          max-width: 10ch;
-        }
-        .lede {
-          margin: 0;
-          max-width: 58ch;
-          color: rgba(225, 235, 255, 0.72);
-          line-height: 1.7;
-          font-size: 15px;
-        }
-        .hero-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
-        }
-        .hero-card,
-        .signal-card {
-          border-radius: 22px;
-          border: 1px solid rgba(203, 221, 255, 0.1);
-          background: rgba(12, 20, 39, 0.78);
-          padding: 18px;
-        }
-        .hero-card strong,
-        .signal-card strong {
+        .auth-brand-copy strong {
           display: block;
-          font-size: 14px;
-          margin-bottom: 8px;
+          font-size: 15px;
+          letter-spacing: -0.03em;
         }
-        .hero-card p,
-        .signal-card p {
-          margin: 0;
-          color: rgba(225, 235, 255, 0.66);
-          line-height: 1.6;
-          font-size: 14px;
-        }
-        .hero-stack {
-          display: grid;
-          gap: 16px;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        }
-        .release-card,
-        .support-card {
-          border-radius: 24px;
-          padding: 20px;
-        }
-        .release-line {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 10px;
-          margin-top: 10px;
-        }
-        .panel-head {
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-          align-items: flex-start;
-        }
-        .panel-head h2 {
-          margin: 8px 0 0;
-          font-size: 28px;
-          line-height: 1;
-          letter-spacing: -0.05em;
-        }
-        .panel-head p {
-          margin: 8px 0 0;
-          color: rgba(225, 235, 255, 0.65);
-          line-height: 1.55;
-          font-size: 14px;
-        }
-        .status-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 9px 12px;
-          border-radius: 999px;
-          border: 1px solid rgba(203, 221, 255, 0.12);
-          background: rgba(255, 255, 255, 0.05);
-          color: #f5f8ff;
+        .auth-brand-copy span {
+          display: block;
+          margin-top: 4px;
+          color: var(--text-faint);
           font-size: 12px;
-          white-space: nowrap;
-        }
-        .status-pill.success {
-          background: rgba(17, 198, 132, 0.14);
-          border-color: rgba(17, 198, 132, 0.24);
-        }
-        .status-pill.warning {
-          background: rgba(255, 184, 77, 0.14);
-          border-color: rgba(255, 184, 77, 0.24);
-        }
-        .status-pill.info {
-          background: rgba(85, 145, 255, 0.14);
-          border-color: rgba(85, 145, 255, 0.24);
-        }
-        .banner {
-          border-radius: 18px;
-          padding: 14px 16px;
-          font-size: 14px;
-          line-height: 1.55;
-          border: 1px solid rgba(203, 221, 255, 0.12);
-        }
-        .banner.error {
-          background: rgba(255, 97, 125, 0.12);
-          border-color: rgba(255, 97, 125, 0.22);
-          color: #ffd8e1;
-        }
-        .banner.notice {
-          background: rgba(75, 127, 255, 0.12);
-          border-color: rgba(75, 127, 255, 0.24);
-          color: #dbe6ff;
         }
         .auth-tabs {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 10px;
+          gap: 8px;
           padding: 6px;
           border-radius: 18px;
           background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(203, 221, 255, 0.08);
+          border: 1px solid var(--line);
+          margin-bottom: 18px;
         }
-        .auth-tab {
+        :global(.auth-tab) {
+          all: unset;
+          box-sizing: border-box;
           border: 0;
           border-radius: 14px;
-          padding: 12px 14px;
+          padding: 12px 10px;
           background: transparent;
-          color: rgba(233, 240, 255, 0.72);
+          color: var(--text-soft);
+          font-size: 13px;
           font-weight: 700;
           cursor: pointer;
-          transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+          transition: background 0.2s ease, color 0.2s ease;
+          display: block;
+          text-align: center;
         }
-        .auth-tab.active {
-          background: rgba(255, 255, 255, 0.12);
-          color: #ffffff;
-          transform: translateY(-1px);
+        :global(.auth-tab.active) {
+          background: var(--panel-bg);
+          color: var(--text-main);
         }
         form {
           display: grid;
           gap: 14px;
         }
-        .field {
+        :global(.field) {
           display: grid;
           gap: 8px;
-          color: rgba(237, 243, 255, 0.88);
-          font-size: 13px;
         }
-        .field span {
-          color: rgba(225, 235, 255, 0.68);
+        :global(.field span) {
+          font-size: 12px;
+          color: var(--text-soft);
         }
-        input {
+        :global(.field input) {
+          all: unset;
+          box-sizing: border-box;
+          display: block;
           width: 100%;
-          border-radius: 16px;
-          border: 1px solid rgba(203, 221, 255, 0.12);
-          background: rgba(10, 17, 34, 0.92);
-          color: #f7faff;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.03);
+          color: var(--text-main);
+          border-radius: 18px;
           padding: 14px 16px;
           outline: none;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+          font-size: 14px;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
         }
-        input:focus {
-          border-color: rgba(99, 150, 255, 0.72);
-          box-shadow: 0 0 0 4px rgba(70, 125, 255, 0.16);
-          transform: translateY(-1px);
+        :global(.field input::placeholder) {
+          color: var(--text-faint);
         }
-        .button-row,
-        .inline-row {
+        :global(.field input:focus) {
+          border-color: var(--line-strong);
+          box-shadow: 0 0 0 4px var(--accent-glow);
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .button-row {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
         }
         .primary,
         .secondary,
-        .ghost {
-          border-radius: 16px;
+        .ghost,
+        .pill-button {
+          all: unset;
+          box-sizing: border-box;
+          border-radius: 18px;
           padding: 13px 16px;
-          font-weight: 800;
-          font-size: 14px;
           cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+          transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+          font-weight: 700;
+          font-size: 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         .primary {
           border: 0;
-          color: #03101d;
-          background: linear-gradient(180deg, #f7fbff 0%, #cfe2ff 100%);
-          box-shadow: 0 12px 32px rgba(106, 164, 255, 0.22);
+          color: ${shellTheme === "light" ? "#ffffff" : "#0b0d10"};
+          background: ${shellTheme === "light"
+            ? "linear-gradient(180deg, #2d3137 0%, #15181d 100%)"
+            : "linear-gradient(180deg, #f3f5ef 0%, #d3d9cf 100%)"};
         }
-        .secondary {
-          border: 1px solid rgba(203, 221, 255, 0.14);
+        .secondary,
+        .ghost,
+        .pill-button {
+          border: 1px solid var(--line);
           background: rgba(255, 255, 255, 0.04);
-          color: #f5f8ff;
+          color: var(--text-main);
         }
         .ghost {
-          border: 1px dashed rgba(203, 221, 255, 0.16);
           background: transparent;
-          color: rgba(237, 243, 255, 0.78);
         }
         .primary:hover,
         .secondary:hover,
-        .ghost:hover {
+        .ghost:hover,
+        .pill-button:hover {
           transform: translateY(-1px);
         }
         .primary:disabled,
         .secondary:disabled,
         .ghost:disabled {
-          opacity: 0.55;
+          opacity: 0.6;
           cursor: wait;
           transform: none;
         }
         .helper {
           margin: 0;
+          color: var(--text-soft);
           font-size: 13px;
-          line-height: 1.6;
-          color: rgba(225, 235, 255, 0.64);
+          line-height: 1.55;
         }
-        .account-grid {
+        .app-shell {
+          min-height: calc(100vh - 36px);
+          border-radius: 34px;
+          border: 1px solid var(--shell-border);
+          background: var(--shell-bg);
+          backdrop-filter: blur(22px);
+          box-shadow: var(--shadow);
+          overflow: hidden;
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          position: relative;
+        }
+        .sidebar {
+          width: 286px;
+          border-right: 1px solid var(--line);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 24%),
+            rgba(17, 19, 24, 0.58);
+          padding: 18px 14px 18px 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          transition: width 0.28s ease, transform 0.28s ease, padding 0.28s ease;
+          position: relative;
+          z-index: 20;
+        }
+        .theme-light .sidebar {
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.68), transparent 24%),
+            rgba(252, 251, 248, 0.72);
+        }
+        .sidebar.collapsed {
+          width: 90px;
+          padding-right: 12px;
+        }
+        .sidebar-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .brand {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-width: 0;
+        }
+        .brand-mark {
+          width: 48px;
+          height: 48px;
+          border-radius: 18px;
+          display: grid;
+          place-items: center;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid var(--line);
+          flex: none;
+        }
+        .brand-mark img {
+          width: 22px;
+          height: 22px;
+        }
+        .brand-copy {
+          min-width: 0;
+          transition: opacity 0.2s ease;
+        }
+        .brand-copy strong {
+          display: block;
+          font-size: 15px;
+          letter-spacing: -0.02em;
+        }
+        .brand-copy span {
+          display: block;
+          margin-top: 3px;
+          color: var(--text-faint);
+          font-size: 12px;
+        }
+        .sidebar.collapsed .brand-copy,
+        .sidebar.collapsed .sidebar-sub,
+        .sidebar.collapsed .sidebar-footer-copy,
+        .sidebar.collapsed .sidebar-group-label {
+          opacity: 0;
+          pointer-events: none;
+          width: 0;
+          overflow: hidden;
+        }
+        .sidebar.collapsed :global(.nav-label) {
+          display: none;
+        }
+        .lock-button {
+          all: unset;
+          box-sizing: border-box;
+          width: 40px;
+          height: 40px;
+          border-radius: 14px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.04);
+          color: var(--text-main);
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+          flex: none;
+        }
+        .sidebar-nav {
+          display: grid;
+          gap: 8px;
+        }
+        .sidebar-group-label {
+          color: var(--text-faint);
+          font-size: 11px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          padding: 8px 10px 0;
+        }
+        :global(.nav-item) {
+          all: unset;
+          box-sizing: border-box;
+          border: 1px solid transparent;
+          background: transparent;
+          color: var(--text-soft);
+          border-radius: 18px;
+          padding: 12px 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          cursor: pointer;
+          text-align: left;
+          min-height: 50px;
+        }
+        :global(.nav-item.active) {
+          border-color: var(--line);
+          background: var(--panel-soft);
+          color: var(--text-main);
+        }
+        :global(.nav-item.collapsed) {
+          justify-content: center;
+        }
+        :global(.nav-icon) {
+          width: 20px;
+          height: 20px;
+          display: grid;
+          place-items: center;
+          flex: none;
+        }
+        :global(.nav-label) {
+          white-space: nowrap;
+        }
+        .sidebar-footer {
+          margin-top: auto;
+          padding: 14px;
+          border-radius: 24px;
+          background: var(--panel-soft);
+          border: 1px solid var(--line);
+        }
+        .sidebar-footer-copy strong {
+          display: block;
+          font-size: 14px;
+        }
+        .sidebar-footer-copy span {
+          display: block;
+          margin-top: 5px;
+          font-size: 12px;
+          color: var(--text-soft);
+          line-height: 1.5;
+        }
+        .app-main {
+          min-width: 0;
+          padding: 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          position: relative;
+          background: transparent;
+        }
+        .topbar {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 14px;
+        }
+        .topbar-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          justify-self: end;
+        }
+        .icon-button {
+          all: unset;
+          box-sizing: border-box;
+          width: 46px;
+          height: 46px;
+          border-radius: 16px;
+          border: 1px solid var(--line);
+          background: var(--panel-bg);
+          color: var(--text-main);
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+          position: relative;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+        .badge {
+          position: absolute;
+          top: -4px;
+          right: -2px;
+          min-width: 18px;
+          height: 18px;
+          padding: 0 5px;
+          border-radius: 999px;
+          background: #cf6654;
+          color: #fff;
+          font-size: 11px;
+          display: grid;
+          place-items: center;
+          border: 2px solid var(--panel-strong);
+        }
+        .search-wrap {
+          position: relative;
+          min-width: 0;
+        }
+        .search-box {
+          width: 100%;
+          height: 54px;
+          border-radius: 22px;
+          border: 1px solid var(--line);
+          background: var(--panel-bg);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 0 16px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+        .search-box input {
+          border: 0;
+          background: transparent;
+          padding: 0;
+          box-shadow: none;
+          height: 100%;
+        }
+        .search-shortcut {
+          padding: 8px 10px;
+          border-radius: 12px;
+          border: 1px solid var(--line);
+          color: var(--text-faint);
+          font-size: 12px;
+          white-space: nowrap;
+        }
+        .search-dropdown,
+        .command-modal,
+        .notification-panel,
+        .spotlight-card,
+        .metric-card,
+        .content-card,
+        .surface-card,
+        .floating-card {
+          border: 1px solid var(--line);
+          background: var(--panel-bg);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(20px);
+        }
+        .search-dropdown {
+          position: absolute;
+          top: calc(100% + 10px);
+          left: 0;
+          right: 0;
+          border-radius: 24px;
+          padding: 12px;
+          z-index: 30;
+        }
+        .search-result {
+          all: unset;
+          box-sizing: border-box;
+          width: 100%;
+          border: 0;
+          background: transparent;
+          color: var(--text-main);
+          border-radius: 18px;
+          padding: 12px;
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 12px;
+          align-items: center;
+          text-align: left;
+          cursor: pointer;
+        }
+        .search-result:hover {
+          background: rgba(255, 255, 255, 0.04);
+        }
+        .search-result-copy strong {
+          display: block;
+          font-size: 14px;
+        }
+        .search-result-copy span,
+        .search-result-copy p {
+          display: block;
+          margin: 3px 0 0;
+          color: var(--text-soft);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+        .shell-content {
+          flex: 1;
+          min-height: 0;
+        }
+        .overview-layout {
+          display: grid;
+          gap: 18px;
+        }
+        .page-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 18px;
+          padding: 6px 2px 2px;
+        }
+        .page-head h1 {
+          margin: 0;
+          font-size: clamp(28px, 4vw, 44px);
+          line-height: 1;
+          letter-spacing: -0.05em;
+        }
+        .page-head p {
+          margin: 8px 0 0;
+          color: var(--text-soft);
+          line-height: 1.55;
+          max-width: 52ch;
+        }
+        .view-switch {
+          display: inline-flex;
+          gap: 8px;
+          padding: 6px;
+          border-radius: 18px;
+          background: var(--panel-bg);
+          border: 1px solid var(--line);
+        }
+        .view-switch button {
+          all: unset;
+          box-sizing: border-box;
+          border: 0;
+          padding: 11px 14px;
+          border-radius: 14px;
+          background: transparent;
+          color: var(--text-soft);
+          cursor: pointer;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .view-switch button.active {
+          background: var(--panel-soft);
+          color: var(--text-main);
+        }
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+        }
+        .metric-card {
+          border-radius: 30px;
+          padding: 18px;
+        }
+        .metric-card.primary {
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)), var(--panel-strong);
+          color: var(--text-main);
+        }
+        .metric-card-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .metric-card-head span {
+          color: var(--text-soft);
+          font-size: 13px;
+        }
+        .metric-value {
+          margin-top: 22px;
+          font-size: clamp(28px, 4vw, 44px);
+          letter-spacing: -0.05em;
+          line-height: 1;
+        }
+        .metric-foot {
+          margin-top: 14px;
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          color: var(--text-soft);
+          font-size: 12px;
+        }
+        .overview-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+          gap: 18px;
+        }
+        .content-stack {
+          display: grid;
+          gap: 18px;
+        }
+        .content-card,
+        .surface-card,
+        .spotlight-card,
+        .floating-card {
+          border-radius: 30px;
+          padding: 20px;
+        }
+        .content-card-header,
+        .surface-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+        .content-card-header h2,
+        .surface-head h2 {
+          margin: 0;
+          font-size: 22px;
+          letter-spacing: -0.04em;
+        }
+        .content-card-header p,
+        .surface-head p {
+          margin: 6px 0 0;
+          color: var(--text-soft);
+          line-height: 1.5;
+          font-size: 13px;
+        }
+        .chart-wrap {
+          border-radius: 26px;
+          border: 1px solid var(--line);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
+            rgba(255, 255, 255, 0.01);
+          padding: 14px;
+        }
+        .chart-legend {
+          display: flex;
+          gap: 14px;
+          color: var(--text-soft);
+          font-size: 12px;
+          margin-top: 8px;
+        }
+        .legend-dot {
+          width: 9px;
+          height: 9px;
+          border-radius: 999px;
+          display: inline-block;
+          margin-right: 6px;
+        }
+        .mini-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 14px;
         }
-        .account-tile {
-          border-radius: 20px;
+        .mini-card {
+          border-radius: 22px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.03);
           padding: 16px;
-          border: 1px solid rgba(203, 221, 255, 0.1);
-          background: rgba(10, 16, 32, 0.7);
         }
-        .account-tile strong {
+        .mini-card strong {
           display: block;
-          margin-bottom: 8px;
           font-size: 14px;
         }
-        .account-tile p {
-          margin: 0;
-          color: rgba(225, 235, 255, 0.68);
-          line-height: 1.6;
-          font-size: 14px;
-        }
-        .account-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-        .release-click {
-          border: 1px solid rgba(203, 221, 255, 0.14);
-          background: rgba(255, 255, 255, 0.04);
-          color: #f5f8ff;
-          border-radius: 999px;
-          padding: 11px 14px;
-          cursor: pointer;
-          font-weight: 700;
-        }
-        :global(.release-widget-backdrop) {
-          position: fixed;
-          inset: 0;
-          padding: 24px;
-          background: rgba(2, 6, 14, 0.74);
-          backdrop-filter: blur(12px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 70;
-        }
-        :global(.release-widget) {
-          width: min(780px, 100%);
-          max-height: min(82vh, 920px);
-          overflow: auto;
-          border-radius: 28px;
-          border: 1px solid rgba(203, 221, 255, 0.12);
-          background: linear-gradient(180deg, rgba(16, 24, 42, 0.96), rgba(7, 12, 24, 0.98));
-          color: #edf3ff;
-          padding: 24px;
-          box-shadow: 0 36px 90px rgba(0, 0, 0, 0.46);
-        }
-        :global(.release-widget-head) {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 20px;
-          margin-bottom: 18px;
-        }
-        :global(.release-widget-kicker) {
+        .mini-card span {
+          display: block;
+          margin-top: 6px;
+          color: var(--text-soft);
           font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: rgba(225, 235, 255, 0.64);
+          line-height: 1.5;
         }
-        :global(.release-widget h3) {
-          margin: 8px 0;
-          font-size: 28px;
-          letter-spacing: -0.04em;
-        }
-        :global(.release-widget p) {
-          margin: 0;
-          color: rgba(225, 235, 255, 0.66);
-          line-height: 1.65;
-        }
-        :global(.release-close) {
-          border: 1px solid rgba(203, 221, 255, 0.14);
-          background: rgba(255, 255, 255, 0.05);
-          color: #edf3ff;
-          border-radius: 14px;
-          padding: 11px 14px;
-          cursor: pointer;
-        }
-        :global(.release-stats) {
+        .spotlight-card {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 12px;
-          margin-bottom: 18px;
-        }
-        :global(.release-stat),
-        :global(.release-entry) {
-          border: 1px solid rgba(203, 221, 255, 0.12);
-          border-radius: 18px;
-          padding: 16px;
-        }
-        :global(.release-stat) {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          background: rgba(255, 255, 255, 0.04);
-        }
-        :global(.release-dot) {
-          width: 10px;
-          height: 10px;
-          border-radius: 999px;
-          display: inline-block;
-          flex: none;
-        }
-        :global(.release-list) {
-          display: grid;
-          gap: 12px;
-        }
-        :global(.release-entry-head) {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
           gap: 16px;
         }
-        :global(.release-entry-head strong) {
-          display: block;
-          margin-bottom: 6px;
+        .spotlight-card.empty {
+          min-height: 220px;
+          place-content: center;
+          text-align: center;
         }
-        :global(.release-entry-head span) {
-          color: rgba(225, 235, 255, 0.64);
-        }
-        :global(.release-status) {
+        .spotlight-pill {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          border: 1px solid rgba(203, 221, 255, 0.14);
+          width: fit-content;
           border-radius: 999px;
-          padding: 8px 10px;
+          border: 1px solid var(--line);
+          padding: 10px 12px;
+          color: var(--text-soft);
           font-size: 12px;
-          white-space: nowrap;
         }
-        @media (max-width: 1080px) {
-          .canvas {
+        .spotlight-card h3 {
+          margin: 0;
+          font-size: 30px;
+          line-height: 1;
+          letter-spacing: -0.05em;
+        }
+        .spotlight-card p {
+          margin: 0;
+          color: var(--text-soft);
+          line-height: 1.6;
+        }
+        .overview-list {
+          display: grid;
+          gap: 12px;
+        }
+        .overview-list-item {
+          border-radius: 22px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.03);
+          padding: 15px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .overview-list-item strong {
+          display: block;
+          font-size: 14px;
+        }
+        .overview-list-item span {
+          display: block;
+          margin-top: 4px;
+          color: var(--text-soft);
+          font-size: 12px;
+        }
+        .notification-panel {
+          position: absolute;
+          top: 72px;
+          right: 18px;
+          width: min(390px, calc(100vw - 36px));
+          border-radius: 30px;
+          padding: 16px;
+          z-index: 35;
+          background:
+            linear-gradient(180deg, rgba(126, 90, 84, 0.18), transparent 40%),
+            var(--panel-strong);
+        }
+        .notification-panel-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+        .notification-panel-header h3 {
+          margin: 0;
+          font-size: 22px;
+          letter-spacing: -0.04em;
+        }
+        .notification-list {
+          display: grid;
+          gap: 12px;
+        }
+        .notification-card {
+          border-radius: 24px;
+          border: 1px solid var(--line);
+          background: rgba(88, 54, 50, 0.25);
+          padding: 14px;
+        }
+        .notification-card.read {
+          background: rgba(255, 255, 255, 0.03);
+        }
+        .notification-card-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+        .notification-card strong {
+          display: block;
+          font-size: 14px;
+        }
+        .notification-card p {
+          margin: 10px 0 0;
+          color: var(--text-soft);
+          line-height: 1.6;
+          font-size: 13px;
+        }
+        .notification-card small {
+          color: var(--text-faint);
+          display: block;
+          margin-top: 10px;
+        }
+        .notification-empty {
+          border-radius: 24px;
+          border: 1px dashed var(--line);
+          padding: 22px;
+          text-align: center;
+          color: var(--text-soft);
+        }
+        .command-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(4, 6, 10, 0.54);
+          backdrop-filter: blur(10px);
+          display: grid;
+          place-items: center;
+          z-index: 60;
+          padding: 18px;
+        }
+        .command-modal {
+          width: min(760px, 100%);
+          border-radius: 30px;
+          padding: 16px;
+        }
+        .command-input {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          border: 1px solid var(--line);
+          border-radius: 22px;
+          padding: 0 16px;
+          min-height: 58px;
+          background: rgba(255, 255, 255, 0.04);
+          margin-bottom: 12px;
+        }
+        .command-input input {
+          border: 0;
+          background: transparent;
+          padding: 0;
+          box-shadow: none;
+        }
+        .command-list {
+          display: grid;
+          gap: 8px;
+          max-height: min(55vh, 520px);
+          overflow: auto;
+        }
+        .command-footer {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          color: var(--text-faint);
+          font-size: 12px;
+          margin-top: 12px;
+        }
+        .immersive-layout {
+          min-height: 100%;
+          border-radius: 34px;
+          position: relative;
+          overflow: hidden;
+          border: 1px solid var(--line);
+          background:
+            radial-gradient(circle at 70% 30%, rgba(91, 112, 73, 0.26), transparent 18%),
+            radial-gradient(circle at 20% 76%, rgba(92, 126, 74, 0.18), transparent 14%),
+            linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 30%),
+            #0f1115;
+        }
+        .theme-light .immersive-layout {
+          background:
+            radial-gradient(circle at 70% 30%, rgba(149, 171, 127, 0.28), transparent 20%),
+            radial-gradient(circle at 20% 76%, rgba(157, 177, 136, 0.2), transparent 18%),
+            linear-gradient(135deg, rgba(255, 255, 255, 0.45), transparent 30%),
+            #ece9e1;
+        }
+        .immersive-map {
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(115deg, rgba(255, 255, 255, 0.04), transparent 28%),
+            repeating-linear-gradient(125deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 18px),
+            radial-gradient(circle at 62% 34%, rgba(144, 174, 116, 0.22), transparent 16%),
+            radial-gradient(circle at 17% 77%, rgba(120, 146, 101, 0.18), transparent 12%);
+          opacity: 0.95;
+        }
+        .immersive-map::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(90deg, transparent 0 16%, rgba(255, 255, 255, 0.06) 16.4%, transparent 16.7% 51%, rgba(255, 255, 255, 0.06) 51.4%, transparent 51.7%),
+            linear-gradient(0deg, transparent 0 22%, rgba(255, 255, 255, 0.04) 22.2%, transparent 22.5% 64%, rgba(255, 255, 255, 0.04) 64.2%, transparent 64.6%);
+          mix-blend-mode: screen;
+          opacity: 0.25;
+        }
+        .immersive-veil {
+          position: absolute;
+          inset: 0;
+          background: var(--map-veil);
+        }
+        .immersive-content {
+          position: relative;
+          z-index: 2;
+          padding: 22px;
+          min-height: 100%;
+          display: grid;
+          grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+          gap: 18px;
+        }
+        .floating-stack {
+          display: grid;
+          gap: 18px;
+          align-content: start;
+        }
+        .floating-card {
+          background: rgba(21, 23, 27, 0.74);
+        }
+        .theme-light .floating-card {
+          background: rgba(255, 255, 255, 0.76);
+        }
+        .floating-kpis {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .floating-kpi {
+          border-radius: 22px;
+          border: 1px solid var(--line);
+          padding: 14px;
+          background: rgba(255, 255, 255, 0.03);
+        }
+        .floating-kpi span {
+          display: block;
+          color: var(--text-soft);
+          font-size: 12px;
+        }
+        .floating-kpi strong {
+          display: block;
+          margin-top: 8px;
+          font-size: 30px;
+          letter-spacing: -0.05em;
+        }
+        .immersive-right {
+          display: grid;
+          grid-template-rows: auto auto 1fr;
+          gap: 18px;
+          min-width: 0;
+        }
+        .immersive-header {
+          padding-top: 10px;
+        }
+        .immersive-header h1 {
+          margin: 0;
+          font-size: clamp(30px, 5vw, 56px);
+          line-height: 0.95;
+          letter-spacing: -0.06em;
+          max-width: 12ch;
+        }
+        .immersive-header p {
+          margin: 10px 0 0;
+          color: var(--text-soft);
+          max-width: 46ch;
+          line-height: 1.6;
+        }
+        .route-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 16px;
+        }
+        .route-pill {
+          border-radius: 999px;
+          border: 1px solid var(--line);
+          padding: 10px 12px;
+          background: rgba(255, 255, 255, 0.04);
+          color: var(--text-soft);
+          font-size: 12px;
+        }
+        .immersive-bottom {
+          display: grid;
+          grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+          gap: 18px;
+          align-items: end;
+        }
+        .schedule-card {
+          min-height: 240px;
+        }
+        .schedule-scale {
+          margin-top: 18px;
+          display: grid;
+          gap: 12px;
+        }
+        .scale-row {
+          display: grid;
+          grid-template-columns: 96px minmax(0, 1fr);
+          gap: 10px;
+          align-items: center;
+        }
+        .scale-row span {
+          color: var(--text-soft);
+          font-size: 12px;
+        }
+        .scale-bar {
+          position: relative;
+          height: 14px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.08);
+          overflow: hidden;
+        }
+        .scale-fill {
+          position: absolute;
+          inset: 0 auto 0 0;
+          border-radius: inherit;
+          background: linear-gradient(90deg, rgba(150, 172, 125, 0.25), rgba(236, 239, 228, 0.82));
+        }
+        .theme-light .scale-fill {
+          background: linear-gradient(90deg, rgba(113, 131, 94, 0.32), rgba(30, 34, 39, 0.92));
+        }
+        .mobile-backdrop {
+          display: none;
+        }
+        .section-placeholder {
+          min-height: 320px;
+          display: grid;
+          gap: 14px;
+          align-content: center;
+          text-align: center;
+        }
+        .section-placeholder h3 {
+          margin: 0;
+          font-size: 32px;
+          letter-spacing: -0.05em;
+        }
+        .section-placeholder p {
+          margin: 0;
+          color: var(--text-soft);
+          line-height: 1.6;
+          max-width: 44ch;
+          justify-self: center;
+        }
+        .release-chip {
+          all: unset;
+          box-sizing: border-box;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.04);
+          color: var(--text-main);
+          border-radius: 999px;
+          padding: 10px 14px;
+          cursor: pointer;
+        }
+        .mobile-only {
+          display: none;
+        }
+        @media (max-width: 1200px) {
+          .metrics-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .overview-grid,
+          .immersive-bottom {
             grid-template-columns: 1fr;
           }
-          .hero {
-            min-height: auto;
+        }
+        @media (max-width: 980px) {
+          .flow-shell {
+            padding: 12px;
+          }
+          .app-shell {
+            min-height: calc(100vh - 24px);
+            grid-template-columns: 1fr;
+          }
+          .sidebar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: min(320px, 86vw);
+            transform: translateX(-100%);
+            border-right: 1px solid var(--line);
+            border-radius: 0 30px 30px 0;
+          }
+          .sidebar.mobile-open {
+            transform: translateX(0);
+          }
+          .sidebar.collapsed {
+            width: min(320px, 86vw);
+            padding-right: 14px;
+          }
+          .sidebar.collapsed .brand-copy,
+          .sidebar.collapsed :global(.nav-label),
+          .sidebar.collapsed .sidebar-footer-copy,
+          .sidebar.collapsed .sidebar-group-label {
+            opacity: 1;
+            width: auto;
+          }
+          .mobile-backdrop {
+            display: block;
+            position: absolute;
+            inset: 0;
+            background: rgba(6, 8, 12, 0.42);
+            backdrop-filter: blur(6px);
+            z-index: 10;
+          }
+          .topbar {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+          }
+          .page-head {
+            flex-direction: column;
+          }
+          .immersive-content {
+            grid-template-columns: 1fr;
+          }
+          .mobile-only {
+            display: inline-grid;
           }
         }
         @media (max-width: 720px) {
           .flow-shell {
-            padding: 16px;
+            padding: 0;
           }
-          .hero,
-          .panel {
-            padding: 18px;
+          .auth-stage,
+          .app-shell {
+            min-height: 100vh;
+            border-radius: 0;
+            border: 0;
+          }
+          .auth-card {
+            width: calc(100vw - 28px);
+            padding: 22px;
+            border-radius: 28px;
+          }
+          .app-main {
+            padding: 14px;
+          }
+          .topbar {
+            gap: 10px;
+          }
+          .search-box {
+            height: 50px;
+            border-radius: 18px;
+            padding: 0 14px;
+          }
+          .search-shortcut {
+            display: none;
+          }
+          .metrics-grid,
+          .mini-grid {
+            grid-template-columns: 1fr;
+          }
+          .notification-panel {
+            top: 68px;
+            right: 14px;
+            left: 14px;
+            width: auto;
+          }
+          .command-backdrop {
+            padding: 10px;
+            align-items: flex-start;
+          }
+          .command-modal {
+            margin-top: 70px;
             border-radius: 24px;
           }
-          .hero-grid,
-          .hero-stack,
-          .account-grid,
-          :global(.release-stats) {
-            grid-template-columns: 1fr;
-          }
-          .panel-head {
-            flex-direction: column;
-          }
-          .auth-tabs {
-            grid-template-columns: 1fr;
+          .command-footer {
+            display: none;
           }
         }
       `}</style>
 
-      <div className="canvas">
-        <section className="hero">
-          <div className="eyebrow">
-            <div className="mark">
-              <img src="/icon.svg" alt="Flow" />
-            </div>
-            <span>Flow Core Platform</span>
-          </div>
-
-          <div>
-            <h1>Auth, déploiement et mises à jour, proprement.</h1>
-            <p className="lede">
-              Cette base ne contient plus les modules produit. Elle se concentre uniquement sur les systèmes
-              critiques: création de compte, connexion persistante, Google OAuth, journal de version,
-              détection de mise à jour, rechargement et readiness pour Vercel.
-            </p>
-          </div>
-
-          <div className="hero-grid">
-            <div className="hero-card">
-              <strong>Création de compte</strong>
-              <p>Inscription sécurisée, mot de passe hashé, persistance distante et ouverture automatique de session.</p>
-            </div>
-            <div className="hero-card">
-              <strong>Connexion mémorisée</strong>
-              <p>Cookie signé longue durée et rappel du dernier email utilisé pour revenir plus vite.</p>
-            </div>
-            <div className="hero-card">
-              <strong>Google Auth</strong>
-              <p>OAuth prêt à brancher sur la config Google, avec récupération ou fusion du compte existant.</p>
-            </div>
-          </div>
-
-          <div className="hero-stack">
-            <div className="release-card">
-              <div className="eyebrow">Release actuelle</div>
-              <h3 style={{ margin: "10px 0 4px", fontSize: 24 }}>{RELEASE_LABEL}</h3>
-              <p className="helper">{RELEASE.summary}</p>
-              <div className="release-line">
-                <ReleaseBadge label={RELEASE_LABEL} onClick={() => setReleaseOpen(true)} />
-                <StatusPill tone="success">Déploiement prêt pour Vercel</StatusPill>
+      {(error || notice || availableUpdate) && (
+        <div className="toast-stack">
+          {error ? (
+            <div className="toast error">
+              <div>
+                <strong>Erreur</strong>
+                <p>{error}</p>
               </div>
-            </div>
-
-            <div className="support-card">
-              <div className="eyebrow">Systèmes actifs</div>
-              <div className="inline-row" style={{ marginTop: 12 }}>
-                <StatusPill tone={providers.google ? "success" : "warning"}>
-                  Google {providers.google ? "configuré" : "non configuré"}
-                </StatusPill>
-                <StatusPill tone={providers.email ? "success" : "warning"}>
-                  Reset email {providers.email ? "actif" : "indisponible"}
-                </StatusPill>
-                <StatusPill tone="info">Admin séparé</StatusPill>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <aside className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="eyebrow">Portail d’accès</div>
-              <h2>{booting ? "Initialisation..." : user ? "Session active" : "Connexion Flow"}</h2>
-              <p>
-                {user
-                  ? "Le compte reste connecté et la release courante continue à être surveillée."
-                  : "Crée un compte, reconnecte-toi, utilise Google ou réinitialise ton mot de passe depuis cette base minimale."}
-              </p>
-            </div>
-            <StatusPill tone={user ? "success" : "info"}>{user ? "Connecté" : "Prêt"}</StatusPill>
-          </div>
-
-          {availableUpdate ? (
-            <div className="banner notice">
-              Nouvelle version détectée: <strong>v{availableUpdate.version}</strong>. Rechargement automatique dans{" "}
-              <strong>{reloadCountdown}s</strong>.
-              <div className="button-row" style={{ marginTop: 12 }}>
-                <button type="button" className="primary" onClick={() => window.location.reload()}>
-                  Recharger maintenant
-                </button>
-                <button type="button" className="ghost" onClick={() => setAvailableUpdate(null)}>
-                  Ignorer pour l’instant
-                </button>
-              </div>
+              <button type="button" onClick={() => setError("")} aria-label="Fermer">
+                <Icon name="close" size={16} />
+              </button>
             </div>
           ) : null}
+          {notice ? (
+            <div className="toast">
+              <div>
+                <strong>Information</strong>
+                <p>{notice}</p>
+              </div>
+              <button type="button" onClick={() => setNotice("")} aria-label="Fermer">
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+          ) : null}
+          {availableUpdate ? (
+            <div className="toast">
+              <div>
+                <strong>Mise à jour prête</strong>
+                <p>La page se rechargera dans {reloadCountdown}s pour charger {formatReleaseLabel(availableUpdate)}.</p>
+              </div>
+              <button type="button" onClick={() => window.location.reload()} aria-label="Recharger">
+                <Icon name="arrow-right" size={16} />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
 
-          {error ? <div className="banner error">{error}</div> : null}
-          {notice ? <div className="banner notice">{notice}</div> : null}
+      {booting ? (
+        <div className="auth-stage">
+          <div className="auth-card">
+            <div className="auth-brand">
+              <div className="auth-brand-mark">
+                <img src="/icon.svg" alt="Flow" />
+              </div>
+              <div className="auth-brand-copy">
+                <strong>Flow</strong>
+                <span>Connexion</span>
+              </div>
+            </div>
+            <p className="helper">Chargement de ta session...</p>
+          </div>
+        </div>
+      ) : user ? (
+        <div className="app-shell">
+          {mobileNavOpen ? <button type="button" className="mobile-backdrop" onClick={() => setMobileNavOpen(false)} aria-label="Fermer le menu" /> : null}
 
-          {booting ? (
-            <div className="helper">Chargement de la session, des providers et de la release...</div>
-          ) : user ? (
-            <>
-              <div className="account-grid">
-                <div className="account-tile">
-                  <strong>Compte connecté</strong>
-                  <p>{user.name || "Sans nom"}</p>
-                  <p>{user.email}</p>
+          <aside
+            className={`sidebar ${shellCollapsedClass} ${mobileNavOpen ? "mobile-open" : ""}`}
+            onMouseEnter={() => setSidebarHover(true)}
+            onMouseLeave={() => {
+              setSidebarHover(false);
+              if (!sidebarLocked) setMobileNavOpen(false);
+            }}
+          >
+            <div className="sidebar-header">
+              <div className="brand">
+                <div className="brand-mark">
+                  <img src="/icon.svg" alt="Flow" />
                 </div>
-                <div className="account-tile">
-                  <strong>Version chargée</strong>
-                  <p>{releaseMeta}</p>
-                  <p>{remoteRelease.summary || "Aucun résumé disponible."}</p>
-                </div>
-                <div className="account-tile">
-                  <strong>Authentification</strong>
-                  <p>Session persistante par cookie signé</p>
-                  <p>Compatibilité Google et mot de passe</p>
-                </div>
-                <div className="account-tile">
-                  <strong>Accès admin</strong>
-                  <p>{isAdmin ? "Ce compte peut ouvrir la console admin." : "Compte utilisateur standard."}</p>
-                  <p>/admin/login reste séparé du site principal.</p>
+                <div className="brand-copy">
+                  <strong>Flow</strong>
+                  <span>Workspace personnel</span>
                 </div>
               </div>
+              <button
+                type="button"
+                className="lock-button"
+                onClick={() => applySidebarLock(!sidebarLocked)}
+                aria-label={sidebarLocked ? "Déverrouiller la barre" : "Verrouiller la barre"}
+              >
+                <Icon name={sidebarLocked ? "lock" : "unlock"} size={16} />
+              </button>
+            </div>
 
-              <div className="account-actions">
-                <button type="button" className="primary" onClick={() => setReleaseOpen(true)}>
-                  Ouvrir le journal de version
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={async () => {
-                    setBusy("refresh-session");
-                    setError("");
-                    try {
-                      await refreshSession();
-                      setNotice("Session revalidée.");
-                    } catch (sessionError) {
-                      setError(normalizeMessage(sessionError, "Session introuvable."));
-                    } finally {
-                      setBusy("");
-                    }
-                  }}
-                  disabled={busy === "refresh-session"}
-                >
-                  {busy === "refresh-session" ? "Validation..." : "Revalider la session"}
-                </button>
-                {isAdmin ? (
-                  <a className="secondary" href="/admin" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-                    Ouvrir l’admin
-                  </a>
-                ) : null}
-                <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"}>
+            <div className="sidebar-nav">
+              <div className="sidebar-group-label">Navigation</div>
+              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "dashboard"} icon="grid" label="Dashboard" onClick={() => setActiveSection("dashboard")} />
+              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "notes"} icon="note" label="Notes" onClick={() => setActiveSection("notes")} />
+              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "contacts"} icon="users" label="Contacts" onClick={() => setActiveSection("contacts")} />
+              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "events"} icon="calendar" label="Événements" onClick={() => setActiveSection("events")} />
+              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "tasks"} icon="check" label="Tâches" onClick={() => setActiveSection("tasks")} />
+            </div>
+
+            <div className="sidebar-footer">
+              <div className="sidebar-footer-copy">
+                <strong>{user.name || "Compte Flow"}</strong>
+                <span>{user.email}</span>
+              </div>
+              <div className="button-row" style={{ marginTop: 14 }}>
+                <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"} style={{ width: "100%" }}>
                   {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
                 </button>
               </div>
-            </>
-          ) : (
-            <>
-              <div className="auth-tabs">
-                <AuthTabButton active={activeTab === "login"} onClick={() => setActiveTab("login")}>Connexion</AuthTabButton>
-                <AuthTabButton active={activeTab === "register"} onClick={() => setActiveTab("register")}>Créer un compte</AuthTabButton>
-                <AuthTabButton active={activeTab === "reset"} onClick={() => setActiveTab("reset")}>Mot de passe</AuthTabButton>
+            </div>
+          </aside>
+
+          <main className="app-main">
+            <div className="topbar">
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => {
+                  if (window.innerWidth <= 980) {
+                    setMobileNavOpen((current) => !current);
+                  } else {
+                    void applySidebarLock(true);
+                  }
+                }}
+                aria-label="Ouvrir la barre latérale"
+              >
+                <Icon name="menu" size={18} />
+              </button>
+
+              <div className="search-wrap" ref={searchWrapRef}>
+                <div className="search-box">
+                  <Icon name="search" size={18} />
+                  <input
+                    value={searchValue}
+                    onChange={(event) => {
+                      setSearchValue(event.target.value);
+                      setSearchOpen(true);
+                    }}
+                    onFocus={() => setSearchOpen(true)}
+                    placeholder="Rechercher notes, contacts, événements, tâches..."
+                    aria-label="Recherche globale"
+                  />
+                  <span className="search-shortcut">⌘K / Ctrl+K</span>
+                </div>
+
+                {searchOpen ? (
+                  <div className="search-dropdown">
+                    {searchResults.length ? (
+                      searchResults.map((result) => (
+                        <button key={result.key} type="button" className="search-result" onClick={() => selectSearchResult(result)}>
+                          <span className="nav-icon"><ResultIcon kind={result.kind} /></span>
+                          <div className="search-result-copy">
+                            <strong>{result.title}</strong>
+                            <span>{result.subtitle}</span>
+                            {result.body ? <p>{`${result.body}`.slice(0, 84)}</p> : null}
+                          </div>
+                          <Icon name="arrow-right" size={15} />
+                        </button>
+                      ))
+                    ) : (
+                      <div className="notification-empty">Aucun résultat sur cette recherche.</div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
-              {activeTab === "login" ? (
-                <form onSubmit={submitLogin}>
-                  <Field
-                    label="Email"
-                    type="email"
-                    value={login.email}
-                    onChange={(value) => syncEmailAcrossForms(value)}
-                    placeholder="toi@flow.app"
-                    autoComplete="username"
-                    name="email"
-                    disabled={Boolean(busy)}
-                  />
-                  <Field
-                    label="Mot de passe"
-                    type="password"
-                    value={login.password}
-                    onChange={(value) => setLogin((current) => ({ ...current, password: value }))}
-                    placeholder="Mot de passe"
-                    autoComplete="current-password"
-                    name="password"
-                    disabled={Boolean(busy)}
-                  />
-                  <div className="button-row">
-                    <button type="submit" className="primary" disabled={busy === "login"}>
-                      {busy === "login" ? "Connexion..." : "Se connecter"}
-                    </button>
-                    {providers.google ? (
-                      <button type="button" className="secondary" onClick={startGoogleAuth} disabled={Boolean(busy)}>
-                        Continuer avec Google
+              <div className="topbar-actions" ref={notifRef}>
+                <button type="button" className="icon-button" onClick={() => setNotificationOpen((current) => !current)} aria-label="Ouvrir les notifications">
+                  <Icon name="bell" size={18} />
+                  {unreadNotifications ? <span className="badge">{Math.min(unreadNotifications, 9)}</span> : null}
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => void applyTheme(shellTheme === "dark" ? "light" : "dark")}
+                  aria-label="Changer le thème"
+                >
+                  <Icon name={shellTheme === "dark" ? "sun" : "moon"} size={18} />
+                </button>
+              </div>
+
+              {notificationOpen ? (
+                <div className="notification-panel">
+                  <div className="notification-panel-header">
+                    <div>
+                      <h3>Notifications</h3>
+                      <p className="helper" style={{ marginTop: 6 }}>
+                        {unreadNotifications ? `${unreadNotifications} non lue(s)` : "Aucune alerte en attente"}
+                      </p>
+                    </div>
+                    {notificationFeed.length ? (
+                      <button type="button" className="ghost" onClick={() => void markNotificationsAsRead([])}>
+                        Tout lire
                       </button>
                     ) : null}
                   </div>
-                  <p className="helper">Le compte reste reconnu automatiquement tant que la session signée est valide.</p>
-                </form>
-              ) : null}
 
-              {activeTab === "register" ? (
-                <form onSubmit={submitRegister}>
+                  <div className="notification-list">
+                    {notificationFeed.length ? (
+                      notificationFeed.map((item) => (
+                        <div key={item.id} className={`notification-card ${item.readAt ? "read" : ""}`}>
+                          <div className="notification-card-head">
+                            <strong>{item.title}</strong>
+                            {!item.readAt ? (
+                              <button type="button" className="ghost" onClick={() => void markNotificationsAsRead([item.id])}>
+                                Lire
+                              </button>
+                            ) : null}
+                          </div>
+                          <p>{item.detail || "Notification système"}</p>
+                          <small>{formatRelative(item.createdAt)} · {formatShortDate(item.createdAt)}</small>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="notification-empty">
+                        Les nouvelles notifications apparaîtront ici dès qu’on branchera les modules.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="shell-content">
+              {activeSection === "dashboard" ? (
+                dashboardLayout === "overview" ? (
+                  <section className="overview-layout">
+                    <div className="page-head">
+                      <div>
+                        <h1>Bienvenue, {firstName(user.name)}</h1>
+                        <p>Voici le résumé vivant de ton workspace. On part de ce dashboard pour reconstruire chaque module proprement.</p>
+                      </div>
+                      <div className="view-switch" aria-label="Changer la structure du dashboard">
+                        <button type="button" className={dashboardLayout === "overview" ? "active" : ""} onClick={() => void applyLayout("overview")}>
+                          Vue tableau
+                        </button>
+                        <button type="button" className={dashboardLayout === "immersive" ? "active" : ""} onClick={() => void applyLayout("immersive")}>
+                          Vue immersive
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="metrics-grid">
+                      <div className="metric-card primary">
+                        <div className="metric-card-head">
+                          <span>Notes</span>
+                          <Icon name="note" size={18} />
+                        </div>
+                        <div className="metric-value">{dashboardMetrics.notes}</div>
+                        <div className="metric-foot">
+                          <span>Base active</span>
+                          <span>{dashboardMetrics.bookmarks} signets</span>
+                        </div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="metric-card-head">
+                          <span>Tâches ouvertes</span>
+                          <Icon name="check" size={18} />
+                        </div>
+                        <div className="metric-value">{dashboardMetrics.tasks}</div>
+                        <div className="metric-foot">
+                          <span>Suivi de production</span>
+                        </div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="metric-card-head">
+                          <span>Événements</span>
+                          <Icon name="calendar" size={18} />
+                        </div>
+                        <div className="metric-value">{dashboardMetrics.events}</div>
+                        <div className="metric-foot">
+                          <span>Agenda connecté</span>
+                        </div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="metric-card-head">
+                          <span>Notifications</span>
+                          <Icon name="bell" size={18} />
+                        </div>
+                        <div className="metric-value">{dashboardMetrics.notifications}</div>
+                        <div className="metric-foot">
+                          <span>{dashboardMetrics.contacts} contact(s) connus</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="overview-grid">
+                      <div className="content-stack">
+                        <div className="content-card">
+                          <div className="content-card-header">
+                            <div>
+                              <h2>Performance du workspace</h2>
+                              <p>Un graphique léger pour lire la densité de ton activité avant l’arrivée des modules détaillés.</p>
+                            </div>
+                            <button type="button" className="release-chip" onClick={() => setReleaseOpen(true)}>
+                              <Icon name="spark" size={15} />
+                              {releaseMeta}
+                            </button>
+                          </div>
+                          <div className="chart-wrap">
+                            <svg viewBox="0 0 520 190" width="100%" height="220" preserveAspectRatio="none">
+                              <defs>
+                                <linearGradient id="flowChartFill" x1="0" x2="0" y1="0" y2="1">
+                                  <stop offset="0%" stopColor="rgba(181, 197, 157, 0.42)" />
+                                  <stop offset="100%" stopColor="rgba(181, 197, 157, 0.02)" />
+                                </linearGradient>
+                              </defs>
+                              {[30, 80, 130, 180].map((line) => (
+                                <line key={line} x1="0" y1={line} x2="520" y2={line} stroke="rgba(255,255,255,0.08)" strokeDasharray="4 8" />
+                              ))}
+                              <polyline points={chartPoints} fill="none" stroke="currentColor" strokeWidth="3" opacity="0.92" />
+                              <polyline points={`${chartPoints} 520,190 0,190`} fill="url(#flowChartFill)" stroke="none" />
+                            </svg>
+                          </div>
+                          <div className="chart-legend">
+                            <span><span className="legend-dot" style={{ background: "currentColor" }} />Charge active</span>
+                            <span><span className="legend-dot" style={{ background: "rgba(181,197,157,0.45)" }} />Résumé synthétique</span>
+                          </div>
+                        </div>
+
+                        <div className="mini-grid">
+                          <div className="mini-card">
+                            <strong>Recherche globale</strong>
+                            <span>La barre du haut et `⌘K / Ctrl+K` utilisent la même indexation sans doublons.</span>
+                          </div>
+                          <div className="mini-card">
+                            <strong>Sidebar vivante</strong>
+                            <span>Hover pour ouvrir, clic sur le cadenas pour la laisser ouverte entre les visites.</span>
+                          </div>
+                          <div className="mini-card">
+                            <strong>Thème persistant</strong>
+                            <span>Le switch clair / sombre est sauvegardé dans le compte, pas seulement dans le navigateur.</span>
+                          </div>
+                          <div className="mini-card">
+                            <strong>Layouts jumeaux</strong>
+                            <span>Les vues tableau et immersive seront maintenues à jour en parallèle à chaque passe.</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="content-stack">
+                        <div className={`spotlight-card ${selectedResult ? "" : "empty"}`}>
+                          {selectedResult ? (
+                            <>
+                              <span className="spotlight-pill">
+                                <ResultIcon kind={selectedResult.kind} />
+                                {selectedResult.kind}
+                              </span>
+                              <h3>{selectedResult.title}</h3>
+                              <p>{selectedResult.subtitle}</p>
+                              <p>{selectedResult.body || "Le détail complet s’ouvrira ici pendant qu’on construit les modules un par un."}</p>
+                            </>
+                          ) : (
+                            <>
+                              <h3>Zone de focus</h3>
+                              <p>Sélectionne un résultat depuis la recherche pour l’afficher ici sans casser la navigation générale.</p>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="surface-card">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Activité récente</h2>
+                              <p>Le dashboard commence par une vue synthétique des derniers éléments du compte.</p>
+                            </div>
+                          </div>
+                          <div className="overview-list">
+                            {(db.activity || []).slice(0, 4).map((item) => (
+                              <div key={item.id} className="overview-list-item">
+                                <div>
+                                  <strong>{item.title}</strong>
+                                  <span>{item.detail || item.type}</span>
+                                </div>
+                                <span className="helper">{formatRelative(item.createdAt)}</span>
+                              </div>
+                            ))}
+                            {!db.activity.length ? (
+                              <div className="overview-list-item">
+                                <div>
+                                  <strong>Aucune activité récente</strong>
+                                  <span>Les prochains modules alimenteront cette colonne automatiquement.</span>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                ) : (
+                  <section className="immersive-layout">
+                    <div className="immersive-map" />
+                    <div className="immersive-veil" />
+                    <div className="immersive-content">
+                      <div className="floating-stack">
+                        <div className="floating-card">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Centre de pilotage</h2>
+                              <p>Version immersive du dashboard, plus atmosphérique mais branchée sur les mêmes données.</p>
+                            </div>
+                            <button type="button" className="ghost" onClick={() => void applyLayout("overview")}>
+                              Vue tableau
+                            </button>
+                          </div>
+                          <div className="floating-kpis">
+                            <div className="floating-kpi">
+                              <span>Notes</span>
+                              <strong>{dashboardMetrics.notes}</strong>
+                            </div>
+                            <div className="floating-kpi">
+                              <span>En cours</span>
+                              <strong>{dashboardMetrics.tasks}</strong>
+                            </div>
+                            <div className="floating-kpi">
+                              <span>Événements</span>
+                              <strong>{dashboardMetrics.events}</strong>
+                            </div>
+                            <div className="floating-kpi">
+                              <span>Alertes</span>
+                              <strong>{dashboardMetrics.notifications}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="floating-card">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Panneau de veille</h2>
+                              <p>Le même langage visuel servira aux modules quand on les branchera un par un.</p>
+                            </div>
+                          </div>
+                          <div className="overview-list">
+                            <div className="overview-list-item">
+                              <div>
+                                <strong>Recherche haute priorité</strong>
+                                <span>Sans doublon, avec ouverture rapide au clavier.</span>
+                              </div>
+                            </div>
+                            <div className="overview-list-item">
+                              <div>
+                                <strong>Notifications</strong>
+                                <span>Panneau flottant aligné sur la topbar et thème commun dark / light.</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="immersive-right">
+                        <div className="immersive-header">
+                          <h1>Dashboard Flow</h1>
+                          <p>Le résumé principal du compte garde la même logique métier mais change totalement de structure visuelle selon le mode d’affichage choisi.</p>
+                          <div className="route-pills">
+                            <span className="route-pill">Recherche globale</span>
+                            <span className="route-pill">Notifications flottantes</span>
+                            <span className="route-pill">Thème persistant</span>
+                          </div>
+                        </div>
+
+                        <div className="floating-card">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Résultat ciblé</h2>
+                              <p>{selectedResult ? "Le résultat sélectionné depuis la recherche apparaît ici." : "Aucun résultat actif pour le moment."}</p>
+                            </div>
+                          </div>
+                          {selectedResult ? (
+                            <div className="spotlight-card" style={{ padding: 0, border: 0, background: "transparent", boxShadow: "none" }}>
+                              <span className="spotlight-pill">
+                                <ResultIcon kind={selectedResult.kind} />
+                                {selectedResult.kind}
+                              </span>
+                              <h3>{selectedResult.title}</h3>
+                              <p>{selectedResult.subtitle}</p>
+                              <p>{selectedResult.body || "Le détail complet du module arrivera ici au fur et à mesure de la reconstruction."}</p>
+                            </div>
+                          ) : (
+                            <div className="section-placeholder" style={{ minHeight: 160 }}>
+                              <p>Utilise la recherche du haut ou `⌘K / Ctrl+K` pour charger une fiche ici.</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="immersive-bottom">
+                          <div className="floating-card schedule-card">
+                            <div className="surface-head">
+                              <div>
+                                <h2>Cadence des modules</h2>
+                                <p>Vision simple de l’état des briques qu’on est en train de remettre à plat.</p>
+                              </div>
+                              <button type="button" className="release-chip" onClick={() => setReleaseOpen(true)}>
+                                <Icon name="spark" size={15} />
+                                {releaseMeta}
+                              </button>
+                            </div>
+                            <div className="schedule-scale">
+                              <div className="scale-row">
+                                <span>Recherche</span>
+                                <div className="scale-bar"><div className="scale-fill" style={{ width: "74%" }} /></div>
+                              </div>
+                              <div className="scale-row">
+                                <span>Topbar</span>
+                                <div className="scale-bar"><div className="scale-fill" style={{ width: "82%" }} /></div>
+                              </div>
+                              <div className="scale-row">
+                                <span>Shell</span>
+                                <div className="scale-bar"><div className="scale-fill" style={{ width: "88%" }} /></div>
+                              </div>
+                              <div className="scale-row">
+                                <span>Modules</span>
+                                <div className="scale-bar"><div className="scale-fill" style={{ width: "26%" }} /></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="floating-card">
+                            <div className="surface-head">
+                              <div>
+                                <h2>Alertes</h2>
+                                <p>Panneau inspiré des références, branché sur les vraies notifications du compte.</p>
+                              </div>
+                            </div>
+                            <div className="overview-list">
+                              {notificationFeed.slice(0, 2).map((item) => (
+                                <div key={item.id} className="overview-list-item">
+                                  <div>
+                                    <strong>{item.title}</strong>
+                                    <span>{item.detail || "Notification système"}</span>
+                                  </div>
+                                  <span className="helper">{formatRelative(item.createdAt)}</span>
+                                </div>
+                              ))}
+                              {!notificationFeed.length ? (
+                                <div className="overview-list-item">
+                                  <div>
+                                    <strong>Aucune alerte</strong>
+                                    <span>Le panneau est prêt pour les prochaines remontées du produit.</span>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                )
+              ) : (
+                <div className="surface-card section-placeholder">
+                  <h3>{activeSection === "notes" ? "Notes" : activeSection === "contacts" ? "Contacts" : activeSection === "events" ? "Événements" : "Tâches"}</h3>
+                  <p>
+                    Ce module n’est pas encore reconstruit. On garde déjà sa place dans la navigation, la recherche et le résumé global pour pouvoir le brancher proprement ensuite.
+                  </p>
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
+      ) : (
+        <div className="auth-stage">
+          <div className="auth-card">
+            <div className="auth-brand">
+              <div className="auth-brand-mark">
+                <img src="/icon.svg" alt="Flow" />
+              </div>
+              <div className="auth-brand-copy">
+                <strong>Flow</strong>
+                <span>Connexion</span>
+              </div>
+            </div>
+
+            <div className="auth-tabs">
+              <AuthTabButton active={activeTab === "login"} onClick={() => setActiveTab("login")}>Connexion</AuthTabButton>
+              <AuthTabButton active={activeTab === "register"} onClick={() => setActiveTab("register")}>Créer</AuthTabButton>
+              <AuthTabButton active={activeTab === "reset"} onClick={() => setActiveTab("reset")}>Mot de passe</AuthTabButton>
+            </div>
+
+            {activeTab === "login" ? (
+              <form onSubmit={submitLogin}>
+                <Field
+                  label="Email"
+                  type="email"
+                  value={login.email}
+                  onChange={(value) => syncEmailAcrossForms(value)}
+                  placeholder="toi@flow.app"
+                  autoComplete="username"
+                  name="email"
+                  disabled={Boolean(busy)}
+                />
+                <Field
+                  label="Mot de passe"
+                  type="password"
+                  value={login.password}
+                  onChange={(value) => setLogin((current) => ({ ...current, password: value }))}
+                  placeholder="Mot de passe"
+                  autoComplete="current-password"
+                  name="password"
+                  disabled={Boolean(busy)}
+                />
+                <div className="button-row">
+                  <button type="submit" className="primary" disabled={busy === "login"}>
+                    {busy === "login" ? "Connexion..." : "Se connecter"}
+                  </button>
+                  <button type="button" className="secondary" onClick={startGoogleAuth} disabled={Boolean(busy)}>
+                    Continuer avec Google
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {activeTab === "register" ? (
+              <form onSubmit={submitRegister}>
+                <Field
+                  label="Nom"
+                  value={register.name}
+                  onChange={(value) => setRegister((current) => ({ ...current, name: value }))}
+                  placeholder="Ton nom"
+                  autoComplete="name"
+                  name="name"
+                  disabled={Boolean(busy)}
+                />
+                <Field
+                  label="Email"
+                  type="email"
+                  value={register.email}
+                  onChange={(value) => syncEmailAcrossForms(value)}
+                  placeholder="toi@flow.app"
+                  autoComplete="email"
+                  name="email"
+                  disabled={Boolean(busy)}
+                />
+                <Field
+                  label="Mot de passe"
+                  type="password"
+                  value={register.password}
+                  onChange={(value) => setRegister((current) => ({ ...current, password: value }))}
+                  placeholder="8 caractères minimum"
+                  autoComplete="new-password"
+                  name="password"
+                  disabled={Boolean(busy)}
+                />
+                <Field
+                  label="Confirmer"
+                  type="password"
+                  value={register.confirmPassword}
+                  onChange={(value) => setRegister((current) => ({ ...current, confirmPassword: value }))}
+                  placeholder="Répète le mot de passe"
+                  autoComplete="new-password"
+                  name="confirmPassword"
+                  disabled={Boolean(busy)}
+                />
+                <div className="button-row">
+                  <button type="submit" className="primary" disabled={busy === "register"}>
+                    {busy === "register" ? "Création..." : "Créer le compte"}
+                  </button>
+                  <button type="button" className="secondary" onClick={startGoogleAuth} disabled={Boolean(busy)}>
+                    Créer via Google
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {activeTab === "reset" ? (
+              <>
+                <form onSubmit={requestResetCode}>
                   <Field
-                    label="Nom"
-                    value={register.name}
-                    onChange={(value) => setRegister((current) => ({ ...current, name: value }))}
-                    placeholder="Ton nom"
-                    autoComplete="name"
-                    name="name"
-                    disabled={Boolean(busy)}
-                  />
-                  <Field
-                    label="Email"
+                    label="Email du compte"
                     type="email"
-                    value={register.email}
+                    value={reset.email}
                     onChange={(value) => syncEmailAcrossForms(value)}
                     placeholder="toi@flow.app"
                     autoComplete="email"
-                    name="email"
-                    disabled={Boolean(busy)}
-                  />
-                  <Field
-                    label="Mot de passe"
-                    type="password"
-                    value={register.password}
-                    onChange={(value) => setRegister((current) => ({ ...current, password: value }))}
-                    placeholder="8 caractères minimum"
-                    autoComplete="new-password"
-                    name="password"
-                    disabled={Boolean(busy)}
-                  />
-                  <Field
-                    label="Confirmer le mot de passe"
-                    type="password"
-                    value={register.confirmPassword}
-                    onChange={(value) => setRegister((current) => ({ ...current, confirmPassword: value }))}
-                    placeholder="Répète le mot de passe"
-                    autoComplete="new-password"
-                    name="confirmPassword"
+                    name="resetEmail"
                     disabled={Boolean(busy)}
                   />
                   <div className="button-row">
-                    <button type="submit" className="primary" disabled={busy === "register"}>
-                      {busy === "register" ? "Création..." : "Créer le compte"}
+                    <button type="submit" className="secondary" disabled={busy === "request-reset"}>
+                      {busy === "request-reset" ? "Envoi..." : "Envoyer le code"}
                     </button>
-                    {providers.google ? (
-                      <button type="button" className="secondary" onClick={startGoogleAuth} disabled={Boolean(busy)}>
-                        Créer via Google
-                      </button>
-                    ) : null}
                   </div>
                 </form>
-              ) : null}
 
-              {activeTab === "reset" ? (
-                <>
-                  <form onSubmit={requestResetCode}>
-                    <Field
-                      label="Email du compte"
-                      type="email"
-                      value={reset.email}
-                      onChange={(value) => syncEmailAcrossForms(value)}
-                      placeholder="toi@flow.app"
-                      autoComplete="email"
-                      name="resetEmail"
-                      disabled={Boolean(busy)}
-                    />
-                    <div className="button-row">
-                      <button type="submit" className="secondary" disabled={busy === "request-reset"}>
-                        {busy === "request-reset" ? "Envoi..." : "Envoyer le code"}
-                      </button>
+                <form onSubmit={submitPasswordReset}>
+                  <Field
+                    label="Code reçu"
+                    value={reset.code}
+                    onChange={(value) => setReset((current) => ({ ...current, code: value }))}
+                    placeholder="123456"
+                    autoComplete="one-time-code"
+                    name="code"
+                    disabled={Boolean(busy)}
+                  />
+                  <Field
+                    label="Nouveau mot de passe"
+                    type="password"
+                    value={reset.password}
+                    onChange={(value) => setReset((current) => ({ ...current, password: value }))}
+                    placeholder="Nouveau mot de passe"
+                    autoComplete="new-password"
+                    name="newPassword"
+                    disabled={Boolean(busy)}
+                  />
+                  <div className="button-row">
+                    <button type="submit" className="primary" disabled={busy === "reset"}>
+                      {busy === "reset" ? "Réinitialisation..." : "Mettre à jour"}
+                    </button>
+                  </div>
+                  <p className="helper">
+                    {providers.email
+                      ? "Le code est envoyé si la messagerie transactionnelle est branchée."
+                      : "Le flux est prêt, mais l’envoi email reste indisponible sur cet environnement."}
+                  </p>
+                </form>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {commandOpen ? (
+        <div className="command-backdrop" onClick={() => setCommandOpen(false)}>
+          <div className="command-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="command-input">
+              <Icon name="search" size={18} />
+              <input
+                ref={commandInputRef}
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                placeholder="Rechercher notes, contacts, événements, tâches..."
+                aria-label="Palette de commande"
+              />
+            </div>
+            <div className="command-list">
+              {searchResults.length ? (
+                searchResults.map((result) => (
+                  <button key={result.key} type="button" className="search-result" onClick={() => selectSearchResult(result)}>
+                    <span className="nav-icon"><ResultIcon kind={result.kind} /></span>
+                    <div className="search-result-copy">
+                      <strong>{result.title}</strong>
+                      <span>{result.subtitle}</span>
+                      {result.body ? <p>{`${result.body}`.slice(0, 96)}</p> : null}
                     </div>
-                    <p className="helper">
-                      {providers.email
-                        ? "Le code est envoyé par email si la messagerie transactionnelle est configurée."
-                        : "La messagerie n’est pas encore configurée. Le endpoint reste prêt mais l’envoi sera refusé proprement."}
-                    </p>
-                  </form>
+                    <Icon name="arrow-right" size={15} />
+                  </button>
+                ))
+              ) : (
+                <div className="notification-empty">Aucun résultat sur cette recherche.</div>
+              )}
+            </div>
+            <div className="command-footer">
+              <span>Échap pour fermer</span>
+              <span>Recherche unique sans doublons</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
-                  <form onSubmit={submitPasswordReset}>
-                    <Field
-                      label="Code reçu"
-                      value={reset.code}
-                      onChange={(value) => setReset((current) => ({ ...current, code: value }))}
-                      placeholder="123456"
-                      autoComplete="one-time-code"
-                      name="code"
-                      disabled={Boolean(busy)}
-                    />
-                    <Field
-                      label="Nouveau mot de passe"
-                      type="password"
-                      value={reset.password}
-                      onChange={(value) => setReset((current) => ({ ...current, password: value }))}
-                      placeholder="Nouveau mot de passe"
-                      autoComplete="new-password"
-                      name="newPassword"
-                      disabled={Boolean(busy)}
-                    />
-                    <div className="button-row">
-                      <button type="submit" className="primary" disabled={busy === "reset"}>
-                        {busy === "reset" ? "Réinitialisation..." : "Mettre à jour le mot de passe"}
-                      </button>
-                    </div>
-                  </form>
-                </>
-              ) : null}
-            </>
-          )}
-        </aside>
-      </div>
-
-      {releaseOpen ? <ReleaseWidget release={RELEASE} label={RELEASE_LABEL} onClose={() => setReleaseOpen(false)} /> : null}
+      {releaseOpen ? <ReleaseWidget release={remoteRelease || RELEASE} label={releaseMeta || RELEASE_LABEL} onClose={() => setReleaseOpen(false)} /> : null}
     </div>
   );
 }
