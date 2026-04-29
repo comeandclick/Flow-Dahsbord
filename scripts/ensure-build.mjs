@@ -4,15 +4,16 @@ import { join } from "node:path";
 
 const appPathsManifest = join(process.cwd(), ".next", "server", "app-paths-manifest.json");
 const pagesManifest = join(process.cwd(), ".next", "server", "pages-manifest.json");
+const notFoundTrace = join(process.cwd(), ".next", "server", "app", "_not-found", "page.js.nft.json");
 
 function hasValidBuild() {
-  return existsSync(appPathsManifest) && existsSync(pagesManifest);
+  return existsSync(appPathsManifest) && existsSync(pagesManifest) && existsSync(notFoundTrace);
 }
 
 if (!hasValidBuild()) {
   console.log("Build Next incomplet detecte, regeneration de .next...");
   rmSync(join(process.cwd(), ".next"), { recursive: true, force: true });
-  execSync("npx -y node@22 ./node_modules/next/dist/bin/next build", {
+  execSync("npm run build", {
     stdio: "inherit",
   });
 }

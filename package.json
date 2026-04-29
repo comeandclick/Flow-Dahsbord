@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "rm -rf .next && next build",
     "prestart": "node scripts/ensure-build.mjs",
     "start": "next start",
     "check:client": "node scripts/check-client.mjs",

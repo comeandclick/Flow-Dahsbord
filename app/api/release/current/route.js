@@ -7,6 +7,7 @@ export async function GET() {
     version: RELEASE.version,
     deployedAt: RELEASE.deployedAt,
     summary: RELEASE.summary,
+    changes: RELEASE.changes,
   }, {
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate",
