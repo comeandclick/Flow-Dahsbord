@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.23.1
+### 1.23.2
 
-- **Date** : 29/04/2026 17:04
-- **Résumé** : Le socle Flow passe sur un vrai shell produit: auth minimale, dashboard d’accueil, sidebar hover/lock, recherche globale, notifications et double layout dark/light.
+- **Date** : 29/04/2026 18:15
+- **Résumé** : Le shell Flow passe sur une DA plus maîtrisée: correction des textes et chevauchements, vrais fonds dark/light, profil centralisé et vue immersive desktop sans sidebar.
 
-- **Connexion réduite au strict nécessaire** : La page d’accès ne garde plus que le bloc connexion, création de compte et reset, sans grand texte de présentation.
-- **Nouveau dashboard shell après connexion** : Le compte connecté entre maintenant dans un vrai dashboard avec topbar, recherche, sidebar hover + lock et thème persistant.
-- **Deux structures visuelles maintenues** : Le shell supporte déjà une vue tableau et une vue immersive, toutes deux branchées sur les mêmes données et sur le switch clair/sombre.
+- **Nettoyage des couleurs, polices et débordements** : Les textes hors palette, les polices incohérentes, les overlaps et les contenus qui sortaient de leurs blocs ont été repris sur le shell principal.
+- **La structure du site passe par le profil utilisateur** : Le switch de layout a quitté le dashboard: il vit maintenant dans Profil/Paramètres et pilote toute la structure desktop du site.
+- **Vue immersive desktop et mobile verrouillé en tableau** : La vue immersive retire la sidebar, remonte les modules en haut du site et reste désactivée sur téléphone pour préserver la lisibilité.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

@@ -61,8 +61,40 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.23.1`
+- Version actuelle: `v1.23.2`
 
+## Passe produit 21 - 29/04/2026 18:15
+
+### Fait dans cette passe
+
+- correction visuelle du shell:
+  - textes hors palette repris
+  - stack typographique uniformisée en système Apple-like
+  - débordements et chevauchements nettoyés
+- nouvelle mémoire de fond:
+  - sombre sur `theme-dark-wave.jpg`
+  - clair sur `theme-light-grain.jpg`
+- structure du site déplacée dans le profil:
+  - `Profil / Paramètres` pilote maintenant `Vue tableau` / `Vue immersive`
+  - le dashboard ne porte plus ce switch
+- immersive:
+  - plus de sidebar sur desktop
+  - navigation modules remontée en haut
+  - mobile forcé en `tableau`
+- navigation:
+  - bouton hamburger supprimé sur desktop
+  - conservé uniquement sur téléphone
+  - sidebar fermée nettoyée pour recentrer les icônes
+- animations:
+  - entrée shell
+  - popups
+  - changements de sections
+- QA réelle:
+  - `npm run build` OK
+  - `npm run check:client -- http://127.0.0.1:4010` OK
+  - audit Playwright desktop OK
+  - audit Playwright mobile OK
+  - overflow horizontal: `false` desktop + mobile
 ## Passe produit 20 - 29/04/2026 17:04
 
 ### Fait dans cette passe

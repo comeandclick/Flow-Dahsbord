@@ -439,6 +439,7 @@ export default function FlowApp() {
   const [shellTheme, setShellTheme] = useState("dark");
   const [dashboardLayout, setDashboardLayout] = useState("overview");
   const [sidebarLocked, setSidebarLocked] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const intervalRef = useRef(null);
   const reloadTimerRef = useRef(null);
   const searchWrapRef = useRef(null);
@@ -497,9 +498,23 @@ export default function FlowApp() {
     [dashboardMetrics],
   );
 
+  const navSections = useMemo(
+    () => [
+      { id: "dashboard", label: "Dashboard", icon: "grid" },
+      { id: "notes", label: "Notes", icon: "note" },
+      { id: "contacts", label: "Contacts", icon: "users" },
+      { id: "events", label: "Événements", icon: "calendar" },
+      { id: "tasks", label: "Tâches", icon: "check" },
+      { id: "profile", label: "Profil", icon: "sliders" },
+    ],
+    [],
+  );
+
+  const effectiveLayout = isMobile ? "overview" : dashboardLayout;
   const sidebarExpanded = sidebarLocked || sidebarHover;
   const shellCollapsedClass = !sidebarExpanded ? "collapsed" : "";
   const themeClass = shellTheme === "light" ? "theme-light" : "theme-dark";
+  const shouldShowSidebar = effectiveLayout !== "immersive";
 
   useEffect(() => {
     const savedEmail = readStoredEmail();
@@ -508,6 +523,21 @@ export default function FlowApp() {
     setRegister((current) => ({ ...current, email: current.email || savedEmail }));
     setReset((current) => ({ ...current, email: current.email || savedEmail }));
   }, []);
+
+  useEffect(() => {
+    function updateViewport() {
+      setIsMobile(window.innerWidth <= 980);
+    }
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    setMobileNavOpen(false);
+  }, [isMobile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -743,6 +773,10 @@ export default function FlowApp() {
   }
 
   async function applyLayout(nextLayout) {
+    if (isMobile && nextLayout === "immersive") {
+      setNotice("La vue immersive reste réservée au desktop.");
+      return;
+    }
     setDashboardLayout(nextLayout);
     rememberLayout(nextLayout);
     const nextDb = nextDbWithSettings({ dashboardLayout: nextLayout });
@@ -925,6 +959,8 @@ export default function FlowApp() {
     setActiveSection(result.section || "dashboard");
     setSearchOpen(false);
     setCommandOpen(false);
+    setNotificationOpen(false);
+    setMobileNavOpen(false);
     setSearchValue(result.title);
     setNotice(`Résultat chargé: ${result.title}`);
   }
@@ -945,7 +981,7 @@ export default function FlowApp() {
         :global(body) {
           background: #090a0d;
           color: #f6f7fb;
-          font-family: "Geist", system-ui, sans-serif;
+          font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
         }
         :global(*) {
           box-sizing: border-box;
@@ -967,49 +1003,49 @@ export default function FlowApp() {
         }
         .theme-dark {
           --page-bg:
-            radial-gradient(circle at top right, rgba(116, 138, 97, 0.16), transparent 26%),
-            radial-gradient(circle at top left, rgba(255, 255, 255, 0.05), transparent 18%),
-            linear-gradient(180deg, #090a0d 0%, #0b0d10 40%, #0a0b0e 100%);
-          --shell-bg: rgba(15, 17, 21, 0.82);
-          --shell-border: rgba(255, 255, 255, 0.08);
-          --panel-bg: rgba(24, 27, 33, 0.72);
-          --panel-soft: rgba(33, 37, 44, 0.72);
-          --panel-strong: rgba(21, 23, 28, 0.92);
-          --text-main: #f6f7fb;
-          --text-soft: rgba(232, 235, 242, 0.72);
-          --text-faint: rgba(205, 211, 223, 0.48);
+            linear-gradient(180deg, rgba(5, 7, 9, 0.46), rgba(5, 7, 9, 0.88)),
+            url("/theme-dark-wave.jpg") center center / cover no-repeat fixed;
+          --shell-bg: rgba(10, 12, 14, 0.64);
+          --shell-border: rgba(255, 255, 255, 0.07);
+          --panel-bg: rgba(23, 25, 29, 0.66);
+          --panel-soft: rgba(28, 31, 35, 0.76);
+          --panel-strong: rgba(18, 20, 24, 0.88);
+          --text-main: #f4f5f7;
+          --text-soft: rgba(230, 233, 239, 0.74);
+          --text-faint: rgba(199, 205, 216, 0.48);
           --line: rgba(255, 255, 255, 0.08);
-          --line-strong: rgba(255, 255, 255, 0.14);
-          --accent: #d7ddd4;
-          --accent-strong: #f2f5ef;
-          --accent-glow: rgba(151, 171, 132, 0.18);
-          --danger: rgba(149, 76, 71, 0.68);
-          --notice: rgba(52, 63, 81, 0.88);
-          --shadow: 0 40px 80px rgba(0, 0, 0, 0.45);
-          --map-veil: linear-gradient(180deg, rgba(9, 11, 14, 0.08), rgba(9, 11, 14, 0.86));
+          --line-strong: rgba(255, 255, 255, 0.16);
+          --accent: #dde3d7;
+          --accent-strong: #ffffff;
+          --accent-glow: rgba(133, 160, 113, 0.16);
+          --danger: rgba(96, 51, 46, 0.72);
+          --notice: rgba(23, 25, 29, 0.92);
+          --shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+          --map-veil: linear-gradient(180deg, rgba(8, 9, 12, 0.1), rgba(8, 9, 12, 0.8));
+          --topbar-glow: rgba(101, 123, 87, 0.22);
         }
         .theme-light {
           --page-bg:
-            radial-gradient(circle at top right, rgba(180, 197, 165, 0.22), transparent 26%),
-            radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 20%),
-            linear-gradient(180deg, #f3f1ed 0%, #ece8e1 100%);
-          --shell-bg: rgba(255, 255, 255, 0.84);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(243, 241, 235, 0.88)),
+            url("/theme-light-grain.jpg") center center / cover no-repeat fixed;
+          --shell-bg: rgba(250, 248, 243, 0.68);
           --shell-border: rgba(17, 20, 26, 0.08);
-          --panel-bg: rgba(255, 255, 255, 0.78);
-          --panel-soft: rgba(247, 245, 241, 0.9);
-          --panel-strong: rgba(255, 255, 255, 0.95);
-          --text-main: #17181b;
-          --text-soft: rgba(23, 24, 27, 0.68);
-          --text-faint: rgba(23, 24, 27, 0.42);
+          --panel-bg: rgba(255, 255, 255, 0.7);
+          --panel-soft: rgba(250, 248, 244, 0.84);
+          --panel-strong: rgba(255, 255, 255, 0.9);
+          --text-main: #15171b;
+          --text-soft: rgba(21, 23, 27, 0.7);
+          --text-faint: rgba(21, 23, 27, 0.46);
           --line: rgba(17, 20, 26, 0.08);
-          --line-strong: rgba(17, 20, 26, 0.14);
-          --accent: #1f2329;
-          --accent-strong: #0f1216;
-          --accent-glow: rgba(122, 148, 99, 0.12);
-          --danger: rgba(188, 121, 113, 0.28);
-          --notice: rgba(247, 245, 242, 0.98);
-          --shadow: 0 30px 70px rgba(28, 32, 44, 0.14);
-          --map-veil: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.84));
+          --line-strong: rgba(17, 20, 26, 0.15);
+          --accent: #111316;
+          --accent-strong: #030405;
+          --accent-glow: rgba(118, 134, 98, 0.12);
+          --danger: rgba(176, 118, 108, 0.22);
+          --notice: rgba(255, 255, 255, 0.94);
+          --shadow: 0 22px 70px rgba(42, 45, 57, 0.12);
+          --map-veil: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.86));
+          --topbar-glow: rgba(166, 171, 150, 0.12);
         }
         .flow-shell {
           min-height: 100vh;
@@ -1019,6 +1055,19 @@ export default function FlowApp() {
           background: var(--page-bg);
           color: var(--text-main);
           transition: background 0.35s ease, color 0.35s ease;
+          animation: shellFadeIn 0.52s ease;
+        }
+        @keyframes shellFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes riseIn {
+          from { opacity: 0; transform: translateY(18px) scale(0.985); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes fadeScaleIn {
+          from { opacity: 0; transform: scale(0.98); }
+          to { opacity: 1; transform: scale(1); }
         }
         .toast-stack {
           position: fixed;
@@ -1071,12 +1120,15 @@ export default function FlowApp() {
         }
         .auth-card {
           width: min(440px, 100%);
-          border-radius: 32px;
+          border-radius: 30px;
           border: 1px solid var(--shell-border);
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent), var(--panel-strong);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 34%),
+            var(--panel-strong);
           box-shadow: var(--shadow);
           padding: 28px;
           backdrop-filter: blur(18px);
+          animation: riseIn 0.38s ease;
         }
         .auth-brand {
           display: flex;
@@ -1197,15 +1249,17 @@ export default function FlowApp() {
           border: 0;
           color: ${shellTheme === "light" ? "#ffffff" : "#0b0d10"};
           background: ${shellTheme === "light"
-            ? "linear-gradient(180deg, #2d3137 0%, #15181d 100%)"
-            : "linear-gradient(180deg, #f3f5ef 0%, #d3d9cf 100%)"};
+            ? "linear-gradient(180deg, #23272d 0%, #13161b 100%)"
+            : "linear-gradient(180deg, #f5f7f2 0%, #d8ddd2 100%)"};
+          box-shadow: 0 18px 28px rgba(0, 0, 0, 0.18);
         }
         .secondary,
         .ghost,
         .pill-button {
           border: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.04);
+          background: rgba(255, 255, 255, 0.045);
           color: var(--text-main);
+          backdrop-filter: blur(18px);
         }
         .ghost {
           background: transparent;
@@ -1240,13 +1294,17 @@ export default function FlowApp() {
           display: grid;
           grid-template-columns: auto minmax(0, 1fr);
           position: relative;
+          animation: fadeScaleIn 0.42s ease;
+        }
+        .app-shell.no-sidebar {
+          grid-template-columns: 1fr;
         }
         .sidebar {
-          width: 286px;
+          width: 292px;
           border-right: 1px solid var(--line);
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 24%),
-            rgba(17, 19, 24, 0.58);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 26%),
+            rgba(11, 13, 16, 0.56);
           padding: 18px 14px 18px 18px;
           display: flex;
           flex-direction: column;
@@ -1257,12 +1315,13 @@ export default function FlowApp() {
         }
         .theme-light .sidebar {
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.68), transparent 24%),
-            rgba(252, 251, 248, 0.72);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.64), transparent 24%),
+            rgba(255, 255, 255, 0.54);
         }
         .sidebar.collapsed {
-          width: 90px;
-          padding-right: 12px;
+          width: 94px;
+          padding-left: 14px;
+          padding-right: 14px;
         }
         .sidebar-header {
           display: flex;
@@ -1317,6 +1376,16 @@ export default function FlowApp() {
         .sidebar.collapsed :global(.nav-label) {
           display: none;
         }
+        .sidebar.collapsed .sidebar-header {
+          justify-content: center;
+        }
+        .sidebar.collapsed .brand {
+          justify-content: center;
+          width: 100%;
+        }
+        .sidebar.collapsed .lock-button {
+          display: none;
+        }
         .lock-button {
           all: unset;
           box-sizing: border-box;
@@ -1349,36 +1418,46 @@ export default function FlowApp() {
           background: transparent;
           color: var(--text-soft);
           border-radius: 18px;
-          padding: 12px 12px;
+          padding: 13px 14px;
           display: flex;
           align-items: center;
           gap: 12px;
           cursor: pointer;
           text-align: left;
           min-height: 50px;
+          width: 100%;
+          min-width: 0;
+          transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
         }
         :global(.nav-item.active) {
           border-color: var(--line);
           background: var(--panel-soft);
           color: var(--text-main);
         }
+        :global(.nav-item:hover) {
+          transform: translateX(1px);
+        }
         :global(.nav-item.collapsed) {
           justify-content: center;
+          padding-left: 0;
+          padding-right: 0;
         }
         :global(.nav-icon) {
-          width: 20px;
-          height: 20px;
+          width: 24px;
+          height: 24px;
           display: grid;
           place-items: center;
           flex: none;
         }
         :global(.nav-label) {
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .sidebar-footer {
           margin-top: auto;
           padding: 14px;
-          border-radius: 24px;
+          border-radius: 26px;
           background: var(--panel-soft);
           border: 1px solid var(--line);
         }
@@ -1402,11 +1481,27 @@ export default function FlowApp() {
           position: relative;
           background: transparent;
         }
+        .app-main.immersive-main {
+          padding: 18px;
+        }
         .topbar {
           display: grid;
-          grid-template-columns: auto minmax(0, 1fr) auto;
+          grid-template-columns: minmax(0, 1fr) auto;
           align-items: center;
           gap: 14px;
+          padding: 14px 16px;
+          border-radius: 28px;
+          border: 1px solid var(--line);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%),
+            rgba(17, 20, 22, 0.36);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(18px);
+        }
+        .theme-light .topbar {
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.62), transparent 60%),
+            rgba(255, 255, 255, 0.3);
         }
         .topbar-actions {
           display: flex;
@@ -1428,6 +1523,11 @@ export default function FlowApp() {
           cursor: pointer;
           position: relative;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+          transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+        .icon-button:hover {
+          transform: translateY(-1px);
+          border-color: var(--line-strong);
         }
         .badge {
           position: absolute;
@@ -1459,6 +1559,8 @@ export default function FlowApp() {
           gap: 12px;
           padding: 0 16px;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+          position: relative;
+          overflow: hidden;
         }
         .search-box input {
           border: 0;
@@ -1466,6 +1568,12 @@ export default function FlowApp() {
           padding: 0;
           box-shadow: none;
           height: 100%;
+          color: var(--text-main);
+          width: 100%;
+          min-width: 0;
+        }
+        .search-box input::placeholder {
+          color: var(--text-faint);
         }
         .search-shortcut {
           padding: 8px 10px;
@@ -1496,6 +1604,7 @@ export default function FlowApp() {
           border-radius: 24px;
           padding: 12px;
           z-index: 30;
+          animation: riseIn 0.24s ease;
         }
         .search-result {
           all: unset;
@@ -1519,6 +1628,9 @@ export default function FlowApp() {
         .search-result-copy strong {
           display: block;
           font-size: 14px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .search-result-copy span,
         .search-result-copy p {
@@ -1527,10 +1639,19 @@ export default function FlowApp() {
           color: var(--text-soft);
           font-size: 12px;
           line-height: 1.45;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .shell-content {
           flex: 1;
           min-height: 0;
+          min-width: 0;
+        }
+        .shell-panel {
+          display: grid;
+          gap: 18px;
+          animation: riseIn 0.28s ease;
         }
         .overview-layout {
           display: grid;
@@ -1555,31 +1676,37 @@ export default function FlowApp() {
           line-height: 1.55;
           max-width: 52ch;
         }
-        .view-switch {
-          display: inline-flex;
-          gap: 8px;
-          padding: 6px;
-          border-radius: 18px;
-          background: var(--panel-bg);
-          border: 1px solid var(--line);
+        .module-rail {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          padding: 2px 2px 0;
         }
-        .view-switch button {
+        .module-chip {
           all: unset;
           box-sizing: border-box;
-          border: 0;
-          padding: 11px 14px;
-          border-radius: 14px;
-          background: transparent;
+          min-height: 46px;
+          padding: 0 16px;
+          border-radius: 18px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.035);
           color: var(--text-soft);
-          cursor: pointer;
-          font-weight: 700;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          gap: 10px;
+          cursor: pointer;
+          backdrop-filter: blur(18px);
+          transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
-        .view-switch button.active {
-          background: var(--panel-soft);
+        .module-chip:hover {
+          transform: translateY(-1px);
+        }
+        .module-chip.active {
+          background: rgba(255, 255, 255, 0.08);
           color: var(--text-main);
+          border-color: var(--line-strong);
+          box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03);
         }
         .metrics-grid {
           display: grid;
@@ -1589,6 +1716,7 @@ export default function FlowApp() {
         .metric-card {
           border-radius: 30px;
           padding: 18px;
+          animation: riseIn 0.32s ease;
         }
         .metric-card.primary {
           background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)), var(--panel-strong);
@@ -1633,6 +1761,8 @@ export default function FlowApp() {
         .floating-card {
           border-radius: 30px;
           padding: 20px;
+          animation: riseIn 0.32s ease;
+          min-width: 0;
         }
         .content-card-header,
         .surface-head {
@@ -1698,6 +1828,7 @@ export default function FlowApp() {
           color: var(--text-soft);
           font-size: 12px;
           line-height: 1.5;
+          overflow-wrap: anywhere;
         }
         .spotlight-card {
           display: grid;
@@ -1743,16 +1874,19 @@ export default function FlowApp() {
           align-items: center;
           justify-content: space-between;
           gap: 12px;
+          min-width: 0;
         }
         .overview-list-item strong {
           display: block;
           font-size: 14px;
+          overflow-wrap: anywhere;
         }
         .overview-list-item span {
           display: block;
           margin-top: 4px;
           color: var(--text-soft);
           font-size: 12px;
+          overflow-wrap: anywhere;
         }
         .notification-panel {
           position: absolute;
@@ -1765,6 +1899,7 @@ export default function FlowApp() {
           background:
             linear-gradient(180deg, rgba(126, 90, 84, 0.18), transparent 40%),
             var(--panel-strong);
+          animation: riseIn 0.24s ease;
         }
         .notification-panel-header {
           display: flex;
@@ -1833,6 +1968,7 @@ export default function FlowApp() {
           width: min(760px, 100%);
           border-radius: 30px;
           padding: 16px;
+          animation: riseIn 0.26s ease;
         }
         .command-input {
           display: flex;
@@ -1872,26 +2008,22 @@ export default function FlowApp() {
           overflow: hidden;
           border: 1px solid var(--line);
           background:
-            radial-gradient(circle at 70% 30%, rgba(91, 112, 73, 0.26), transparent 18%),
-            radial-gradient(circle at 20% 76%, rgba(92, 126, 74, 0.18), transparent 14%),
-            linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 30%),
-            #0f1115;
+            linear-gradient(180deg, rgba(10, 12, 14, 0.18), rgba(10, 12, 14, 0.78)),
+            url("/theme-dark-wave.jpg") center center / cover no-repeat;
         }
         .theme-light .immersive-layout {
           background:
-            radial-gradient(circle at 70% 30%, rgba(149, 171, 127, 0.28), transparent 20%),
-            radial-gradient(circle at 20% 76%, rgba(157, 177, 136, 0.2), transparent 18%),
-            linear-gradient(135deg, rgba(255, 255, 255, 0.45), transparent 30%),
-            #ece9e1;
+            linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(247, 245, 239, 0.82)),
+            url("/theme-light-grain.jpg") center center / cover no-repeat;
         }
         .immersive-map {
           position: absolute;
           inset: 0;
           background:
-            linear-gradient(115deg, rgba(255, 255, 255, 0.04), transparent 28%),
-            repeating-linear-gradient(125deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 18px),
-            radial-gradient(circle at 62% 34%, rgba(144, 174, 116, 0.22), transparent 16%),
-            radial-gradient(circle at 17% 77%, rgba(120, 146, 101, 0.18), transparent 12%);
+            radial-gradient(circle at 18% 24%, rgba(116, 141, 95, 0.22), transparent 18%),
+            radial-gradient(circle at 72% 48%, rgba(119, 141, 101, 0.16), transparent 14%),
+            repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 16px),
+            linear-gradient(115deg, rgba(255, 255, 255, 0.04), transparent 28%);
           opacity: 0.95;
         }
         .immersive-map::after {
@@ -1927,7 +2059,7 @@ export default function FlowApp() {
           background: rgba(21, 23, 27, 0.74);
         }
         .theme-light .floating-card {
-          background: rgba(255, 255, 255, 0.76);
+          background: rgba(255, 255, 255, 0.72);
         }
         .floating-kpis {
           display: grid;
@@ -1986,6 +2118,99 @@ export default function FlowApp() {
           background: rgba(255, 255, 255, 0.04);
           color: var(--text-soft);
           font-size: 12px;
+        }
+        .profile-layout-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+          gap: 18px;
+        }
+        .setting-stack {
+          display: grid;
+          gap: 18px;
+        }
+        .setting-card {
+          border-radius: 28px;
+          border: 1px solid var(--line);
+          background: var(--panel-bg);
+          padding: 20px;
+          backdrop-filter: blur(20px);
+          box-shadow: var(--shadow);
+          animation: riseIn 0.32s ease;
+        }
+        .setting-card h3,
+        .setting-card h2 {
+          margin: 0;
+          font-size: 22px;
+          letter-spacing: -0.04em;
+        }
+        .setting-card p {
+          margin: 8px 0 0;
+          color: var(--text-soft);
+          line-height: 1.6;
+        }
+        .profile-identity {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          min-width: 0;
+        }
+        .profile-avatar {
+          width: 58px;
+          height: 58px;
+          border-radius: 20px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.06);
+          display: grid;
+          place-items: center;
+          font-size: 18px;
+          font-weight: 700;
+          flex: none;
+        }
+        .profile-identity strong,
+        .profile-identity span {
+          display: block;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .setting-options {
+          display: grid;
+          gap: 12px;
+          margin-top: 18px;
+        }
+        .setting-option {
+          all: unset;
+          box-sizing: border-box;
+          width: 100%;
+          border-radius: 24px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.04);
+          padding: 16px 18px;
+          cursor: pointer;
+          display: grid;
+          gap: 6px;
+          transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+        .setting-option:hover {
+          transform: translateY(-1px);
+        }
+        .setting-option.active {
+          border-color: var(--line-strong);
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .setting-option.disabled {
+          opacity: 0.48;
+          cursor: not-allowed;
+          transform: none;
+        }
+        .setting-option strong {
+          display: block;
+        }
+        .setting-option span {
+          color: var(--text-soft);
+          font-size: 13px;
+          line-height: 1.5;
         }
         .immersive-bottom {
           display: grid;
@@ -2070,13 +2295,18 @@ export default function FlowApp() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
           .overview-grid,
-          .immersive-bottom {
+          .immersive-bottom,
+          .profile-layout-grid {
             grid-template-columns: 1fr;
           }
         }
         @media (max-width: 980px) {
           .flow-shell {
             padding: 12px;
+          }
+          .toast-stack {
+            top: auto;
+            bottom: 14px;
           }
           .app-shell {
             min-height: calc(100vh - 24px);
@@ -2116,6 +2346,9 @@ export default function FlowApp() {
           }
           .topbar {
             grid-template-columns: auto minmax(0, 1fr) auto;
+          }
+          .topbar.mobile-topbar {
+            padding-left: 12px;
           }
           .page-head {
             flex-direction: column;
@@ -2159,6 +2392,9 @@ export default function FlowApp() {
           .metrics-grid,
           .mini-grid {
             grid-template-columns: 1fr;
+          }
+          .module-rail {
+            display: grid;
           }
           .notification-panel {
             top: 68px;
@@ -2234,75 +2470,84 @@ export default function FlowApp() {
           </div>
         </div>
       ) : user ? (
-        <div className="app-shell">
+        <div className={`app-shell ${shouldShowSidebar ? "" : "no-sidebar"}`}>
           {mobileNavOpen ? <button type="button" className="mobile-backdrop" onClick={() => setMobileNavOpen(false)} aria-label="Fermer le menu" /> : null}
 
-          <aside
-            className={`sidebar ${shellCollapsedClass} ${mobileNavOpen ? "mobile-open" : ""}`}
-            onMouseEnter={() => setSidebarHover(true)}
-            onMouseLeave={() => {
-              setSidebarHover(false);
-              if (!sidebarLocked) setMobileNavOpen(false);
-            }}
-          >
-            <div className="sidebar-header">
-              <div className="brand">
-                <div className="brand-mark">
-                  <img src="/icon.svg" alt="Flow" />
+          {shouldShowSidebar ? (
+            <aside
+              className={`sidebar ${shellCollapsedClass} ${mobileNavOpen ? "mobile-open" : ""}`}
+              onMouseEnter={() => setSidebarHover(true)}
+              onMouseLeave={() => {
+                setSidebarHover(false);
+                if (!sidebarLocked) setMobileNavOpen(false);
+              }}
+            >
+              <div className="sidebar-header">
+                <div className="brand">
+                  <div className="brand-mark">
+                    <img src="/icon.svg" alt="Flow" />
+                  </div>
+                  <div className="brand-copy">
+                    <strong>Flow</strong>
+                    <span>Workspace personnel</span>
+                  </div>
                 </div>
-                <div className="brand-copy">
-                  <strong>Flow</strong>
-                  <span>Workspace personnel</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="lock-button"
-                onClick={() => applySidebarLock(!sidebarLocked)}
-                aria-label={sidebarLocked ? "Déverrouiller la barre" : "Verrouiller la barre"}
-              >
-                <Icon name={sidebarLocked ? "lock" : "unlock"} size={16} />
-              </button>
-            </div>
-
-            <div className="sidebar-nav">
-              <div className="sidebar-group-label">Navigation</div>
-              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "dashboard"} icon="grid" label="Dashboard" onClick={() => setActiveSection("dashboard")} />
-              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "notes"} icon="note" label="Notes" onClick={() => setActiveSection("notes")} />
-              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "contacts"} icon="users" label="Contacts" onClick={() => setActiveSection("contacts")} />
-              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "events"} icon="calendar" label="Événements" onClick={() => setActiveSection("events")} />
-              <NavItem collapsed={!sidebarExpanded && !mobileNavOpen} active={activeSection === "tasks"} icon="check" label="Tâches" onClick={() => setActiveSection("tasks")} />
-            </div>
-
-            <div className="sidebar-footer">
-              <div className="sidebar-footer-copy">
-                <strong>{user.name || "Compte Flow"}</strong>
-                <span>{user.email}</span>
-              </div>
-              <div className="button-row" style={{ marginTop: 14 }}>
-                <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"} style={{ width: "100%" }}>
-                  {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
+                <button
+                  type="button"
+                  className="lock-button"
+                  onClick={() => applySidebarLock(!sidebarLocked)}
+                  aria-label={sidebarLocked ? "Déverrouiller la barre" : "Verrouiller la barre"}
+                >
+                  <Icon name={sidebarLocked ? "lock" : "unlock"} size={16} />
                 </button>
               </div>
-            </div>
-          </aside>
 
-          <main className="app-main">
-            <div className="topbar">
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => {
-                  if (window.innerWidth <= 980) {
-                    setMobileNavOpen((current) => !current);
-                  } else {
-                    void applySidebarLock(true);
-                  }
-                }}
-                aria-label="Ouvrir la barre latérale"
-              >
-                <Icon name="menu" size={18} />
-              </button>
+              <div className="sidebar-nav">
+                <div className="sidebar-group-label">Navigation</div>
+                {navSections.map((section) => (
+                  <NavItem
+                    key={section.id}
+                    collapsed={!sidebarExpanded && !mobileNavOpen}
+                    active={activeSection === section.id}
+                    icon={section.icon}
+                    label={section.label}
+                    onClick={() => {
+                      setActiveSection(section.id);
+                      setMobileNavOpen(false);
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="sidebar-footer">
+                <div className="sidebar-footer-copy">
+                  <strong>{user.name || "Compte Flow"}</strong>
+                  <span>{user.email}</span>
+                </div>
+                <div className="button-row" style={{ marginTop: 14 }}>
+                  <button type="button" className="secondary" onClick={() => setActiveSection("profile")} style={{ width: "100%" }}>
+                    Ouvrir le profil
+                  </button>
+                  <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"} style={{ width: "100%" }}>
+                    {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
+                  </button>
+                </div>
+              </div>
+            </aside>
+          ) : null}
+
+          <main className={`app-main ${effectiveLayout === "immersive" ? "immersive-main" : ""}`}>
+            <div className={`topbar ${isMobile ? "mobile-topbar" : ""}`}>
+              {isMobile ? (
+                <button
+                  type="button"
+                  className="icon-button mobile-only"
+                  onClick={() => setMobileNavOpen((current) => !current)}
+                  aria-label="Ouvrir la barre latérale"
+                >
+                  <Icon name="menu" size={18} />
+                </button>
+              ) : null}
 
               <div className="search-wrap" ref={searchWrapRef}>
                 <div className="search-box">
@@ -2399,21 +2644,30 @@ export default function FlowApp() {
             </div>
 
             <div className="shell-content">
+              <div className="shell-panel" key={`${activeSection}-${effectiveLayout}`}>
+              {effectiveLayout === "immersive" ? (
+                <div className="module-rail">
+                  {navSections.map((section) => (
+                    <button
+                      key={section.id}
+                      type="button"
+                      className={`module-chip ${activeSection === section.id ? "active" : ""}`}
+                      onClick={() => setActiveSection(section.id)}
+                    >
+                      <Icon name={section.icon} size={16} />
+                      {section.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
               {activeSection === "dashboard" ? (
-                dashboardLayout === "overview" ? (
+                effectiveLayout === "overview" ? (
                   <section className="overview-layout">
                     <div className="page-head">
                       <div>
                         <h1>Bienvenue, {firstName(user.name)}</h1>
-                        <p>Voici le résumé vivant de ton workspace. On part de ce dashboard pour reconstruire chaque module proprement.</p>
-                      </div>
-                      <div className="view-switch" aria-label="Changer la structure du dashboard">
-                        <button type="button" className={dashboardLayout === "overview" ? "active" : ""} onClick={() => void applyLayout("overview")}>
-                          Vue tableau
-                        </button>
-                        <button type="button" className={dashboardLayout === "immersive" ? "active" : ""} onClick={() => void applyLayout("immersive")}>
-                          Vue immersive
-                        </button>
+                        <p>Résumé central du compte. On garde une lecture propre, compacte et pilotable avant de reconstruire chaque module.</p>
                       </div>
                     </div>
 
@@ -2510,7 +2764,7 @@ export default function FlowApp() {
                           </div>
                           <div className="mini-card">
                             <strong>Layouts jumeaux</strong>
-                            <span>Les vues tableau et immersive seront maintenues à jour en parallèle à chaque passe.</span>
+                            <span>Le changement complet de structure se règle depuis le profil utilisateur.</span>
                           </div>
                         </div>
                       </div>
@@ -2575,10 +2829,10 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Centre de pilotage</h2>
-                              <p>Version immersive du dashboard, plus atmosphérique mais branchée sur les mêmes données.</p>
+                              <p>Version immersive du dashboard, sans barre latérale, avec tous les modules remontés en haut du site.</p>
                             </div>
-                            <button type="button" className="ghost" onClick={() => void applyLayout("overview")}>
-                              Vue tableau
+                            <button type="button" className="ghost" onClick={() => setActiveSection("profile")}>
+                              Ouvrir le profil
                             </button>
                           </div>
                           <div className="floating-kpis">
@@ -2628,11 +2882,11 @@ export default function FlowApp() {
                       <div className="immersive-right">
                         <div className="immersive-header">
                           <h1>Dashboard Flow</h1>
-                          <p>Le résumé principal du compte garde la même logique métier mais change totalement de structure visuelle selon le mode d’affichage choisi.</p>
+                          <p>La structure immersive garde les mêmes données, mais remplace la barre gauche par une navigation supérieure et un espace plus atmosphérique.</p>
                           <div className="route-pills">
                             <span className="route-pill">Recherche globale</span>
                             <span className="route-pill">Notifications flottantes</span>
-                            <span className="route-pill">Thème persistant</span>
+                            <span className="route-pill">Profil et structure</span>
                           </div>
                         </div>
 
@@ -2724,14 +2978,111 @@ export default function FlowApp() {
                     </div>
                   </section>
                 )
+              ) : activeSection === "profile" ? (
+                <section className="overview-layout">
+                  <div className="page-head">
+                    <div>
+                      <h1>Profil et paramètres</h1>
+                      <p>Le shell global se règle ici: identité, structure du site, persistance de session et actions du compte.</p>
+                    </div>
+                  </div>
+
+                  <div className="profile-layout-grid">
+                    <div className="setting-stack">
+                      <div className="setting-card">
+                        <div className="profile-identity">
+                          <div className="profile-avatar">{initialsFromName(user.name)}</div>
+                          <div style={{ minWidth: 0 }}>
+                            <strong>{user.name || "Compte Flow"}</strong>
+                            <span>{user.email}</span>
+                          </div>
+                        </div>
+                        <div className="setting-options">
+                          <div className="setting-option active">
+                            <strong>Session active</strong>
+                            <span>Connexion persistante mémorisée sur cet appareil avec rappel du compte utilisé.</span>
+                          </div>
+                          <div className="setting-option active">
+                            <strong>Thème actuel: {shellTheme === "dark" ? "Sombre" : "Clair"}</strong>
+                            <span>Le changement reste disponible dans le bouton en haut à droite sur toutes les vues.</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="setting-card">
+                        <h2>Structure du site</h2>
+                        <p>Ce réglage change toute la structure desktop. Sur téléphone, la vue tableau reste imposée pour garder une navigation propre.</p>
+                        <div className="setting-options">
+                          <button
+                            type="button"
+                            className={`setting-option ${dashboardLayout === "overview" ? "active" : ""}`}
+                            onClick={() => void applyLayout("overview")}
+                          >
+                            <strong>Vue tableau</strong>
+                            <span>Sidebar gauche, lecture dense, hiérarchie stable pour le travail quotidien.</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`setting-option ${dashboardLayout === "immersive" ? "active" : ""} ${isMobile ? "disabled" : ""}`}
+                            onClick={() => void applyLayout("immersive")}
+                            disabled={isMobile}
+                          >
+                            <strong>Vue immersive</strong>
+                            <span>Navigation des modules en haut, disparition de la barre gauche et mise en scène plus atmosphérique sur desktop.</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="setting-stack">
+                      <div className="setting-card">
+                        <h2>État du shell</h2>
+                        <div className="overview-list" style={{ marginTop: 18 }}>
+                          <div className="overview-list-item">
+                            <div>
+                              <strong>Barre latérale</strong>
+                              <span>{sidebarLocked ? "Verrouillée ouverte" : "Hover pour ouverture temporaire"}</span>
+                            </div>
+                          </div>
+                          <div className="overview-list-item">
+                            <div>
+                              <strong>Vue active</strong>
+                              <span>{effectiveLayout === "immersive" ? "Immersive desktop" : "Tableau"}</span>
+                            </div>
+                          </div>
+                          <div className="overview-list-item">
+                            <div>
+                              <strong>Release chargée</strong>
+                              <span>{releaseMeta}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="setting-card">
+                        <h2>Compte</h2>
+                        <p>On garde ici les actions système pendant qu’on reconstruit le reste du produit.</p>
+                        <div className="button-row" style={{ marginTop: 18 }}>
+                          <button type="button" className="secondary" onClick={() => setReleaseOpen(true)}>
+                            Voir la version
+                          </button>
+                          <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"}>
+                            {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               ) : (
                 <div className="surface-card section-placeholder">
-                  <h3>{activeSection === "notes" ? "Notes" : activeSection === "contacts" ? "Contacts" : activeSection === "events" ? "Événements" : "Tâches"}</h3>
+                  <h3>{navSections.find((section) => section.id === activeSection)?.label || "Module"}</h3>
                   <p>
                     Ce module n’est pas encore reconstruit. On garde déjà sa place dans la navigation, la recherche et le résumé global pour pouvoir le brancher proprement ensuite.
                   </p>
                 </div>
               )}
+              </div>
             </div>
           </main>
         </div>

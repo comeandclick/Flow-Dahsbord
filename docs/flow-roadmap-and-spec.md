@@ -34,6 +34,7 @@ Le socle actif doit donc rester simple, beau et rapide, avec:
 - un journal de version fiable
 - une notification de mise a jour qui peut relancer la page
 - une direction visuelle sobre sur le shell principal et l'admin
+- une DA dark/light guidée par `docs/design-theme-memory.md`
 
 ## 1.b Routes publiques a conserver
 
@@ -61,6 +62,9 @@ Ces routes doivent garder:
 - Recherche topbar + palette clavier
 - Panneau notifications
 - Double structure `overview / immersive`
+- Vue immersive desktop sans sidebar
+- Vue mobile verrouillée en `overview`
+- Profil / Paramètres qui pilote la structure du shell
 - Journal de version
 
 ### Espace principal plus tard
@@ -106,6 +110,10 @@ Ces routes doivent garder:
 - `Changer theme`
   - alterne clair/sombre
   - sauvegarde immediatement dans les parametres du compte
+- `Changer structure`
+  - vit dans `Profil / Paramètres`
+  - change toute la structure desktop du site
+  - ne doit jamais proposer `immersive` sur téléphone
 - `Deconnexion`
   - force une derniere synchro si des changements ne sont pas encore pousses
   - supprime la session

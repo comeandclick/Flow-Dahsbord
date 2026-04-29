@@ -16,6 +16,9 @@
   - deux structures visuelles:
     - `overview`
     - `immersive`
+  - `Profil / Paramètres` comme centre de contrôle de structure
+  - vue immersive desktop sans sidebar
+  - vue mobile forcée en tableau
 - le dashboard admin reste present a part
 - mémoire de DA à suivre:
   - `docs/design-theme-memory.md`
@@ -48,7 +51,7 @@ Le backend garde encore des schemas plus larges pour compatibilite avec les anci
 - `goals`
 - etc.
 
-Mais le front public actuel n'expose plus ces modules. La reconstruction repart d'une base minimale propre.
+Mais le front public actuel n'expose pas encore les modules reconstruits. La reconstruction repart d'une base minimale propre avec un shell plus cohérent.
   - manifest app ajoute
   - abonnement push par appareil ajoute via API
   - annonce de release ajoutee pour prevenir tous les utilisateurs a la publication
