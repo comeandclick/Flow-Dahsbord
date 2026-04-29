@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.23.2
+### 1.23.4
 
-- **Date** : 29/04/2026 18:15
-- **Résumé** : Le shell Flow passe sur une DA plus maîtrisée: correction des textes et chevauchements, vrais fonds dark/light, profil centralisé et vue immersive desktop sans sidebar.
+- **Date** : 29/04/2026 20:32
+- **Résumé** : Le shell Flow unifie mieux sa matière visuelle et stabilise le module Shopify avec des routes Vercel propres, un état de config silencieux et le même écran dédié.
 
-- **Nettoyage des couleurs, polices et débordements** : Les textes hors palette, les polices incohérentes, les overlaps et les contenus qui sortaient de leurs blocs ont été repris sur le shell principal.
-- **La structure du site passe par le profil utilisateur** : Le switch de layout a quitté le dashboard: il vit maintenant dans Profil/Paramètres et pilote toute la structure desktop du site.
-- **Vue immersive desktop et mobile verrouillé en tableau** : La vue immersive retire la sidebar, remonte les modules en haut du site et reste désactivée sur téléphone pour préserver la lisibilité.
+- **Matière visuelle unifiée sur tous les blocs** : Les cartes, panneaux et surfaces utilisent maintenant une même couche gradient / opacité / blur plus proche de la référence trafic sombre.
+- **Nouveau module Shopify isolé du reste** : Ajout d’une entrée Shopify dans la navigation, d’un widget dashboard et d’un écran dédié avec KPIs, graphique, commandes récentes et top produits.
+- **Routes Shopify stabilisées pour Vercel** : Le callback OAuth et le proxy Shopify passent maintenant par des handlers Next API sans conflit de route, avec état de configuration propre avant l’ajout du token.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

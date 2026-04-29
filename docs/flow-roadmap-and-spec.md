@@ -65,6 +65,7 @@ Ces routes doivent garder:
 - Vue immersive desktop sans sidebar
 - Vue mobile verrouillée en `overview`
 - Profil / Paramètres qui pilote la structure du shell
+- Module Shopify
 - Journal de version
 
 ### Espace principal plus tard
@@ -131,6 +132,11 @@ Ces routes doivent garder:
 - `Notifications`
   - ouvre un panneau flottant aligné à droite de la topbar
   - permet de lire une notification ou tout marquer lu
+- `Rafraîchir Shopify`
+  - recharge manuellement les données Shopify
+  - si `SHOPIFY_ACCESS_TOKEN` n'est pas encore branché, l'écran affiche un état d'indisponibilité propre sans erreur console bruyante
+  - n'écrit rien en localStorage
+  - garde un état de loading et d'erreur propre
 - `Notification de mise a jour`
   - doit pouvoir etre envoyee a tous les comptes apres publication
   - doit remonter dans le centre de notifications Flow

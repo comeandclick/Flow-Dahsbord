@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ReleaseWidget } from "./flow/release-ui";
 import { RELEASE } from "../lib/release";
 import { createEmptyDb } from "../lib/schema";
@@ -137,6 +138,159 @@ function createChartPoints(values, width = 520, height = 180) {
       return `${x},${y}`;
     })
     .join(" ");
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0);
+}
+
+function formatDayLabel(value) {
+  try {
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "short",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function formatShopifyDate(value) {
+  try {
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value || "—";
+  }
+}
+
+function startOfToday() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function startOfMonth() {
+  const date = new Date();
+  date.setDate(1);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function startOfDaysAgo(days) {
+  const date = startOfToday();
+  date.setDate(date.getDate() - days);
+  return date;
+}
+
+function isoDate(date) {
+  return new Date(date).toISOString();
+}
+
+function safeAmount(value) {
+  return Number.parseFloat(value || 0) || 0;
+}
+
+function buildShopifyQuery(params) {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    search.set(key, `${value}`);
+  });
+  return search.toString();
+}
+
+async function fetchShopifyProxy(endpoint, params = {}) {
+  const response = await fetch(`/api/shopify?endpoint=${encodeURIComponent(endpoint)}&params=${encodeURIComponent(buildShopifyQuery(params))}`, {
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Shopify inaccessible");
+  }
+  if (payload && payload.ready === false) {
+    throw new Error(payload?.error || "Shopify non configuré");
+  }
+  return payload;
+}
+
+function summarizeShopifyData({ todayOrders, monthOrders, recentOrders, latestOrders, unfulfilledCount }) {
+  const revenueToday = todayOrders.reduce((sum, order) => sum + safeAmount(order.total_price), 0);
+  const revenueMonth = monthOrders.reduce((sum, order) => sum + safeAmount(order.total_price), 0);
+  const ordersToday = todayOrders.length;
+  const pendingFulfillment = Number(unfulfilledCount?.count) || 0;
+
+  const byDay = new Map();
+  for (let offset = 29; offset >= 0; offset -= 1) {
+    const date = startOfDaysAgo(offset);
+    const key = date.toISOString().slice(0, 10);
+    byDay.set(key, {
+      key,
+      label: formatDayLabel(date),
+      revenue: 0,
+    });
+  }
+
+  recentOrders.forEach((order) => {
+    const key = `${order.created_at || ""}`.slice(0, 10);
+    if (!byDay.has(key)) return;
+    byDay.get(key).revenue += safeAmount(order.total_price);
+  });
+
+  const topProductsMap = new Map();
+  monthOrders.forEach((order) => {
+    (order.line_items || []).forEach((item) => {
+      const key = item.product_id || item.variant_id || item.title;
+      const current = topProductsMap.get(key) || {
+        id: key,
+        title: item.title || "Produit",
+        quantity: 0,
+        revenue: 0,
+      };
+      current.quantity += Number(item.quantity) || 0;
+      current.revenue += safeAmount(item.price) * (Number(item.quantity) || 0);
+      topProductsMap.set(key, current);
+    });
+  });
+
+  return {
+    kpis: {
+      revenueToday,
+      revenueMonth,
+      ordersToday,
+      pendingFulfillment,
+    },
+    chart: [...byDay.values()],
+    latestOrders: latestOrders.map((order) => ({
+      id: order.id,
+      number: order.name || `#${order.order_number || order.id}`,
+      createdAt: order.created_at,
+      customer: order.customer?.first_name || order.customer?.last_name
+        ? `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim()
+        : order.email || "Client inconnu",
+      total: safeAmount(order.total_price),
+      paymentStatus: order.financial_status || "pending",
+      fulfillmentStatus: order.fulfillment_status || "unfulfilled",
+    })),
+    topProducts: [...topProductsMap.values()]
+      .sort((left, right) => right.quantity - left.quantity)
+      .slice(0, 5),
+  };
+}
+
+function normalizeStatusTone(status) {
+  const value = `${status || ""}`.toLowerCase();
+  if (["paid", "fulfilled", "success"].includes(value)) return "success";
+  if (["pending", "authorized", "partially_fulfilled", "unfulfilled"].includes(value)) return "warning";
+  return "danger";
 }
 
 function buildSearchEntries(db, user) {
@@ -334,6 +488,22 @@ function Icon({ name, size = 18, stroke = 1.8 }) {
           <path d="M3 12h4l2-5 4 10 2-5h6" />
         </svg>
       );
+    case "refresh":
+      return (
+        <svg {...common}>
+          <path d="M21 12a9 9 0 0 1-15.4 6.4" />
+          <path d="M3 12A9 9 0 0 1 18.4 5.6" />
+          <path d="M3 16v-4h4" />
+          <path d="M17 8h4v-4" />
+        </svg>
+      );
+    case "bag":
+      return (
+        <svg {...common}>
+          <path d="M6 8h12l1 12H5L6 8Z" />
+          <path d="M9 8a3 3 0 0 1 6 0" />
+        </svg>
+      );
     case "spark":
       return (
         <svg {...common}>
@@ -440,6 +610,12 @@ export default function FlowApp() {
   const [dashboardLayout, setDashboardLayout] = useState("overview");
   const [sidebarLocked, setSidebarLocked] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [shopifyState, setShopifyState] = useState({
+    loading: false,
+    error: "",
+    data: null,
+    refreshedAt: "",
+  });
   const intervalRef = useRef(null);
   const reloadTimerRef = useRef(null);
   const searchWrapRef = useRef(null);
@@ -473,6 +649,17 @@ export default function FlowApp() {
     };
   }, [db, unreadNotifications]);
 
+  const shopifyOverview = useMemo(
+    () =>
+      shopifyState.data?.kpis || {
+        revenueToday: 0,
+        revenueMonth: 0,
+        ordersToday: 0,
+        pendingFulfillment: 0,
+      },
+    [shopifyState.data],
+  );
+
   const searchResults = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
     const items = query
@@ -505,6 +692,7 @@ export default function FlowApp() {
       { id: "contacts", label: "Contacts", icon: "users" },
       { id: "events", label: "Événements", icon: "calendar" },
       { id: "tasks", label: "Tâches", icon: "check" },
+      { id: "shopify", label: "Shopify", icon: "bag" },
       { id: "profile", label: "Profil", icon: "sliders" },
     ],
     [],
@@ -538,6 +726,96 @@ export default function FlowApp() {
     if (!isMobile) return;
     setMobileNavOpen(false);
   }, [isMobile]);
+
+  async function refreshShopifyData() {
+    setShopifyState((current) => ({
+      ...current,
+      loading: true,
+      error: "",
+    }));
+
+    try {
+      const statusPayload = await fetchShopifyProxy("__status");
+      if (statusPayload?.ready === false) {
+        throw new Error(statusPayload?.error || "Shopify non configuré");
+      }
+
+      const todayStart = isoDate(startOfToday());
+      const monthStart = isoDate(startOfMonth());
+      const last30Start = isoDate(startOfDaysAgo(29));
+
+      const [todayPayload, monthPayload, recentPayload, latestPayload, unfulfilledPayload] = await Promise.all([
+        fetchShopifyProxy("orders", {
+          status: "any",
+          limit: 250,
+          created_at_min: todayStart,
+          fields: "id,name,order_number,created_at,total_price,financial_status,fulfillment_status,customer,email",
+          order: "created_at desc",
+        }),
+        fetchShopifyProxy("orders", {
+          status: "any",
+          limit: 250,
+          created_at_min: monthStart,
+          fields: "id,name,order_number,created_at,total_price,financial_status,fulfillment_status,customer,email,line_items",
+          order: "created_at desc",
+        }),
+        fetchShopifyProxy("orders", {
+          status: "any",
+          limit: 250,
+          created_at_min: last30Start,
+          fields: "id,created_at,total_price",
+          order: "created_at desc",
+        }),
+        fetchShopifyProxy("orders", {
+          status: "any",
+          limit: 10,
+          fields: "id,name,order_number,created_at,total_price,financial_status,fulfillment_status,customer,email",
+          order: "created_at desc",
+        }),
+        fetchShopifyProxy("orders/count", {
+          status: "any",
+          fulfillment_status: "unfulfilled",
+        }),
+      ]);
+
+      const data = summarizeShopifyData({
+        todayOrders: todayPayload.orders || [],
+        monthOrders: monthPayload.orders || [],
+        recentOrders: recentPayload.orders || [],
+        latestOrders: latestPayload.orders || [],
+        unfulfilledCount: unfulfilledPayload,
+      });
+
+      setShopifyState({
+        loading: false,
+        error: "",
+        data,
+        refreshedAt: new Date().toISOString(),
+      });
+    } catch (shopError) {
+      setShopifyState((current) => ({
+        ...current,
+        loading: false,
+        error: shopError?.message || "Shopify inaccessible",
+      }));
+    }
+  }
+
+  useEffect(() => {
+    if (!user) return;
+    if (shopifyState.data || shopifyState.loading) return;
+    void refreshShopifyData();
+  }, [user]);
+
+  useEffect(() => {
+    if (user) return;
+    setShopifyState({
+      loading: false,
+      error: "",
+      data: null,
+      refreshedAt: "",
+    });
+  }, [user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1592,7 +1870,9 @@ export default function FlowApp() {
         .surface-card,
         .floating-card {
           border: 1px solid var(--line);
-          background: var(--panel-bg);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 46%, rgba(255, 255, 255, 0.03)),
+            var(--panel-bg);
           box-shadow: var(--shadow);
           backdrop-filter: blur(20px);
         }
@@ -1719,7 +1999,9 @@ export default function FlowApp() {
           animation: riseIn 0.32s ease;
         }
         .metric-card.primary {
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)), var(--panel-strong);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015) 50%, rgba(255, 255, 255, 0.04)),
+            var(--panel-strong);
           color: var(--text-main);
         }
         .metric-card-head {
@@ -1789,7 +2071,7 @@ export default function FlowApp() {
           border-radius: 26px;
           border: 1px solid var(--line);
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01) 45%, rgba(255, 255, 255, 0.02)),
             rgba(255, 255, 255, 0.01);
           padding: 14px;
         }
@@ -1815,7 +2097,9 @@ export default function FlowApp() {
         .mini-card {
           border-radius: 22px;
           border: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.03);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
+            rgba(255, 255, 255, 0.028);
           padding: 16px;
         }
         .mini-card strong {
@@ -1868,7 +2152,9 @@ export default function FlowApp() {
         .overview-list-item {
           border-radius: 22px;
           border: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.03);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
+            rgba(255, 255, 255, 0.024);
           padding: 15px 16px;
           display: flex;
           align-items: center;
@@ -1920,11 +2206,15 @@ export default function FlowApp() {
         .notification-card {
           border-radius: 24px;
           border: 1px solid var(--line);
-          background: rgba(88, 54, 50, 0.25);
+          background:
+            linear-gradient(180deg, rgba(139, 92, 84, 0.16), rgba(255, 255, 255, 0.01) 46%, rgba(80, 45, 40, 0.12)),
+            rgba(88, 54, 50, 0.22);
           padding: 14px;
         }
         .notification-card.read {
-          background: rgba(255, 255, 255, 0.03);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
+            rgba(255, 255, 255, 0.024);
         }
         .notification-card-head {
           display: flex;
@@ -2056,10 +2346,14 @@ export default function FlowApp() {
           align-content: start;
         }
         .floating-card {
-          background: rgba(21, 23, 27, 0.74);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.012) 48%, rgba(255, 255, 255, 0.04)),
+            rgba(21, 23, 27, 0.74);
         }
         .theme-light .floating-card {
-          background: rgba(255, 255, 255, 0.72);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.28) 54%, rgba(255, 255, 255, 0.6)),
+            rgba(255, 255, 255, 0.72);
         }
         .floating-kpis {
           display: grid;
@@ -2131,7 +2425,9 @@ export default function FlowApp() {
         .setting-card {
           border-radius: 28px;
           border: 1px solid var(--line);
-          background: var(--panel-bg);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 46%, rgba(255, 255, 255, 0.03)),
+            var(--panel-bg);
           padding: 20px;
           backdrop-filter: blur(20px);
           box-shadow: var(--shadow);
@@ -2185,7 +2481,9 @@ export default function FlowApp() {
           width: 100%;
           border-radius: 24px;
           border: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.04);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
+            rgba(255, 255, 255, 0.03);
           padding: 16px 18px;
           cursor: pointer;
           display: grid;
@@ -2252,6 +2550,170 @@ export default function FlowApp() {
         .theme-light .scale-fill {
           background: linear-gradient(90deg, rgba(113, 131, 94, 0.32), rgba(30, 34, 39, 0.92));
         }
+        .shopify-layout {
+          display: grid;
+          gap: 18px;
+        }
+        .shopify-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+        .shopify-kpis {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+        }
+        .shopify-card {
+          border-radius: 30px;
+          padding: 18px;
+          border: 1px solid var(--line);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 48%, rgba(255, 255, 255, 0.04)),
+            var(--panel-bg);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(20px);
+          animation: riseIn 0.3s ease;
+          min-width: 0;
+        }
+        .shopify-card-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .shopify-card-head span,
+        .shopify-table td,
+        .shopify-table th,
+        .shopify-muted {
+          color: var(--text-soft);
+        }
+        .shopify-value {
+          margin-top: 22px;
+          font-size: clamp(28px, 4vw, 44px);
+          line-height: 1;
+          letter-spacing: -0.05em;
+        }
+        .shopify-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+          gap: 18px;
+        }
+        .shopify-chart-wrap {
+          height: 320px;
+          margin-top: 12px;
+        }
+        .shopify-table-wrap {
+          overflow: auto;
+          border-radius: 24px;
+          border: 1px solid var(--line);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
+            rgba(255, 255, 255, 0.02);
+        }
+        .shopify-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 720px;
+        }
+        .shopify-table th,
+        .shopify-table td {
+          padding: 14px 16px;
+          text-align: left;
+          border-bottom: 1px solid var(--line);
+          white-space: nowrap;
+          font-size: 13px;
+        }
+        .shopify-table tr:last-child td {
+          border-bottom: 0;
+        }
+        .status-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 30px;
+          padding: 0 12px;
+          border-radius: 999px;
+          border: 1px solid transparent;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .status-pill.success {
+          color: #d7f5df;
+          border-color: rgba(110, 183, 132, 0.24);
+          background: rgba(37, 96, 54, 0.34);
+        }
+        .status-pill.warning {
+          color: #f6ead2;
+          border-color: rgba(212, 169, 101, 0.26);
+          background: rgba(120, 84, 28, 0.3);
+        }
+        .status-pill.danger {
+          color: #f8dbd7;
+          border-color: rgba(176, 88, 78, 0.26);
+          background: rgba(111, 39, 31, 0.32);
+        }
+        .shopify-products {
+          display: grid;
+          gap: 12px;
+          margin-top: 14px;
+        }
+        .shopify-product-row {
+          border-radius: 22px;
+          border: 1px solid var(--line);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
+            rgba(255, 255, 255, 0.022);
+          padding: 14px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .shopify-product-row strong,
+        .shopify-product-row span {
+          display: block;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .shopify-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .shopify-skeleton {
+          position: relative;
+          overflow: hidden;
+        }
+        .shopify-skeleton::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          transform: translateX(-100%);
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+          animation: shimmer 1.25s linear infinite;
+        }
+        .skeleton-line,
+        .skeleton-box {
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.06);
+        }
+        .skeleton-line {
+          height: 14px;
+        }
+        .skeleton-box {
+          height: 100%;
+          min-height: 180px;
+        }
+        @keyframes shimmer {
+          100% {
+            transform: translateX(100%);
+          }
+        }
         .mobile-backdrop {
           display: none;
         }
@@ -2296,8 +2758,12 @@ export default function FlowApp() {
           }
           .overview-grid,
           .immersive-bottom,
-          .profile-layout-grid {
+          .profile-layout-grid,
+          .shopify-grid {
             grid-template-columns: 1fr;
+          }
+          .shopify-kpis {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
         @media (max-width: 980px) {
@@ -2390,7 +2856,8 @@ export default function FlowApp() {
             display: none;
           }
           .metrics-grid,
-          .mini-grid {
+          .mini-grid,
+          .shopify-kpis {
             grid-template-columns: 1fr;
           }
           .module-rail {
@@ -2713,6 +3180,35 @@ export default function FlowApp() {
                           <span>{dashboardMetrics.contacts} contact(s) connus</span>
                         </div>
                       </div>
+                      <div className="metric-card primary">
+                        <div className="metric-card-head">
+                          <span>Shopify</span>
+                          <Icon name="bag" size={18} />
+                        </div>
+                        {shopifyState.loading && !shopifyState.data ? (
+                          <div className="shopify-skeleton" style={{ marginTop: 22 }}>
+                            <div className="skeleton-line" style={{ width: "58%", height: 38, borderRadius: 20 }} />
+                            <div className="skeleton-line" style={{ width: "74%", marginTop: 14 }} />
+                          </div>
+                        ) : shopifyState.error ? (
+                          <>
+                            <div className="metric-value">—</div>
+                            <div className="metric-foot">
+                              <span>{shopifyState.error}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="metric-value">{formatCurrency(shopifyOverview.revenueToday)}</div>
+                            <div className="metric-foot">
+                              <span>{formatCurrency(shopifyOverview.revenueMonth)} ce mois</span>
+                              <button type="button" className="ghost" onClick={() => setActiveSection("shopify")}>
+                                Voir détails
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <div className="overview-grid">
@@ -2978,6 +3474,165 @@ export default function FlowApp() {
                     </div>
                   </section>
                 )
+              ) : activeSection === "shopify" ? (
+                <section className="shopify-layout">
+                  <div className="page-head">
+                    <div>
+                      <h1>Shopify</h1>
+                      <p>Pilotage live de la boutique sans stockage local: tout passe par le proxy serveur et un rafraîchissement manuel.</p>
+                    </div>
+                    <div className="shopify-actions">
+                      <button type="button" className="secondary" onClick={() => void refreshShopifyData()} disabled={shopifyState.loading}>
+                        <Icon name="refresh" size={16} />
+                        {shopifyState.loading ? "Rafraîchissement..." : "Rafraîchir"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {shopifyState.error ? (
+                    <div className="surface-card">
+                      <div className="surface-head">
+                        <div>
+                          <h2>Connexion Shopify indisponible</h2>
+                          <p>{shopifyState.error}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="shopify-kpis">
+                    {[
+                      { label: "CA aujourd'hui", value: formatCurrency(shopifyOverview.revenueToday), icon: "activity" },
+                      { label: "CA ce mois", value: formatCurrency(shopifyOverview.revenueMonth), icon: "grid" },
+                      { label: "Commandes aujourd'hui", value: `${shopifyOverview.ordersToday}`, icon: "note" },
+                      { label: "Non fulfillées", value: `${shopifyOverview.pendingFulfillment}`, icon: "check" },
+                    ].map((item) => (
+                      <div key={item.label} className="shopify-card">
+                        <div className="shopify-card-head">
+                          <span>{item.label}</span>
+                          <Icon name={item.icon} size={18} />
+                        </div>
+                        {shopifyState.loading && !shopifyState.data ? (
+                          <div className="shopify-skeleton" style={{ marginTop: 22 }}>
+                            <div className="skeleton-line" style={{ width: "62%", height: 36, borderRadius: 18 }} />
+                          </div>
+                        ) : (
+                          <div className="shopify-value">{item.value}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="shopify-grid">
+                    <div className="content-stack">
+                      <div className="shopify-card">
+                        <div className="surface-head">
+                          <div>
+                            <h2>CA — 30 derniers jours</h2>
+                            <p>{shopifyState.refreshedAt ? `Dernière mise à jour ${formatShopifyDate(shopifyState.refreshedAt)}` : "En attente de données Shopify."}</p>
+                          </div>
+                        </div>
+                        {shopifyState.loading && !shopifyState.data ? (
+                          <div className="shopify-skeleton skeleton-box" />
+                        ) : (
+                          <div className="shopify-chart-wrap">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={shopifyState.data?.chart || []}>
+                                <defs>
+                                  <linearGradient id="shopifyArea" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="rgba(185,197,171,0.72)" />
+                                    <stop offset="100%" stopColor="rgba(185,197,171,0.04)" />
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+                                <XAxis dataKey="label" stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12, opacity: 0.7 }} axisLine={false} tickLine={false} />
+                                <YAxis stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12, opacity: 0.7 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(value)}€`} />
+                                <Tooltip
+                                  contentStyle={{
+                                    background: "rgba(16,18,22,0.92)",
+                                    border: "1px solid rgba(255,255,255,0.1)",
+                                    borderRadius: "18px",
+                                    color: "#f5f7fb",
+                                  }}
+                                  formatter={(value) => [formatCurrency(value), "CA"]}
+                                />
+                                <Area type="monotone" dataKey="revenue" stroke="currentColor" strokeWidth={2.4} fill="url(#shopifyArea)" />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="shopify-card">
+                        <div className="surface-head">
+                          <div>
+                            <h2>10 dernières commandes</h2>
+                            <p>Lecture brute depuis Shopify, sans persistance côté navigateur.</p>
+                          </div>
+                        </div>
+                        {shopifyState.loading && !shopifyState.data ? (
+                          <div className="shopify-skeleton skeleton-box" />
+                        ) : (
+                          <div className="shopify-table-wrap">
+                            <table className="shopify-table">
+                              <thead>
+                                <tr>
+                                  <th>#</th>
+                                  <th>Date</th>
+                                  <th>Client</th>
+                                  <th>Total €</th>
+                                  <th>Paiement</th>
+                                  <th>Fulfillment</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(shopifyState.data?.latestOrders || []).map((order) => (
+                                  <tr key={order.id}>
+                                    <td>{order.number}</td>
+                                    <td>{formatShopifyDate(order.createdAt)}</td>
+                                    <td>{order.customer}</td>
+                                    <td>{formatCurrency(order.total)}</td>
+                                    <td><span className={`status-pill ${normalizeStatusTone(order.paymentStatus)}`}>{order.paymentStatus}</span></td>
+                                    <td><span className={`status-pill ${normalizeStatusTone(order.fulfillmentStatus)}`}>{order.fulfillmentStatus}</span></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="content-stack">
+                      <div className="shopify-card">
+                        <div className="surface-head">
+                          <div>
+                            <h2>Top 5 produits du mois</h2>
+                            <p>Agrégation des <code>line_items</code> des commandes du mois en cours.</p>
+                          </div>
+                        </div>
+                        {shopifyState.loading && !shopifyState.data ? (
+                          <div className="shopify-skeleton skeleton-box" />
+                        ) : (
+                          <div className="shopify-products">
+                            {(shopifyState.data?.topProducts || []).map((product) => (
+                              <div key={product.id} className="shopify-product-row">
+                                <div style={{ minWidth: 0 }}>
+                                  <strong>{product.title}</strong>
+                                  <span>{product.quantity} vente(s)</span>
+                                </div>
+                                <strong>{formatCurrency(product.revenue)}</strong>
+                              </div>
+                            ))}
+                            {!(shopifyState.data?.topProducts || []).length ? (
+                              <div className="notification-empty">Aucun produit remonté pour la période courante.</div>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </section>
               ) : activeSection === "profile" ? (
                 <section className="overview-layout">
                   <div className="page-head">

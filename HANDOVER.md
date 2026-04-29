@@ -61,7 +61,53 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.23.2`
+- Version actuelle: `v1.23.4`
+
+## Passe produit 22 - 29/04/2026 20:32
+
+### Fait dans cette passe
+
+- matière visuelle reprise:
+  - gradients denses
+  - opacité plus proche de la ref trafic
+  - blur et profondeur harmonisés sur cartes, panneaux, tableaux et surfaces
+- module Shopify ajouté sans toucher aux autres modules existants:
+  - entrée `Shopify` dans la navigation
+  - widget Shopify sur le dashboard principal
+  - écran Shopify dédié avec:
+    - 4 KPIs
+    - graphique CA 30 jours
+    - 10 dernières commandes
+    - top 5 produits du mois
+    - refresh manuel
+    - loader skeleton
+    - message d'erreur si API indisponible
+- endpoints ajoutés:
+  - `pages/api/shopify.js`
+  - `pages/api/shopify-callback.js`
+  - logique partagée:
+    - `lib/shopify-server.js`
+- variables Vercel Shopify branchées:
+  - `SHOPIFY_CLIENT_ID`
+  - `SHOPIFY_CLIENT_SECRET`
+  - `SHOPIFY_STORE_DOMAIN`
+- stabilisation Shopify:
+  - plus de conflit de route callback/proxy sur Vercel
+  - plus de spam 500 en console tant que `SHOPIFY_ACCESS_TOKEN` n'est pas encore configuré
+  - état de config Shopify renvoyé proprement au front avant d'appeler l'API store
+- reste à finaliser côté Shopify:
+  - récupérer le vrai `SHOPIFY_ACCESS_TOKEN` après installation OAuth
+  - le renseigner sur Vercel pour activer les données live du module
+
+### Vérification réelle faite
+
+- `npm i recharts` OK
+- `npm run build` OK
+- callback et proxy exposés dans le build Next
+- site public `https://flow-core-public-04291307.vercel.app` répond en `200`
+- `npm run check:client -- https://flow-core-public-04291307.vercel.app` OK
+- création de compte publique OK
+- session publique OK
 
 ## Passe produit 21 - 29/04/2026 18:15
 
