@@ -12,6 +12,8 @@ const DASHBOARD_LAYOUT_KEY = "flow:shell-layout";
 const SIDEBAR_LOCK_KEY = "flow:sidebar-lock";
 const UPDATE_POLL_MS = 45_000;
 const AUTO_RELOAD_SECONDS = 12;
+const CUSTOM_BACKGROUND_MAX_DIMENSION = 1800;
+const CUSTOM_BACKGROUND_QUALITY = 0.84;
 
 function formatReleaseLabel(release) {
   const formattedDate = new Intl.DateTimeFormat("fr-FR", {
@@ -170,6 +172,44 @@ function formatShopifyDate(value) {
   } catch {
     return value || "—";
   }
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(`${reader.result || ""}`);
+    reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageFromDataUrl(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Image invalide."));
+    image.src = src;
+  });
+}
+
+async function compressBackgroundFile(file) {
+  const rawDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageFromDataUrl(rawDataUrl);
+  const ratio = Math.min(
+    1,
+    CUSTOM_BACKGROUND_MAX_DIMENSION / Math.max(image.width || 1, image.height || 1),
+  );
+  const width = Math.max(1, Math.round((image.width || 1) * ratio));
+  const height = Math.max(1, Math.round((image.height || 1) * ratio));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Préparation du fond impossible.");
+  }
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", CUSTOM_BACKGROUND_QUALITY);
 }
 
 function startOfToday() {
@@ -610,6 +650,9 @@ export default function FlowApp() {
   const [dashboardLayout, setDashboardLayout] = useState("overview");
   const [sidebarLocked, setSidebarLocked] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const [shopifyRangeDays, setShopifyRangeDays] = useState(30);
+  const [shopifyOrderFilter, setShopifyOrderFilter] = useState("all");
   const [shopifyState, setShopifyState] = useState({
     loading: false,
     error: "",
@@ -621,6 +664,7 @@ export default function FlowApp() {
   const searchWrapRef = useRef(null);
   const notifRef = useRef(null);
   const commandInputRef = useRef(null);
+  const backgroundInputRef = useRef(null);
 
   const releaseMeta = useMemo(() => formatReleaseLabel(remoteRelease || RELEASE), [remoteRelease]);
   const searchEntries = useMemo(() => buildSearchEntries(db, user), [db, user]);
@@ -659,6 +703,48 @@ export default function FlowApp() {
       },
     [shopifyState.data],
   );
+
+  const currentThemeBackground = useMemo(() => {
+    const customBackgrounds = db.settings?.customBackgrounds || {};
+    return shellTheme === "light" ? customBackgrounds.light || "" : customBackgrounds.dark || "";
+  }, [db.settings?.customBackgrounds, shellTheme]);
+
+  const flowShellStyle = useMemo(() => {
+    if (!currentThemeBackground) return undefined;
+    const overlay = shellTheme === "light"
+      ? "linear-gradient(180deg, rgba(255,255,255,0.54), rgba(242,239,232,0.88))"
+      : "linear-gradient(180deg, rgba(6,8,11,0.42), rgba(6,8,11,0.88))";
+    return {
+      background: `${overlay}, url("${currentThemeBackground}") center center / cover no-repeat fixed`,
+    };
+  }, [currentThemeBackground, shellTheme]);
+
+  const immersiveBackgroundStyle = useMemo(() => {
+    if (!currentThemeBackground) return undefined;
+    const overlay = shellTheme === "light"
+      ? "linear-gradient(180deg, rgba(255,255,255,0.28), rgba(247,245,239,0.82))"
+      : "linear-gradient(180deg, rgba(10,12,14,0.18), rgba(10,12,14,0.78))";
+    return {
+      background: `${overlay}, url("${currentThemeBackground}") center center / cover no-repeat`,
+    };
+  }, [currentThemeBackground, shellTheme]);
+
+  const visibleShopifyChart = useMemo(() => {
+    const chart = shopifyState.data?.chart || [];
+    return chart.slice(-shopifyRangeDays);
+  }, [shopifyRangeDays, shopifyState.data]);
+
+  const visibleShopifyOrders = useMemo(() => {
+    const orders = shopifyState.data?.latestOrders || [];
+    if (shopifyOrderFilter === "today") {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      return orders.filter((order) => `${order.createdAt || ""}`.slice(0, 10) === todayKey);
+    }
+    if (shopifyOrderFilter === "pending") {
+      return orders.filter((order) => normalizeStatusTone(order.fulfillmentStatus) !== "success");
+    }
+    return orders;
+  }, [shopifyOrderFilter, shopifyState.data]);
 
   const searchResults = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
@@ -822,27 +908,30 @@ export default function FlowApp() {
 
     async function hydrate() {
       try {
-        const [providerPayload, sessionPayload, releasePayload] = await Promise.all([
-          api("/api/auth/providers").catch(() => ({ google: false, email: false })),
-          api("/api/session").catch(() => ({ user: null, admin: false, db: createEmptyDb() })),
-          api("/api/release/current").catch(() => RELEASE),
-        ]);
-
+        const sessionPayload = await api("/api/session").catch(() => ({ user: null, admin: false, db: createEmptyDb() }));
         if (cancelled) return;
 
         const nextDb = sessionPayload?.db || createEmptyDb();
         const shellSettings = getShellSettings(nextDb);
+        setUser(sessionPayload?.user || null);
+        setDb(nextDb);
+        setIsAdmin(Boolean(sessionPayload?.admin));
+        setShellTheme(shellSettings.theme);
+        setDashboardLayout(shellSettings.dashboardLayout || readStoredLayout());
+        setSidebarLocked(shellSettings.sidebarLocked || readStoredSidebarLock());
+        setBooting(false);
+
+        const [providerPayload, releasePayload] = await Promise.all([
+          api("/api/auth/providers").catch(() => ({ google: false, email: false })),
+          api("/api/release/current").catch(() => RELEASE),
+        ]);
+        if (cancelled) return;
+
         setProviders({
           google: Boolean(providerPayload?.google),
           email: Boolean(providerPayload?.email),
         });
-        setUser(sessionPayload?.user || null);
-        setDb(nextDb);
-        setIsAdmin(Boolean(sessionPayload?.admin));
         setRemoteRelease(releasePayload?.version ? releasePayload : RELEASE);
-        setShellTheme(shellSettings.theme);
-        setDashboardLayout(shellSettings.dashboardLayout || readStoredLayout());
-        setSidebarLocked(shellSettings.sidebarLocked || readStoredSidebarLock());
 
         const params = new URLSearchParams(window.location.search);
         const googleState = params.get("authGoogle");
@@ -1076,6 +1165,33 @@ export default function FlowApp() {
     }
   }
 
+  async function applyCustomBackground(nextImage) {
+    const themeKey = shellTheme === "light" ? "light" : "dark";
+    const nextDb = nextDbWithSettings({
+      customBackgrounds: {
+        ...(db.settings?.customBackgrounds || {}),
+        [themeKey]: nextImage,
+      },
+    });
+    await persistDb(nextDb, nextImage ? "Fond mis à jour." : "Fond réinitialisé.");
+  }
+
+  async function importBackgroundFromDevice(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setBackgroundBusy(true);
+    setError("");
+    try {
+      const compressed = await compressBackgroundFile(file);
+      await applyCustomBackground(compressed);
+    } catch (uploadError) {
+      setError(normalizeMessage(uploadError, "Import du fond impossible."));
+    } finally {
+      setBackgroundBusy(false);
+    }
+  }
+
   async function markNotificationsAsRead(ids = []) {
     const date = new Date().toISOString();
     const nextDb = {
@@ -1250,7 +1366,7 @@ export default function FlowApp() {
   }, [db.notifications]);
 
   return (
-    <div className={`flow-shell ${themeClass}`}>
+    <div className={`flow-shell ${themeClass}`} style={flowShellStyle}>
       <style jsx>{`
         :global(html), :global(body) {
           margin: 0;
@@ -1301,6 +1417,18 @@ export default function FlowApp() {
           --shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
           --map-veil: linear-gradient(180deg, rgba(8, 9, 12, 0.1), rgba(8, 9, 12, 0.8));
           --topbar-glow: rgba(101, 123, 87, 0.22);
+          --surface-layer:
+            radial-gradient(circle at 0% 0%, rgba(137, 159, 114, 0.14), transparent 38%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 46%, rgba(255, 255, 255, 0.028)),
+            rgba(18, 21, 24, 0.72);
+          --surface-layer-strong:
+            radial-gradient(circle at 0% 0%, rgba(148, 174, 119, 0.18), transparent 40%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018) 48%, rgba(255, 255, 255, 0.035)),
+            rgba(16, 18, 21, 0.82);
+          --surface-layer-soft:
+            radial-gradient(circle at 0% 0%, rgba(120, 142, 98, 0.12), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.014) 52%, rgba(255, 255, 255, 0.026)),
+            rgba(20, 23, 26, 0.58);
         }
         .theme-light {
           --page-bg:
@@ -1324,6 +1452,18 @@ export default function FlowApp() {
           --shadow: 0 22px 70px rgba(42, 45, 57, 0.12);
           --map-veil: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.86));
           --topbar-glow: rgba(166, 171, 150, 0.12);
+          --surface-layer:
+            radial-gradient(circle at 0% 0%, rgba(156, 169, 129, 0.12), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.28) 52%, rgba(255, 255, 255, 0.5)),
+            rgba(255, 255, 255, 0.62);
+          --surface-layer-strong:
+            radial-gradient(circle at 0% 0%, rgba(147, 159, 121, 0.14), transparent 36%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.34) 52%, rgba(255, 255, 255, 0.62)),
+            rgba(255, 255, 255, 0.74);
+          --surface-layer-soft:
+            radial-gradient(circle at 0% 0%, rgba(165, 174, 138, 0.1), transparent 30%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.22) 52%, rgba(255, 255, 255, 0.42)),
+            rgba(255, 255, 255, 0.54);
         }
         .flow-shell {
           min-height: 100vh;
@@ -1407,6 +1547,20 @@ export default function FlowApp() {
           padding: 28px;
           backdrop-filter: blur(18px);
           animation: riseIn 0.38s ease;
+        }
+        .auth-loading-card {
+          width: 120px;
+          padding: 26px;
+          display: grid;
+          gap: 16px;
+          justify-items: center;
+        }
+        .loading-pulse {
+          width: 64px;
+          height: 6px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+          animation: shimmer 1.15s linear infinite;
         }
         .auth-brand {
           display: flex;
@@ -1535,7 +1689,7 @@ export default function FlowApp() {
         .ghost,
         .pill-button {
           border: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.045);
+          background: var(--surface-layer-soft);
           color: var(--text-main);
           backdrop-filter: blur(18px);
         }
@@ -1580,9 +1734,7 @@ export default function FlowApp() {
         .sidebar {
           width: 292px;
           border-right: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 26%),
-            rgba(11, 13, 16, 0.56);
+          background: var(--surface-layer-strong);
           padding: 18px 14px 18px 18px;
           display: flex;
           flex-direction: column;
@@ -1592,9 +1744,7 @@ export default function FlowApp() {
           z-index: 20;
         }
         .theme-light .sidebar {
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.64), transparent 24%),
-            rgba(255, 255, 255, 0.54);
+          background: var(--surface-layer-strong);
         }
         .sidebar.collapsed {
           width: 94px;
@@ -1736,7 +1886,7 @@ export default function FlowApp() {
           margin-top: auto;
           padding: 14px;
           border-radius: 26px;
-          background: var(--panel-soft);
+          background: var(--surface-layer-soft);
           border: 1px solid var(--line);
         }
         .sidebar-footer-copy strong {
@@ -1770,16 +1920,9 @@ export default function FlowApp() {
           padding: 14px 16px;
           border-radius: 28px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%),
-            rgba(17, 20, 22, 0.36);
+          background: var(--surface-layer);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
           backdrop-filter: blur(18px);
-        }
-        .theme-light .topbar {
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.62), transparent 60%),
-            rgba(255, 255, 255, 0.3);
         }
         .topbar-actions {
           display: flex;
@@ -1794,7 +1937,7 @@ export default function FlowApp() {
           height: 46px;
           border-radius: 16px;
           border: 1px solid var(--line);
-          background: var(--panel-bg);
+          background: var(--surface-layer-soft);
           color: var(--text-main);
           display: grid;
           place-items: center;
@@ -1831,7 +1974,7 @@ export default function FlowApp() {
           height: 54px;
           border-radius: 22px;
           border: 1px solid var(--line);
-          background: var(--panel-bg);
+          background: var(--surface-layer-soft);
           display: flex;
           align-items: center;
           gap: 12px;
@@ -1870,9 +2013,7 @@ export default function FlowApp() {
         .surface-card,
         .floating-card {
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 46%, rgba(255, 255, 255, 0.03)),
-            var(--panel-bg);
+          background: var(--surface-layer);
           box-shadow: var(--shadow);
           backdrop-filter: blur(20px);
         }
@@ -1969,7 +2110,7 @@ export default function FlowApp() {
           padding: 0 16px;
           border-radius: 18px;
           border: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.035);
+          background: var(--surface-layer-soft);
           color: var(--text-soft);
           display: inline-flex;
           align-items: center;
@@ -1983,7 +2124,7 @@ export default function FlowApp() {
           transform: translateY(-1px);
         }
         .module-chip.active {
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--surface-layer-strong);
           color: var(--text-main);
           border-color: var(--line-strong);
           box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03);
@@ -1999,9 +2140,7 @@ export default function FlowApp() {
           animation: riseIn 0.32s ease;
         }
         .metric-card.primary {
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015) 50%, rgba(255, 255, 255, 0.04)),
-            var(--panel-strong);
+          background: var(--surface-layer-strong);
           color: var(--text-main);
         }
         .metric-card-head {
@@ -2070,9 +2209,7 @@ export default function FlowApp() {
         .chart-wrap {
           border-radius: 26px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01) 45%, rgba(255, 255, 255, 0.02)),
-            rgba(255, 255, 255, 0.01);
+          background: var(--surface-layer-soft);
           padding: 14px;
         }
         .chart-legend {
@@ -2097,9 +2234,7 @@ export default function FlowApp() {
         .mini-card {
           border-radius: 22px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
-            rgba(255, 255, 255, 0.028);
+          background: var(--surface-layer-soft);
           padding: 16px;
         }
         .mini-card strong {
@@ -2152,9 +2287,7 @@ export default function FlowApp() {
         .overview-list-item {
           border-radius: 22px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
-            rgba(255, 255, 255, 0.024);
+          background: var(--surface-layer-soft);
           padding: 15px 16px;
           display: flex;
           align-items: center;
@@ -2182,9 +2315,7 @@ export default function FlowApp() {
           border-radius: 30px;
           padding: 16px;
           z-index: 35;
-          background:
-            linear-gradient(180deg, rgba(126, 90, 84, 0.18), transparent 40%),
-            var(--panel-strong);
+          background: var(--surface-layer-strong);
           animation: riseIn 0.24s ease;
         }
         .notification-panel-header {
@@ -2207,14 +2338,13 @@ export default function FlowApp() {
           border-radius: 24px;
           border: 1px solid var(--line);
           background:
+            radial-gradient(circle at 0% 0%, rgba(162, 94, 81, 0.16), transparent 36%),
             linear-gradient(180deg, rgba(139, 92, 84, 0.16), rgba(255, 255, 255, 0.01) 46%, rgba(80, 45, 40, 0.12)),
             rgba(88, 54, 50, 0.22);
           padding: 14px;
         }
         .notification-card.read {
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
-            rgba(255, 255, 255, 0.024);
+          background: var(--surface-layer-soft);
         }
         .notification-card-head {
           display: flex;
@@ -2346,14 +2476,7 @@ export default function FlowApp() {
           align-content: start;
         }
         .floating-card {
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.012) 48%, rgba(255, 255, 255, 0.04)),
-            rgba(21, 23, 27, 0.74);
-        }
-        .theme-light .floating-card {
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.28) 54%, rgba(255, 255, 255, 0.6)),
-            rgba(255, 255, 255, 0.72);
+          background: var(--surface-layer-strong);
         }
         .floating-kpis {
           display: grid;
@@ -2425,9 +2548,7 @@ export default function FlowApp() {
         .setting-card {
           border-radius: 28px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 46%, rgba(255, 255, 255, 0.03)),
-            var(--panel-bg);
+          background: var(--surface-layer);
           padding: 20px;
           backdrop-filter: blur(20px);
           box-shadow: var(--shadow);
@@ -2481,9 +2602,7 @@ export default function FlowApp() {
           width: 100%;
           border-radius: 24px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
-            rgba(255, 255, 255, 0.03);
+          background: var(--surface-layer-soft);
           padding: 16px 18px;
           cursor: pointer;
           display: grid;
@@ -2495,7 +2614,7 @@ export default function FlowApp() {
         }
         .setting-option.active {
           border-color: var(--line-strong);
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--surface-layer-strong);
         }
         .setting-option.disabled {
           opacity: 0.48;
@@ -2570,9 +2689,7 @@ export default function FlowApp() {
           border-radius: 30px;
           padding: 18px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 48%, rgba(255, 255, 255, 0.04)),
-            var(--panel-bg);
+          background: var(--surface-layer);
           box-shadow: var(--shadow);
           backdrop-filter: blur(20px);
           animation: riseIn 0.3s ease;
@@ -2609,9 +2726,7 @@ export default function FlowApp() {
           overflow: auto;
           border-radius: 24px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
-            rgba(255, 255, 255, 0.02);
+          background: var(--surface-layer-soft);
         }
         .shopify-table {
           width: 100%;
@@ -2663,9 +2778,7 @@ export default function FlowApp() {
         .shopify-product-row {
           border-radius: 22px;
           border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.03)),
-            rgba(255, 255, 255, 0.022);
+          background: var(--surface-layer-soft);
           padding: 14px 16px;
           display: flex;
           align-items: center;
@@ -2743,11 +2856,15 @@ export default function FlowApp() {
           align-items: center;
           gap: 8px;
           border: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.04);
+          background: var(--surface-layer-soft);
           color: var(--text-main);
           border-radius: 999px;
           padding: 10px 14px;
           cursor: pointer;
+        }
+        .pill-button.active {
+          background: var(--surface-layer-strong);
+          border-color: var(--line-strong);
         }
         .mobile-only {
           display: none;
@@ -2923,17 +3040,16 @@ export default function FlowApp() {
 
       {booting ? (
         <div className="auth-stage">
-          <div className="auth-card">
+          <div className="auth-card auth-loading-card">
             <div className="auth-brand">
               <div className="auth-brand-mark">
                 <img src="/icon.svg" alt="Flow" />
               </div>
               <div className="auth-brand-copy">
                 <strong>Flow</strong>
-                <span>Connexion</span>
               </div>
             </div>
-            <p className="helper">Chargement de ta session...</p>
+            <div className="loading-pulse" />
           </div>
         </div>
       ) : user ? (
@@ -2956,7 +3072,6 @@ export default function FlowApp() {
                   </div>
                   <div className="brand-copy">
                     <strong>Flow</strong>
-                    <span>Workspace personnel</span>
                   </div>
                 </div>
                 <button
@@ -3134,7 +3249,6 @@ export default function FlowApp() {
                     <div className="page-head">
                       <div>
                         <h1>Bienvenue, {firstName(user.name)}</h1>
-                        <p>Résumé central du compte. On garde une lecture propre, compacte et pilotable avant de reconstruire chaque module.</p>
                       </div>
                     </div>
 
@@ -3146,7 +3260,6 @@ export default function FlowApp() {
                         </div>
                         <div className="metric-value">{dashboardMetrics.notes}</div>
                         <div className="metric-foot">
-                          <span>Base active</span>
                           <span>{dashboardMetrics.bookmarks} signets</span>
                         </div>
                       </div>
@@ -3157,7 +3270,7 @@ export default function FlowApp() {
                         </div>
                         <div className="metric-value">{dashboardMetrics.tasks}</div>
                         <div className="metric-foot">
-                          <span>Suivi de production</span>
+                          <span>En cours</span>
                         </div>
                       </div>
                       <div className="metric-card">
@@ -3167,7 +3280,7 @@ export default function FlowApp() {
                         </div>
                         <div className="metric-value">{dashboardMetrics.events}</div>
                         <div className="metric-foot">
-                          <span>Agenda connecté</span>
+                          <span>Planifiés</span>
                         </div>
                       </div>
                       <div className="metric-card">
@@ -3217,7 +3330,6 @@ export default function FlowApp() {
                           <div className="content-card-header">
                             <div>
                               <h2>Performance du workspace</h2>
-                              <p>Un graphique léger pour lire la densité de ton activité avant l’arrivée des modules détaillés.</p>
                             </div>
                             <button type="button" className="release-chip" onClick={() => setReleaseOpen(true)}>
                               <Icon name="spark" size={15} />
@@ -3242,6 +3354,22 @@ export default function FlowApp() {
                           <div className="chart-legend">
                             <span><span className="legend-dot" style={{ background: "currentColor" }} />Charge active</span>
                             <span><span className="legend-dot" style={{ background: "rgba(181,197,157,0.45)" }} />Résumé synthétique</span>
+                          </div>
+                        </div>
+
+                        <div className="content-card">
+                          <div className="content-card-header">
+                            <div>
+                              <h2>Actions rapides</h2>
+                            </div>
+                          </div>
+                          <div className="button-row">
+                            <button type="button" className="secondary" onClick={() => setCommandOpen(true)}>Rechercher</button>
+                            <button type="button" className="secondary" onClick={() => setNotificationOpen(true)}>Notifications</button>
+                            <button type="button" className="secondary" onClick={() => setActiveSection("shopify")}>Shopify</button>
+                            <button type="button" className="secondary" onClick={() => void refreshShopifyData()} disabled={shopifyState.loading}>
+                              {shopifyState.loading ? "Actualisation..." : "Actualiser"}
+                            </button>
                           </div>
                         </div>
 
@@ -3280,7 +3408,7 @@ export default function FlowApp() {
                           ) : (
                             <>
                               <h3>Zone de focus</h3>
-                              <p>Sélectionne un résultat depuis la recherche pour l’afficher ici sans casser la navigation générale.</p>
+                              <p>Sélectionne un résultat depuis la recherche.</p>
                             </>
                           )}
                         </div>
@@ -3289,7 +3417,6 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Activité récente</h2>
-                              <p>Le dashboard commence par une vue synthétique des derniers éléments du compte.</p>
                             </div>
                           </div>
                           <div className="overview-list">
@@ -3306,7 +3433,7 @@ export default function FlowApp() {
                               <div className="overview-list-item">
                                 <div>
                                   <strong>Aucune activité récente</strong>
-                                  <span>Les prochains modules alimenteront cette colonne automatiquement.</span>
+                                  <span>Rien à afficher.</span>
                                 </div>
                               </div>
                             ) : null}
@@ -3316,7 +3443,7 @@ export default function FlowApp() {
                     </div>
                   </section>
                 ) : (
-                  <section className="immersive-layout">
+                  <section className="immersive-layout" style={immersiveBackgroundStyle}>
                     <div className="immersive-map" />
                     <div className="immersive-veil" />
                     <div className="immersive-content">
@@ -3479,7 +3606,6 @@ export default function FlowApp() {
                   <div className="page-head">
                     <div>
                       <h1>Shopify</h1>
-                      <p>Pilotage live de la boutique sans stockage local: tout passe par le proxy serveur et un rafraîchissement manuel.</p>
                     </div>
                     <div className="shopify-actions">
                       <button type="button" className="secondary" onClick={() => void refreshShopifyData()} disabled={shopifyState.loading}>
@@ -3487,6 +3613,33 @@ export default function FlowApp() {
                         {shopifyState.loading ? "Rafraîchissement..." : "Rafraîchir"}
                       </button>
                     </div>
+                  </div>
+
+                  <div className="shopify-actions">
+                    {[7, 30].map((range) => (
+                      <button
+                        key={range}
+                        type="button"
+                        className={`pill-button ${shopifyRangeDays === range ? "active" : ""}`}
+                        onClick={() => setShopifyRangeDays(range)}
+                      >
+                        {range} jours
+                      </button>
+                    ))}
+                    {[
+                      { id: "all", label: "Toutes" },
+                      { id: "today", label: "Aujourd'hui" },
+                      { id: "pending", label: "En attente" },
+                    ].map((filter) => (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        className={`pill-button ${shopifyOrderFilter === filter.id ? "active" : ""}`}
+                        onClick={() => setShopifyOrderFilter(filter.id)}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
                   </div>
 
                   {shopifyState.error ? (
@@ -3528,7 +3681,7 @@ export default function FlowApp() {
                       <div className="shopify-card">
                         <div className="surface-head">
                           <div>
-                            <h2>CA — 30 derniers jours</h2>
+                            <h2>CA — {shopifyRangeDays} derniers jours</h2>
                             <p>{shopifyState.refreshedAt ? `Dernière mise à jour ${formatShopifyDate(shopifyState.refreshedAt)}` : "En attente de données Shopify."}</p>
                           </div>
                         </div>
@@ -3537,7 +3690,7 @@ export default function FlowApp() {
                         ) : (
                           <div className="shopify-chart-wrap">
                             <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={shopifyState.data?.chart || []}>
+                              <AreaChart data={visibleShopifyChart}>
                                 <defs>
                                   <linearGradient id="shopifyArea" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="0%" stopColor="rgba(185,197,171,0.72)" />
@@ -3567,7 +3720,7 @@ export default function FlowApp() {
                         <div className="surface-head">
                           <div>
                             <h2>10 dernières commandes</h2>
-                            <p>Lecture brute depuis Shopify, sans persistance côté navigateur.</p>
+                            <p>{shopifyOrderFilter === "all" ? "Flux direct Shopify." : `Filtre: ${shopifyOrderFilter === "today" ? "Aujourd'hui" : "En attente"}`}</p>
                           </div>
                         </div>
                         {shopifyState.loading && !shopifyState.data ? (
@@ -3586,7 +3739,7 @@ export default function FlowApp() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {(shopifyState.data?.latestOrders || []).map((order) => (
+                                {visibleShopifyOrders.map((order) => (
                                   <tr key={order.id}>
                                     <td>{order.number}</td>
                                     <td>{formatShopifyDate(order.createdAt)}</td>
@@ -3598,6 +3751,7 @@ export default function FlowApp() {
                                 ))}
                               </tbody>
                             </table>
+                            {!visibleShopifyOrders.length ? <div className="notification-empty">Aucune commande pour ce filtre.</div> : null}
                           </div>
                         )}
                       </div>
@@ -3638,7 +3792,6 @@ export default function FlowApp() {
                   <div className="page-head">
                     <div>
                       <h1>Profil et paramètres</h1>
-                      <p>Le shell global se règle ici: identité, structure du site, persistance de session et actions du compte.</p>
                     </div>
                   </div>
 
@@ -3655,18 +3808,18 @@ export default function FlowApp() {
                         <div className="setting-options">
                           <div className="setting-option active">
                             <strong>Session active</strong>
-                            <span>Connexion persistante mémorisée sur cet appareil avec rappel du compte utilisé.</span>
+                            <span>Compte mémorisé sur cet appareil.</span>
                           </div>
                           <div className="setting-option active">
                             <strong>Thème actuel: {shellTheme === "dark" ? "Sombre" : "Clair"}</strong>
-                            <span>Le changement reste disponible dans le bouton en haut à droite sur toutes les vues.</span>
+                            <span>Bascule disponible dans la topbar.</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="setting-card">
                         <h2>Structure du site</h2>
-                        <p>Ce réglage change toute la structure desktop. Sur téléphone, la vue tableau reste imposée pour garder une navigation propre.</p>
+                        <p>Sur téléphone, la vue tableau reste imposée.</p>
                         <div className="setting-options">
                           <button
                             type="button"
@@ -3674,7 +3827,7 @@ export default function FlowApp() {
                             onClick={() => void applyLayout("overview")}
                           >
                             <strong>Vue tableau</strong>
-                            <span>Sidebar gauche, lecture dense, hiérarchie stable pour le travail quotidien.</span>
+                            <span>Sidebar gauche et lecture dense.</span>
                           </button>
                           <button
                             type="button"
@@ -3683,7 +3836,25 @@ export default function FlowApp() {
                             disabled={isMobile}
                           >
                             <strong>Vue immersive</strong>
-                            <span>Navigation des modules en haut, disparition de la barre gauche et mise en scène plus atmosphérique sur desktop.</span>
+                            <span>Modules en haut et sans barre gauche.</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="setting-card">
+                        <h2>Fond</h2>
+                        <div className="setting-options">
+                          <div className="setting-option active">
+                            <strong>{shellTheme === "dark" ? "Fond sombre" : "Fond clair"}</strong>
+                            <span>{currentThemeBackground ? "Image personnalisée active." : "Fond par défaut actif."}</span>
+                          </div>
+                        </div>
+                        <div className="button-row" style={{ marginTop: 18 }}>
+                          <button type="button" className="secondary" onClick={() => backgroundInputRef.current?.click()} disabled={backgroundBusy}>
+                            {backgroundBusy ? "Import..." : "Importer une image"}
+                          </button>
+                          <button type="button" className="ghost" onClick={() => void applyCustomBackground("")} disabled={!currentThemeBackground || backgroundBusy}>
+                            Retirer le fond
                           </button>
                         </div>
                       </div>
@@ -3716,7 +3887,6 @@ export default function FlowApp() {
 
                       <div className="setting-card">
                         <h2>Compte</h2>
-                        <p>On garde ici les actions système pendant qu’on reconstruit le reste du produit.</p>
                         <div className="button-row" style={{ marginTop: 18 }}>
                           <button type="button" className="secondary" onClick={() => setReleaseOpen(true)}>
                             Voir la version
@@ -3732,9 +3902,7 @@ export default function FlowApp() {
               ) : (
                 <div className="surface-card section-placeholder">
                   <h3>{navSections.find((section) => section.id === activeSection)?.label || "Module"}</h3>
-                  <p>
-                    Ce module n’est pas encore reconstruit. On garde déjà sa place dans la navigation, la recherche et le résumé global pour pouvoir le brancher proprement ensuite.
-                  </p>
+                  <p>Module en préparation.</p>
                 </div>
               )}
               </div>
@@ -3750,7 +3918,6 @@ export default function FlowApp() {
               </div>
               <div className="auth-brand-copy">
                 <strong>Flow</strong>
-                <span>Connexion</span>
               </div>
             </div>
 
@@ -3890,17 +4057,15 @@ export default function FlowApp() {
                       {busy === "reset" ? "Réinitialisation..." : "Mettre à jour"}
                     </button>
                   </div>
-                  <p className="helper">
-                    {providers.email
-                      ? "Le code est envoyé si la messagerie transactionnelle est branchée."
-                      : "Le flux est prêt, mais l’envoi email reste indisponible sur cet environnement."}
-                  </p>
+                  <p className="helper">{providers.email ? "Code envoyé si l’email est branché." : "Email non disponible sur cet environnement."}</p>
                 </form>
               </>
             ) : null}
           </div>
         </div>
       )}
+
+      <input ref={backgroundInputRef} type="file" accept="image/*" hidden onChange={(event) => void importBackgroundFromDevice(event)} />
 
       {commandOpen ? (
         <div className="command-backdrop" onClick={() => setCommandOpen(false)}>

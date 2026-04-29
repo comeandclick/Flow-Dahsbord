@@ -135,6 +135,10 @@ Ces routes doivent garder:
 - `Rafraîchir Shopify`
   - recharge manuellement les données Shopify
   - si `SHOPIFY_ACCESS_TOKEN` n'est pas encore branché, l'écran affiche un état d'indisponibilité propre sans erreur console bruyante
+- `Fond personnalisé`
+  - import d'une image locale depuis le profil
+  - stockage dans `db.settings.customBackgrounds`
+  - suppression possible pour revenir au fond par défaut
   - n'écrit rien en localStorage
   - garde un état de loading et d'erreur propre
 - `Notification de mise a jour`

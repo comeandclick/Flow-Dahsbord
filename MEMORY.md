@@ -20,6 +20,7 @@
   - vue immersive desktop sans sidebar
   - vue mobile forcée en tableau
   - module Shopify dédié
+  - fond personnalisable par thème actif depuis le profil
 - le dashboard admin reste present a part
 - mémoire de DA à suivre:
   - `docs/design-theme-memory.md`
@@ -52,7 +53,7 @@ Le backend garde encore des schemas plus larges pour compatibilite avec les anci
 - `goals`
 - etc.
 
-Mais le front public actuel n'expose encore que le shell reconstruit plus un premier module externe Shopify, maintenant stabilisé côté Vercel même avant l'ajout du token live.
+Mais le front public actuel n'expose encore que le shell reconstruit plus un premier module externe Shopify, avec auth / store continus et sans remise à zéro des données utilisateur pendant les mises à jour.
   - manifest app ajoute
   - abonnement push par appareil ajoute via API
   - annonce de release ajoutee pour prevenir tous les utilisateurs a la publication

@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.23.4
+### 1.23.5
 
-- **Date** : 29/04/2026 20:32
-- **Résumé** : Le shell Flow unifie mieux sa matière visuelle et stabilise le module Shopify avec des routes Vercel propres, un état de config silencieux et le même écran dédié.
+- **Date** : 29/04/2026 21:12
+- **Résumé** : Le shell Flow allège son auth, garde la continuité des comptes, ajoute un fond importable par thème et enrichit le dashboard plus Shopify sans casser le store utilisateur.
 
-- **Matière visuelle unifiée sur tous les blocs** : Les cartes, panneaux et surfaces utilisent maintenant une même couche gradient / opacité / blur plus proche de la référence trafic sombre.
-- **Nouveau module Shopify isolé du reste** : Ajout d’une entrée Shopify dans la navigation, d’un widget dashboard et d’un écran dédié avec KPIs, graphique, commandes récentes et top produits.
-- **Routes Shopify stabilisées pour Vercel** : Le callback OAuth et le proxy Shopify passent maintenant par des handlers Next API sans conflit de route, avec état de configuration propre avant l’ajout du token.
+- **Auth et démarrage allégés** : La session hydrate d’abord le compte puis charge le reste en arrière-plan, avec un écran d’attente réduit et sans réinitialiser les données utilisateurs.
+- **Fond personnalisable par thème** : Depuis Profil / Paramètres, l’utilisateur peut importer un fond pour le thème actif puis le retirer pour revenir au fond de base.
+- **Dashboard et Shopify enrichis** : Ajout d’actions rapides, filtres 7/30 jours, filtres commandes, rafraîchissement manuel et rendu plus dense sur les cartes et panneaux.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

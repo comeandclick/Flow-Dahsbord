@@ -61,53 +61,39 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.23.4`
+- Version actuelle: `v1.23.5`
 
-## Passe produit 22 - 29/04/2026 20:32
+## Passe produit 23 - 29/04/2026 21:12
 
 ### Fait dans cette passe
 
-- matière visuelle reprise:
-  - gradients denses
-  - opacité plus proche de la ref trafic
-  - blur et profondeur harmonisés sur cartes, panneaux, tableaux et surfaces
-- module Shopify ajouté sans toucher aux autres modules existants:
-  - entrée `Shopify` dans la navigation
-  - widget Shopify sur le dashboard principal
-  - écran Shopify dédié avec:
-    - 4 KPIs
-    - graphique CA 30 jours
-    - 10 dernières commandes
-    - top 5 produits du mois
-    - refresh manuel
-    - loader skeleton
-    - message d'erreur si API indisponible
-- endpoints ajoutés:
-  - `pages/api/shopify.js`
-  - `pages/api/shopify-callback.js`
-  - logique partagée:
-    - `lib/shopify-server.js`
-- variables Vercel Shopify branchées:
-  - `SHOPIFY_CLIENT_ID`
-  - `SHOPIFY_CLIENT_SECRET`
-  - `SHOPIFY_STORE_DOMAIN`
-- stabilisation Shopify:
-  - plus de conflit de route callback/proxy sur Vercel
-  - plus de spam 500 en console tant que `SHOPIFY_ACCESS_TOKEN` n'est pas encore configuré
-  - état de config Shopify renvoyé proprement au front avant d'appeler l'API store
-- reste à finaliser côté Shopify:
-  - récupérer le vrai `SHOPIFY_ACCESS_TOKEN` après installation OAuth
-  - le renseigner sur Vercel pour activer les données live du module
+- continuité données renforcée:
+  - aucune logique de mise à jour ne réinitialise le store utilisateur
+  - les créations / connexions gardent le même `FLOW_STORE_URL`
+- auth et boot allégés:
+  - hydratation session prioritaire
+  - écran de chargement réduit
+  - auth publique revalidée en local et en prod
+- shell nettoyé:
+  - suppression de textes inutiles
+  - matière visuelle rapprochée de la référence sur plus de cartes et panneaux
+- fond utilisateur:
+  - import d'une image depuis l'appareil dans `Profil / Paramètres`
+  - fond stocké par thème actif
+  - bouton pour retirer le fond et revenir au fond par défaut
+- dashboard et Shopify enrichis:
+  - actions rapides sur le dashboard
+  - filtres `7 jours / 30 jours`
+  - filtres commandes `Toutes / Aujourd'hui / En attente`
+  - rendu Shopify plus dense sans toucher aux autres modules
 
 ### Vérification réelle faite
 
-- `npm i recharts` OK
 - `npm run build` OK
-- callback et proxy exposés dans le build Next
-- site public `https://flow-core-public-04291307.vercel.app` répond en `200`
+- inscription locale OK
+- inscription publique OK
+- login public renvoie bien une erreur métier et plus une erreur interne
 - `npm run check:client -- https://flow-core-public-04291307.vercel.app` OK
-- création de compte publique OK
-- session publique OK
 
 ## Passe produit 21 - 29/04/2026 18:15
 
