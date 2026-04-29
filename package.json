@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prestart": "node scripts/ensure-build.mjs",
     "start": "next start",
     "check:client": "node scripts/check-client.mjs",
     "publish:release": "node scripts/publish-release.mjs"
