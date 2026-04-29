@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.22.46
+### 1.23.0
 
-- **Date** : 29/04/2026 00:33
-- **Résumé** : La production Flow est republiée proprement avec les routes principales restaurées et un périmètre recentré sur le site principal et l'admin.
+- **Date** : 29/04/2026 13:32
+- **Résumé** : Nouveau socle Flow recentré sur les systèmes critiques: auth, Google, releases, notifications de mise à jour et déploiement prêt pour Vercel.
 
-- **Production rétablie sur les routes clés** : La republication remet en place correctement la page Flow, l'admin et l'API de release qui ne doivent plus répondre en 404.
-- **Périmètre Flow recentré** : Le dépôt reste limité au Flow principal et au dashboard admin, sans surfaces parallèles ni variantes annexes.
-- **Résidus locaux nettoyés** : Les reliquats de vérification réapparus localement sont retirés pour éviter toute confusion avant publication.
+- **Surface principale reconstruite** : Le site public repart sur une base minimale dédiée à l'authentification, au statut du compte et aux releases.
+- **Pile d'auth conservée et recentrée** : Inscription, connexion, session mémorisée, reset mot de passe et Google OAuth restent branchés sur le backend existant.
+- **Mises à jour détectées puis rechargées** : Le client surveille la release courante, notifie l'utilisateur et recharge la page quand une nouvelle version est publiée.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

@@ -39,85 +39,71 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 
 ## Etat actuel du projet
 
-- Framework: Next.js
+- Framework: Next.js 15
 - Front principal: `app/FlowApp.jsx`
 - Middleware securite: `middleware.js`
-- Auth serveur: `app/api/auth/login/route.js`, `app/api/auth/register/route.js`, `app/api/auth/logout/route.js`
-- Session: cookie signe
-- Base distante: JSONBlob
-- Stockage actuel: chiffre cote serveur
-- Migration de l'ancien store vers le store chiffre: deja faite
-- Badge version/date cliquable affiche a gauche de `Flow`
-- Le clic ouvre un widget de suivi des changements avec statuts:
-  - vert: termine
-  - orange: en cours
-  - rouge: a faire
-- A chaque nouvelle passe, remplacer le contenu du widget par l'etat actuel plutot que garder un historique infini
-- Version actuelle: `v1.22.43`
+- Auth serveur:
+  - `app/api/auth/register/route.js`
+  - `app/api/auth/login/route.js`
+  - `app/api/auth/logout/route.js`
+  - `app/api/auth/forgot-password/route.js`
+  - `app/api/auth/reset-password/route.js`
+  - `app/api/auth/google/start/route.js`
+  - `app/api/auth/google/callback/route.js`
+- Session:
+  - cookie signe `flow_session`
+  - email precedent memorise dans `localStorage`
+- Release:
+  - source de verite: `lib/release.js`
+  - endpoint: `/api/release/current`
+  - annonce push: `/api/release/announce`
+- Base distante: JSONBlob chiffre cote serveur
+- Admin:
+  - route publique `/admin/login`
+  - dashboard protege `/admin`
+- Version actuelle: `v1.23.0`
 
-## Passe produit 18 - 05/04/2026 13:38
-
-### Fait dans cette passe
-
-- perimetre produit nettoye:
-  - suppression des routes `/aurora` et `/atelier`
-  - le produit ne garde plus qu'un seul Flow public et un seul dashboard admin
-- admin:
-  - login admin plus robuste avec validation simple avant envoi
-  - section utilisateurs plus pratique avec remise a zero des filtres
-  - actions rapides mieux cadrees
-- continuite:
-  - comptes et donnees existantes conserves
-  - backend et compatibilite de store inchanges
-- checks locaux:
-  - `npm run build` OK
-  - `npm run check:client -- http://127.0.0.1:3100` OK
-
-## Passe produit 16 - 31/03/2026 15:50
+## Passe produit 19 - 29/04/2026 13:32
 
 ### Fait dans cette passe
 
-- auth:
-  - ajout du wiring `Google OAuth` cote serveur:
-    - `/api/auth/google/start`
-    - `/api/auth/google/callback`
-  - le bouton Google ouvre maintenant ce flux au lieu d'etre un faux bouton
-  - si les secrets Google manquent, Flow renvoie un message explicite au lieu d'un comportement flou
-- reset mot de passe:
-  - suppression du blocage `Réinitialisation email indisponible pour le moment`
-  - si le SMTP n'est pas configure, Flow genere maintenant un lien direct de reset utilisable tout de suite
-  - si le SMTP est configure plus tard, l'envoi email reprend automatiquement
-- theme:
-  - palette sombre resserree vers le noir / gris / blanc de l'image 1
-  - la dominante bleue residuelle du shell a ete retiree
-- environnement:
-  - `.env.example` complete avec:
-    - `FLOW_APP_URL`
-    - `FLOW_GOOGLE_CLIENT_ID`
-    - `FLOW_GOOGLE_CLIENT_SECRET`
-    - `FLOW_SMTP_*`
-- checks locaux:
-  - `npm run build` OK
+- reconstruction du site public sur un socle minimal:
+  - creation de compte
+  - connexion
+  - session persistante
+  - reset mot de passe
+  - Google auth
+  - journal de version
+  - detection de mise a jour + notification + rechargement
+- suppression de la surface publique monolithique precedente au profit d'une app recentree sur les systemes critiques
+- `GET /api/release/current` retourne maintenant aussi `changes`
+- build durci:
+  - `npm run build` nettoie `.next` avant compilation
+  - `scripts/ensure-build.mjs` verifie aussi le manifest `_not-found`
+- config Vercel recreee via `vercel.json`
+- UX:
+  - si Google n'est pas configure, le bouton renvoie maintenant un message explicite `missing-config`
+- hygiene repo:
+  - suppression des fichiers doublons suffixes ` 2`
 
-### Point bloquant restant pour activer Google en vrai
+### Verification reelle faite
 
-- le code est pret, mais le projet ne contient toujours pas dans `.env.local`:
-  - `FLOW_GOOGLE_CLIENT_ID`
-  - `FLOW_GOOGLE_CLIENT_SECRET`
-- sans ces 2 secrets, Google ne peut pas authentifier reellement l'app
+- `npm run build` OK
+- `/` OK
+- `/admin/login` OK
+- `POST /api/auth/register` OK
+- `GET /api/session` apres inscription OK
+- `POST /api/auth/logout` OK
+- `POST /api/auth/login` apres logout OK
+- `npm run check:client -- http://127.0.0.1:3100` OK
+- audit desktop/mobile sans overflow ni erreur console sur `/` et `/admin/login`
 
-### Mise en ligne
+### Etat de la mise en ligne
 
-- `npm run publish:release` OK
-- deployment production:
-  - `https://flow-online-aymen-9lqk7d3ip-meinays-projects.vercel.app`
-- alias principal reconfirme:
-  - `https://flow-online-aymen.vercel.app`
-- verification publique:
-  - `curl -I https://flow-online-aymen.vercel.app` : `200`
-  - `npm run check:client -- https://flow-online-aymen.vercel.app` OK
-  - `POST /api/auth/forgot-password` renvoie maintenant `delivery: direct` + `resetUrl` si le SMTP manque
-  - `GET /api/auth/google/start` redirige maintenant vers `/?authGoogle=missing-config` tant que les secrets Google ne sont pas poses
+- GitHub `main` est a jour
+- le domaine Vercel officiel reste bloque sur une ancienne build 404 faute de credentials CLI disponibles dans cet environnement
+- lien public temporaire et teste:
+  - `https://4ed3b96aaf5d8f.lhr.life`
 - annonce globale:
   - `Annonce envoyee a 15 utilisateur(s).`
 

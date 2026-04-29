@@ -2,122 +2,49 @@
 
 ## Etat courant prioritaire
 
-- variantes publiques supprimees:
-  - `/aurora` retiree
-  - `/atelier` retiree
-  - il ne reste que le Flow principal et le dashboard admin
+- le site public a ete reconstruit sur un socle minimal
+- le perimetre public actif se limite maintenant a:
+  - auth classique
+  - auth Google
+  - session memoire
+  - reset mot de passe
+  - journal de version
+  - detection de mise a jour + reload
+- le dashboard admin reste present a part
 - bug structurel corrige:
   - `middleware.js` n'intercepte plus les chunks `/_next/static`
-  - le chargement client et l'hydratation des routes publiques redeviennent sains
+  - le build Next nettoie `.next` avant compilation
+  - `ensure-build` verifie aussi `_not-found/page.js.nft.json`
 
 ## Ce que fait le code
 
-Flow Dashbord est une application workspace personnelle multi-modules:
-- notes
-- projets / kanban
-- calendrier
-- conversations
-- habitudes
-- focus timer
-- signets
-- parametres
+Flow Dashbord sert maintenant surtout de socle de plateforme:
+- creation de compte
+- connexion / deconnexion
+- session persistante
+- reset mot de passe par code
+- Google OAuth
+- endpoint session
+- journal de release
+- notification de mise a jour + rechargement
 
-Cette passe ajoute aussi un back-office separe:
+Le back-office separe reste present:
 - `Flow Admin Dashboard`
 - route: `/admin`
+- login: `/admin/login`
 - meme store chiffre que l'app principale
 
-Cette passe ajoute aussi au module `Projets`:
-- `taskTemplates`
-- `subtasks`
-- `comments`
-- `reactions`
-- `members` avec roles `viewer/editor`
+Le backend garde encore des schemas plus larges pour compatibilite avec les anciens comptes:
+- `notes`
+- `tasks`
+- `events`
+- `habits`
+- `journal`
+- `bookmarks`
+- `goals`
+- etc.
 
-Une passe suivante a ete entamee puis mise en pause pour l'admin avance:
-- login admin separe
-- session admin dediee via routes admin
-- permissions admin granulaires
-- creation d'autres admins
-- export CSV
-- SMTP transactionnel via `nodemailer`
-
-Cette passe est maintenant reprise et validee localement pour:
-- `admin/login`
-- super-admin provisionne
-- export CSV admin
-- creation d'autres admins depuis le dashboard
-- messages admin internes avec pop-up a la connexion
-- session admin dediee separee de la session Flow
-- export CSV enrichi + journal d'audit admin
-- filtres avances + messages admin segmentes
-- nouvelle passe visuelle shell principal + skeleton + drag feedback
-- passe de synchronisation finale validee localement:
-  - `npm run build` OK
-  - `npm run check:client -- http://127.0.0.1:3100` OK
-  - badge release + docs de reprise remis a niveau
-- mise en ligne `v1.15.1` validee en production:
-  - alias principal conserve: `https://flow-online-aymen.vercel.app`
-  - `npm run check:client -- https://flow-online-aymen.vercel.app` OK
-- passe mobile UX validee localement:
-  - dashboard mobile compresse pour eviter le scroll principal
-  - swipes lateraux ajoutes pour menu + navigation entre vues
-  - bouton aide retire de la topbar mobile
-  - badge release raccourci a `vX.Y.Z`
-  - `npm run build` OK
-  - `npm run check:client -- http://127.0.0.1:3100` OK
-- passe design premium globale validee:
-  - palette et composants rapproches de la reference Findexa
-  - dashboard desktop recompose
-  - dashboard mobile detasse et plus lisible
-  - production redeployee et smoke test public OK
-- passe shell/admin `v1.17.7` validee localement:
-  - hero dashboard et surfaces claires enfin synchronises
-  - popup forfait remis sur telephone
-  - recherche mobile elargie et connectee a la Command Palette avec focus direct
-  - footer de la palette masque en mobile
-  - nouvelle dominante `Nebula` + halo lumineux global
-  - dashboard admin + login admin re-dessines dans la meme DA Flow
-  - selects natifs retires du dashboard admin au profit de chips
-  - longues listes admin contenues dans des cartes scrollables
-  - `npm run build` OK
-  - `npm run check:client -- http://127.0.0.1:3100` OK
-- micro-passe `v1.17.8`:
-  - barre de recherche mobile encore plus lisible
-  - popup forfait mobile plus compact
-  - cartes admin et zones scrollables encore mieux fermees contre les debordements
-  - `npm run build` OK
-  - `npm run check:client -- http://127.0.0.1:3100` OK
-- passe `v1.18.0`:
-  - shell global repasse en palette monochrome
-  - logo Flow monochrome reutilise dans l'app et en favicon / icone
-  - chargement de connexion et ecran sans compte plus mis en scene
-  - conversation support utilisateur -> admin ajoutee
-  - endpoint admin conversations ajoute
-  - dashboard admin peut maintenant lire / repondre / cloturer les demandes d'aide
-  - `npm run build` OK
-  - `npm run check:client -- http://127.0.0.1:3100` OK
-- passe `v1.18.1`:
-  - signalements messages stockes avec statut `open / resolved / dismissed`
-  - bug reports interface envoyes aussi dans le store distant au lieu d'un simple faux local
-  - dashboard admin recoit une vraie vue `Signalements`
-  - un admin peut maintenant resoudre ou classer un signalement avec note
-  - l'utilisateur recoit un retour dans Flow quand son signalement est traite
-  - `npm run build` OK
-  - `npm run check:client -- http://127.0.0.1:3000` OK
-  - production redeployee:
-    - `https://flow-online-aymen-dlcyv8m66-meinays-projects.vercel.app`
-    - alias `https://flow-online-aymen.vercel.app` OK
-    - `npm run check:client -- https://flow-online-aymen.vercel.app` OK
-- passe `v1.19.0`:
-  - accueil Notes refait avec zones a gauche et notes de la zone active a droite
-  - blocs secondaires Notes supprimes pour laisser la saisie prendre la page
-  - blocs `Tous les événements` et `Temps fort du mois` retires du Calendrier
-  - module `Finance` retire de la navigation utilisateur
-  - widget Focus global ajoute dans la topbar quand un chrono tourne hors de Focus
-  - recherche mobile raccourcie a `Rechercher`
-  - chaque navigation de module remonte maintenant en haut
-  - service worker push ajoute
+Mais le front public actuel n'expose plus ces modules. La reconstruction repart d'une base minimale propre.
   - manifest app ajoute
   - abonnement push par appareil ajoute via API
   - annonce de release ajoutee pour prevenir tous les utilisateurs a la publication

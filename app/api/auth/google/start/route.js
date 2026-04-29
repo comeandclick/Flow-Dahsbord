@@ -7,7 +7,9 @@ export async function GET(request) {
   const returnTo = new URL(request.url).searchParams.get("returnTo") || "/";
 
   if (!isGoogleAuthConfigured()) {
-    return Response.redirect(new URL(returnTo, request.url));
+    const redirectUrl = new URL(returnTo, request.url);
+    redirectUrl.searchParams.set("authGoogle", "missing-config");
+    return Response.redirect(redirectUrl);
   }
 
   const state = createOAuthStateToken("google", returnTo);

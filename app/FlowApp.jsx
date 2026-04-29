@@ -144,6 +144,8 @@ export default function FlowApp() {
         const googleState = params.get("authGoogle");
         if (googleState === "success") {
           setNotice("Connexion Google réussie. Ton compte est prêt.");
+        } else if (googleState === "missing-config") {
+          setError("Google n'est pas encore configuré sur cet environnement.");
         } else if (googleState === "cancelled") {
           setError("Connexion Google annulée.");
         } else if (googleState === "failed") {

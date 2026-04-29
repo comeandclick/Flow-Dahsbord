@@ -19,12 +19,21 @@
 
 ## 1. Objectif produit
 
-Flow doit rester une workspace app simple, belle et rapide, avec:
+Phase actuelle:
+- repartir d'une base technique propre
+- garder les comptes existants
+- garder l'admin
+- garder les integrations critiques
+- reconstruire ensuite les modules un par un
+
+Le socle actif doit donc rester simple, beau et rapide, avec:
 - un compte unique accessible depuis plusieurs appareils
 - une sauvegarde fiable et quasi invisible
-- des modules clairs: notes, projets, calendrier, habitudes, focus, journal, finances, signets, objectifs, parametres
-- une sensation premium sans complexifier l'interface
-- une direction visuelle monochrome noir / gris / blanc commune au shell principal, au back-office et aux icones
+- une authentification classique + Google
+- une session persistante
+- un journal de version fiable
+- une notification de mise a jour qui peut relancer la page
+- une direction visuelle sobre sur le shell principal et l'admin
 
 ## 1.b Routes publiques a conserver
 
@@ -43,7 +52,14 @@ Ces routes doivent garder:
 - Connexion
 - Inscription
 
-### Espace principal
+### Espace principal actuel
+- Portail de connexion
+- Portail d'inscription
+- Portail de reset mot de passe
+- Ecran de session connectee
+- Journal de version
+
+### Espace principal plus tard
 - Tableau de bord
 - Notes
 - Projets
