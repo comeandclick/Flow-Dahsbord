@@ -257,6 +257,12 @@ function startOfDaysAgo(days) {
   return date;
 }
 
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
 function isoDate(date) {
   return new Date(date).toISOString();
 }
@@ -286,15 +292,15 @@ function getShopifyPeriodBounds(period, orders) {
   const today = startOfToday();
   if (period === "today") return { start: today, end: startOfTomorrow(), mode: "day" };
   if (period === "yesterday") return { start: startOfYesterday(), end: today, mode: "day" };
-  if (period === "7d") return { start: startOfDaysAgo(6), end: null, mode: "day" };
-  if (period === "30d") return { start: startOfDaysAgo(29), end: null, mode: "day" };
-  if (period === "365d") return { start: startOfYear(), end: null, mode: "day" };
+  if (period === "7d") return { start: startOfDaysAgo(6), end: startOfTomorrow(), mode: "day" };
+  if (period === "30d") return { start: startOfDaysAgo(29), end: startOfTomorrow(), mode: "day" };
+  if (period === "365d") return { start: startOfDaysAgo(364), end: startOfTomorrow(), mode: "month" };
 
   const oldest = [...(orders || [])]
     .sort((left, right) => toTimestamp(left.createdAt) - toTimestamp(right.createdAt))[0]?.createdAt;
   const start = oldest ? startOfDayFromValue(oldest) : startOfDaysAgo(29);
   const daySpan = Math.max(1, Math.ceil((now.getTime() - start.getTime()) / 86_400_000));
-  return { start, end: null, mode: daySpan > 120 ? "month" : "day" };
+  return { start, end: startOfTomorrow(), mode: daySpan > 120 ? "month" : "day" };
 }
 
 function filterShopifyOrdersByPeriod(orders, period) {
@@ -310,48 +316,73 @@ function filterShopifyOrdersByPeriod(orders, period) {
     .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
 }
 
-function buildShopifyChartData(orders, period) {
-  const { start, mode } = getShopifyPeriodBounds(period, orders);
-  const now = new Date();
-  const buckets = new Map();
+function buildShopifyChartData(allOrders, period) {
+  const { start, end, mode } = getShopifyPeriodBounds(period, allOrders);
+  const currentEnd = end || startOfTomorrow();
+  const rangeMs = Math.max(86_400_000, currentEnd.getTime() - start.getTime());
+  const previousStart = new Date(start.getTime() - rangeMs);
+  const previousEnd = new Date(currentEnd.getTime() - rangeMs);
+  const buckets = [];
 
   if (mode === "month") {
     const cursor = new Date(start);
     cursor.setDate(1);
-    while (cursor <= now) {
-      const key = `${cursor.getFullYear()}-${cursor.getMonth() + 1}`;
-      buckets.set(key, {
-        key,
-        label: new Intl.DateTimeFormat("fr-FR", { month: "short", year: "2-digit" }).format(cursor),
-        revenue: 0,
+    const previousCursor = new Date(previousStart);
+    previousCursor.setDate(1);
+    while (cursor < currentEnd) {
+      const currentBucketStart = new Date(cursor);
+      const currentBucketEnd = new Date(cursor);
+      currentBucketEnd.setMonth(currentBucketEnd.getMonth() + 1);
+      const previousBucketStart = new Date(previousCursor);
+      const previousBucketEnd = new Date(previousCursor);
+      previousBucketEnd.setMonth(previousBucketEnd.getMonth() + 1);
+      buckets.push({
+        label: new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(currentBucketStart),
+        current: 0,
+        previous: 0,
+        currentBucketStart,
+        currentBucketEnd,
+        previousBucketStart,
+        previousBucketEnd,
       });
       cursor.setMonth(cursor.getMonth() + 1);
+      previousCursor.setMonth(previousCursor.getMonth() + 1);
     }
-    orders.forEach((order) => {
-      const date = new Date(order.createdAt);
-      const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
-      if (!buckets.has(key)) return;
-      buckets.get(key).revenue += safeAmount(order.total);
-    });
-    return [...buckets.values()];
+  } else {
+    const slots = Math.max(1, Math.ceil(rangeMs / 86_400_000));
+    for (let index = 0; index < slots; index += 1) {
+      const currentBucketStart = addDays(start, index);
+      const currentBucketEnd = addDays(start, index + 1);
+      const previousBucketStart = addDays(previousStart, index);
+      const previousBucketEnd = addDays(previousStart, index + 1);
+      buckets.push({
+        label: formatDayLabel(currentBucketStart),
+        current: 0,
+        previous: 0,
+        currentBucketStart,
+        currentBucketEnd,
+        previousBucketStart,
+        previousBucketEnd,
+      });
+    }
   }
 
-  const dayCursor = new Date(start);
-  while (dayCursor <= now) {
-    const key = dayCursor.toISOString().slice(0, 10);
-    buckets.set(key, {
-      key,
-      label: formatDayLabel(dayCursor),
-      revenue: 0,
-    });
-    dayCursor.setDate(dayCursor.getDate() + 1);
-  }
-  orders.forEach((order) => {
-    const key = `${order.createdAt || ""}`.slice(0, 10);
-    if (!buckets.has(key)) return;
-    buckets.get(key).revenue += safeAmount(order.total);
+  allOrders.forEach((order) => {
+    const createdAt = new Date(order.createdAt);
+    const total = safeAmount(order.total);
+    for (const bucket of buckets) {
+      if (createdAt >= bucket.currentBucketStart && createdAt < bucket.currentBucketEnd) {
+        bucket.current += total;
+        return;
+      }
+      if (createdAt >= bucket.previousBucketStart && createdAt < bucket.previousBucketEnd) {
+        bucket.previous += total;
+        return;
+      }
+    }
   });
-  return [...buckets.values()];
+
+  return buckets.map(({ label, current, previous }) => ({ label, current, previous }));
 }
 
 function buildShopifyKpis(orders) {
@@ -372,6 +403,166 @@ function buildLatestVisibleShopifyOrders(orders) {
     })
     .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt))
     .slice(0, 12);
+}
+
+function sortShopifyOrders(orders, sortBy) {
+  const list = [...(orders || [])];
+  if (sortBy === "oldest") {
+    return list.sort((left, right) => toTimestamp(left.createdAt) - toTimestamp(right.createdAt));
+  }
+  if (sortBy === "expensive") {
+    return list.sort((left, right) => safeAmount(right.total) - safeAmount(left.total));
+  }
+  if (sortBy === "cheap") {
+    return list.sort((left, right) => safeAmount(left.total) - safeAmount(right.total));
+  }
+  return list.sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
+}
+
+function filterShopifyOrdersByQuery(orders, query) {
+  const normalized = `${query || ""}`.trim().toLowerCase();
+  if (!normalized) return [...(orders || [])];
+  return (orders || []).filter((order) => {
+    const searchable = [
+      order.number,
+      order.customer,
+      formatShopifyDate(order.createdAt),
+      ...(order.lineItems || []).map((item) => item.title),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return searchable.includes(normalized);
+  });
+}
+
+function createDemoFixtures(user) {
+  const now = new Date();
+  const isoNow = now.toISOString();
+  return {
+    notes: [
+      {
+        id: "demo-note-1",
+        title: "Synthese de la semaine",
+        content: "Verifier la progression Shopify, confirmer les relances clients et preparer le prochain sprint Flow.",
+        cat: "Pilotage",
+        color: "#c8cfbf",
+        createdAt: isoNow,
+        updatedAt: isoNow,
+      },
+      {
+        id: "demo-note-2",
+        title: "Points de contact prioritaires",
+        content: "Central Station, Laura Martin, Samuel Costa, suivi commande premium et preparation support.",
+        cat: "Contacts",
+        color: "#aeb8a2",
+        createdAt: isoNow,
+        updatedAt: isoNow,
+      },
+    ],
+    tasks: [
+      {
+        id: "demo-task-1",
+        title: "Verifier les commandes premium",
+        desc: "Controler les commandes du jour et preparer les priorites de fulfillment.",
+        prio: "high",
+        due: isoNow.slice(0, 10),
+        status: "in_progress",
+        createdAt: isoNow,
+        updatedAt: isoNow,
+      },
+      {
+        id: "demo-task-2",
+        title: "Appeler Laura Martin",
+        desc: "Valider la date de livraison et le besoin de SAV.",
+        prio: "med",
+        due: addDays(now, 1).toISOString().slice(0, 10),
+        status: "todo",
+        createdAt: isoNow,
+        updatedAt: isoNow,
+      },
+    ],
+    events: [
+      {
+        id: "demo-event-1",
+        title: "Revue commerciale",
+        desc: "Lecture du CA, alertes, et arbitrage commandes en attente.",
+        date: isoNow,
+        time: "10:30",
+        endTime: "11:15",
+        createdAt: isoNow,
+        attendees: [
+          { uid: "demo-contact-1", name: "Laura Martin", email: "laura@atelier.test", username: "laura", phone: "+33610101010", status: "confirmed" },
+          { uid: "demo-contact-2", name: "Samuel Costa", email: "samuel@atelier.test", username: "samuel", phone: "+33620202020", status: "confirmed" },
+        ],
+      },
+    ],
+    bookmarks: [
+      {
+        id: "demo-bookmark-1",
+        title: "Suivi priorites",
+        type: "text",
+        text: "Point d'ancrage pour relire les sujets essentiels du compte.",
+        note: "Acces rapide au tableau de bord et aux alertes.",
+      },
+    ],
+    notifications: [
+      {
+        id: "demo-notif-1",
+        type: "shopify",
+        title: "Commande premium a traiter",
+        detail: "Laura Martin attend une confirmation d'expedition aujourd'hui.",
+        createdAt: isoNow,
+        readAt: "",
+      },
+      {
+        id: "demo-notif-2",
+        type: "agenda",
+        title: "Revue commerciale planifiee",
+        detail: "Le point de 10:30 est pret avec les contacts relies.",
+        createdAt: addDays(now, -1).toISOString(),
+        readAt: "",
+      },
+    ],
+    activity: [
+      {
+        id: "demo-activity-1",
+        type: "seed",
+        title: "Jeu de donnees de travail active",
+        detail: `Compte ${user?.email || "Flow"} rempli pour accelerer le developpement.`,
+        createdAt: isoNow,
+      },
+    ],
+    shopifyOrders: Array.from({ length: 12 }, (_, index) => {
+      const createdAt = addDays(now, -index).toISOString();
+      const total = 48 + index * 17;
+      return {
+        id: `demo-shopify-${index + 1}`,
+        name: `#10${index + 1}`,
+        order_number: `${1000 + index + 1}`,
+        created_at: createdAt,
+        cancelled_at: "",
+        cancel_reason: "",
+        total_price: `${total}`,
+        financial_status: index % 4 === 0 ? "pending" : "paid",
+        fulfillment_status: index % 3 === 0 ? "unfulfilled" : "fulfilled",
+        email: `client${index + 1}@atelier.test`,
+        customer: {
+          first_name: ["Laura", "Noah", "Mila", "Adam", "Chloe", "Lina"][index % 6],
+          last_name: ["Martin", "Costa", "Pires", "Santos", "Bernard", "Lopez"][index % 6],
+        },
+        line_items: [
+          {
+            product_id: `prod-${(index % 4) + 1}`,
+            variant_id: `var-${index + 1}`,
+            title: ["Oreiller Cloud", "Pack Nuit", "Brume Relax", "Drap Signature"][index % 4],
+            quantity: (index % 3) + 1,
+            price: `${Math.max(18, Math.round(total / ((index % 3) + 1)))}`,
+          },
+        ],
+      };
+    }),
+  };
 }
 
 function buildDashboardFeed(db) {
@@ -805,12 +996,32 @@ export default function FlowApp() {
   const [sidebarLocked, setSidebarLocked] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("account");
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountForm, setAccountForm] = useState({
+    name: "",
+    email: "",
+    username: "",
+    fullName: "",
+    phone: "",
+    phoneVisible: false,
+    photoUrl: "",
+    currentPassword: "",
+    newPassword: "",
+  });
   const [shopifyPeriod, setShopifyPeriod] = useState("30d");
+  const [shopifyOrderSort, setShopifyOrderSort] = useState("recent");
+  const [shopifyOrderQuery, setShopifyOrderQuery] = useState("");
+  const [shopifyConfigInput, setShopifyConfigInput] = useState("");
+  const [shopifyConfigBusy, setShopifyConfigBusy] = useState(false);
   const [shopifyState, setShopifyState] = useState({
     loading: false,
     error: "",
     data: null,
     refreshedAt: "",
+    ready: false,
+    storeDomain: "",
   });
   const intervalRef = useRef(null);
   const reloadTimerRef = useRef(null);
@@ -857,6 +1068,8 @@ export default function FlowApp() {
     return shellTheme === "light" ? customBackgrounds.light || "" : customBackgrounds.dark || "";
   }, [db.settings?.customBackgrounds, shellTheme]);
   const profilePhotoUrl = db.profile?.photoUrl || "";
+  const storedShopifyConfig = db.settings?.shopify || {};
+  const shopifyDemoOrders = db.settings?.demoFixtures?.shopifyOrders || [];
 
   const flowShellStyle = useMemo(() => {
     if (!currentThemeBackground) return undefined;
@@ -884,8 +1097,8 @@ export default function FlowApp() {
   );
 
   const visibleShopifyChart = useMemo(
-    () => buildShopifyChartData(filteredShopifyOrders, shopifyPeriod),
-    [filteredShopifyOrders, shopifyPeriod],
+    () => buildShopifyChartData(shopifyState.data?.allOrders || [], shopifyPeriod),
+    [shopifyPeriod, shopifyState.data],
   );
 
   const visibleShopifyOrders = useMemo(
@@ -893,9 +1106,14 @@ export default function FlowApp() {
     [filteredShopifyOrders],
   );
 
+  const shopifyOrdersPageRows = useMemo(() => {
+    const queried = filterShopifyOrdersByQuery(filteredShopifyOrders, shopifyOrderQuery);
+    return sortShopifyOrders(queried, shopifyOrderSort);
+  }, [filteredShopifyOrders, shopifyOrderQuery, shopifyOrderSort]);
+
   const shopifyOverview = useMemo(() => {
     const current = buildShopifyKpis(filteredShopifyOrders);
-    const monthOrders = filterShopifyOrdersByPeriod(shopifyState.data?.allOrders || [], "30d");
+    const monthOrders = (shopifyState.data?.allOrders || []).filter((order) => toTimestamp(order.createdAt) >= startOfMonth().getTime());
     return {
       revenueCurrent: current.revenue,
       ordersCurrent: current.orders,
@@ -976,7 +1194,7 @@ export default function FlowApp() {
       { id: "events", label: "Événements", icon: "calendar" },
       { id: "tasks", label: "Tâches", icon: "check" },
       { id: "shopify", label: "Shopify", icon: "bag" },
-      { id: "profile", label: "Profil", icon: "sliders" },
+      { id: "profile", label: "Paramètres", icon: "sliders" },
     ],
     [],
   );
@@ -1029,6 +1247,29 @@ export default function FlowApp() {
     setMobileNavOpen(false);
   }, [isMobile]);
 
+  useEffect(() => {
+    setAccountForm({
+      name: user?.name || "",
+      email: user?.email || "",
+      username: db.profile?.username || "",
+      fullName: db.profile?.fullName || user?.name || "",
+      phone: db.profile?.phone || "",
+      phoneVisible: Boolean(db.profile?.phoneVisible),
+      photoUrl: db.profile?.photoUrl || "",
+      currentPassword: "",
+      newPassword: "",
+    });
+  }, [db.profile, user]);
+
+  useEffect(() => {
+    const config = db.settings?.shopify || {};
+    setShopifyConfigInput(
+      config.storeDomain && config.accessToken
+        ? `${config.storeDomain}|${config.accessToken}`
+        : "",
+    );
+  }, [db.settings?.shopify?.storeDomain, db.settings?.shopify?.accessToken]);
+
   async function refreshShopifyData() {
     setShopifyState((current) => ({
       ...current,
@@ -1039,7 +1280,27 @@ export default function FlowApp() {
     try {
       const statusPayload = await fetchShopifyProxy("__status");
       if (statusPayload?.ready === false) {
-        throw new Error(statusPayload?.error || "Shopify non configuré");
+        if (shopifyDemoOrders.length) {
+          const data = summarizeShopifyData({ orders: shopifyDemoOrders });
+          setShopifyState({
+            loading: false,
+            error: "",
+            data,
+            refreshedAt: db.settings?.demoFixtures?.seededAt || new Date().toISOString(),
+            ready: false,
+            storeDomain: "",
+          });
+          return;
+        }
+        setShopifyState({
+          loading: false,
+          error: statusPayload?.error || "Aucune boutique Shopify n'est connectee sur ce compte.",
+          data: null,
+          refreshedAt: "",
+          ready: false,
+          storeDomain: "",
+        });
+        return;
       }
 
       const ordersPayload = await fetchShopifyProxy("orders", {
@@ -1058,12 +1319,15 @@ export default function FlowApp() {
         error: "",
         data,
         refreshedAt: new Date().toISOString(),
+        ready: true,
+        storeDomain: statusPayload?.storeDomain || "",
       });
     } catch (shopError) {
       setShopifyState((current) => ({
         ...current,
         loading: false,
         error: shopError?.message || "Shopify inaccessible",
+        ready: false,
       }));
     }
   }
@@ -1072,7 +1336,7 @@ export default function FlowApp() {
     if (!user) return;
     if (shopifyState.data || shopifyState.loading) return;
     void refreshShopifyData();
-  }, [user]);
+  }, [user, shopifyDemoOrders.length]);
 
   useEffect(() => {
     if (user) return;
@@ -1081,6 +1345,8 @@ export default function FlowApp() {
       error: "",
       data: null,
       refreshedAt: "",
+      ready: false,
+      storeDomain: "",
     });
   }, [user]);
 
@@ -1539,6 +1805,129 @@ export default function FlowApp() {
     setMobileNavOpen(false);
     setSearchValue(result.title);
     setNotice(`Résultat chargé: ${result.title}`);
+  }
+
+  async function saveAccountSettings(event) {
+    event.preventDefault();
+    if (accountBusy) return;
+    setAccountBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const payload = await api("/api/account", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: accountForm.name,
+          email: accountForm.email,
+          currentPassword: accountForm.currentPassword,
+          newPassword: accountForm.newPassword,
+          profile: {
+            username: accountForm.username,
+            fullName: accountForm.fullName,
+            phone: accountForm.phone,
+            phoneVisible: accountForm.phoneVisible,
+            photoUrl: accountForm.photoUrl,
+          },
+        }),
+      });
+      setUser(payload?.user || null);
+      setDb(payload?.db || createEmptyDb());
+      setIsAdmin(Boolean(payload?.admin));
+      setAccountForm((current) => ({ ...current, currentPassword: "", newPassword: "" }));
+      setNotice("Parametres du compte enregistres.");
+    } catch (accountError) {
+      setError(normalizeMessage(accountError, "Mise a jour du compte impossible."));
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  async function saveShopifyConfig() {
+    if (shopifyConfigBusy) return;
+    setShopifyConfigBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const payload = await api("/api/shopify-config", {
+        method: "POST",
+        body: JSON.stringify({
+          credential: shopifyConfigInput,
+        }),
+      });
+      setDb(payload?.db || db);
+      setNotice(`Boutique Shopify connectee${payload?.shop?.name ? ` : ${payload.shop.name}` : ""}.`);
+      await refreshShopifyData();
+    } catch (configError) {
+      setError(normalizeMessage(configError, "Connexion Shopify impossible."));
+    } finally {
+      setShopifyConfigBusy(false);
+    }
+  }
+
+  async function clearShopifyConfig() {
+    if (shopifyConfigBusy) return;
+    setShopifyConfigBusy(true);
+    setError("");
+    try {
+      const payload = await api("/api/shopify-config", {
+        method: "DELETE",
+      });
+      setDb(payload?.db || db);
+      setShopifyState({
+        loading: false,
+        error: "",
+        data: null,
+        refreshedAt: "",
+        ready: false,
+        storeDomain: "",
+      });
+      setNotice("Boutique Shopify deconnectee.");
+    } catch (configError) {
+      setError(normalizeMessage(configError, "Suppression Shopify impossible."));
+    } finally {
+      setShopifyConfigBusy(false);
+    }
+  }
+
+  async function seedDemoData() {
+    if (demoBusy) return;
+    setDemoBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const fixtures = createDemoFixtures(user);
+      const uniqueById = (existing, incoming) => {
+        const merged = new Map();
+        [...incoming, ...existing].forEach((item) => {
+          if (!item?.id) return;
+          if (!merged.has(item.id)) merged.set(item.id, item);
+        });
+        return [...merged.values()];
+      };
+      const keepRealShopify = Boolean(storedShopifyConfig.storeDomain && storedShopifyConfig.accessToken);
+      const nextDb = {
+        ...db,
+        notes: uniqueById(db.notes || [], fixtures.notes),
+        tasks: uniqueById(db.tasks || [], fixtures.tasks),
+        events: uniqueById(db.events || [], fixtures.events),
+        bookmarks: uniqueById(db.bookmarks || [], fixtures.bookmarks),
+        notifications: uniqueById(db.notifications || [], fixtures.notifications),
+        activity: uniqueById(db.activity || [], fixtures.activity),
+        settings: {
+          ...(db.settings || {}),
+          demoFixtures: {
+            seededAt: new Date().toISOString(),
+            shopifyOrders: keepRealShopify ? (db.settings?.demoFixtures?.shopifyOrders || []) : fixtures.shopifyOrders,
+          },
+        },
+      };
+      await persistDb(nextDb, "Donnees de travail injectees.");
+      await refreshShopifyData();
+    } catch (seedError) {
+      setError(normalizeMessage(seedError, "Remplissage des donnees impossible."));
+    } finally {
+      setDemoBusy(false);
+    }
   }
 
   const notificationFeed = useMemo(() => {
@@ -2220,6 +2609,11 @@ export default function FlowApp() {
           transform: translateY(-1px);
           border-color: var(--line-strong);
         }
+        .icon-button:disabled {
+          opacity: 0.56;
+          cursor: wait;
+          transform: none;
+        }
         .badge {
           position: absolute;
           top: -4px;
@@ -2287,7 +2681,7 @@ export default function FlowApp() {
         .surface-card,
         .floating-card {
           border: 1px solid var(--line);
-          background: var(--surface-layer);
+          background: var(--surface-layer-strong);
           box-shadow: var(--shadow);
           backdrop-filter: blur(20px);
         }
@@ -2617,7 +3011,7 @@ export default function FlowApp() {
           width: min(390px, calc(100vw - 36px));
           border-radius: 30px;
           padding: 16px;
-          z-index: 95;
+          z-index: 140;
           background: var(--surface-layer-strong);
           animation: riseIn 0.24s ease;
           max-height: min(72dvh, 760px);
@@ -2687,7 +3081,7 @@ export default function FlowApp() {
           backdrop-filter: blur(10px);
           display: grid;
           place-items: center;
-          z-index: 120;
+          z-index: 180;
           padding: 18px;
         }
         .command-modal {
@@ -2852,6 +3246,70 @@ export default function FlowApp() {
           display: grid;
           grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
           gap: 18px;
+        }
+        .settings-layout {
+          display: grid;
+          grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+          gap: 20px;
+        }
+        .settings-side,
+        .settings-panel {
+          border-radius: 30px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-strong);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(20px);
+          min-width: 0;
+        }
+        .settings-side {
+          padding: 18px;
+          display: grid;
+          align-content: start;
+          gap: 10px;
+        }
+        .settings-nav-item {
+          all: unset;
+          box-sizing: border-box;
+          width: 100%;
+          min-height: 54px;
+          border-radius: 18px;
+          padding: 0 16px;
+          display: inline-flex;
+          align-items: center;
+          color: var(--text-soft);
+          cursor: pointer;
+          border: 1px solid transparent;
+          transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+        }
+        .settings-nav-item:hover {
+          transform: translateY(-1px);
+        }
+        .settings-nav-item.active {
+          background: var(--surface-layer-soft);
+          border-color: var(--line);
+          color: var(--text-main);
+        }
+        .settings-panel {
+          padding: 22px;
+        }
+        .settings-form {
+          display: grid;
+          gap: 18px;
+        }
+        .settings-field-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
+        .toggle-field {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          color: var(--text-soft);
+        }
+        .toggle-field input {
+          width: 18px;
+          height: 18px;
         }
         .setting-stack {
           display: grid;
@@ -3038,6 +3496,16 @@ export default function FlowApp() {
           animation: riseIn 0.3s ease;
           min-width: 0;
         }
+        .interactive-card {
+          width: 100%;
+          text-align: left;
+          cursor: pointer;
+          transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .interactive-card:hover {
+          transform: translateY(-2px);
+          border-color: var(--line-strong);
+        }
         .shopify-card-head {
           display: flex;
           align-items: flex-start;
@@ -3146,6 +3614,46 @@ export default function FlowApp() {
           gap: 10px;
           flex-wrap: wrap;
         }
+        .shopify-connect-card {
+          min-height: 280px;
+        }
+        .shopify-connect-form {
+          display: grid;
+          gap: 14px;
+          margin-top: 18px;
+        }
+        .shopify-connect-form textarea {
+          width: 100%;
+          min-height: 136px;
+          border-radius: 24px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-soft);
+          color: var(--text-main);
+          padding: 16px 18px;
+          resize: vertical;
+        }
+        .orders-shell {
+          display: grid;
+          gap: 18px;
+        }
+        .orders-toolbar {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 12px;
+          align-items: center;
+        }
+        .orders-sort-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          justify-content: flex-end;
+        }
+        .inline-search {
+          min-width: 0;
+        }
+        .orders-table-wrap {
+          max-height: min(62dvh, 760px);
+        }
         .shopify-skeleton {
           position: relative;
           overflow: hidden;
@@ -3224,7 +3732,8 @@ export default function FlowApp() {
           .overview-grid,
           .immersive-bottom,
           .profile-layout-grid,
-          .shopify-grid {
+          .shopify-grid,
+          .settings-layout {
             grid-template-columns: 1fr;
           }
           .shopify-kpis {
@@ -3326,6 +3835,13 @@ export default function FlowApp() {
           .metrics-grid,
           .mini-grid {
             grid-template-columns: 1fr;
+          }
+          .settings-field-grid,
+          .orders-toolbar {
+            grid-template-columns: 1fr;
+          }
+          .orders-sort-row {
+            justify-content: flex-start;
           }
           .shopify-kpis {
             display: none;
@@ -3539,6 +4055,15 @@ export default function FlowApp() {
                 <button type="button" className="icon-button" onClick={() => setNotificationOpen((current) => !current)} aria-label="Ouvrir les notifications">
                   <Icon name="bell" size={18} />
                   {unreadNotifications ? <span className="badge">{Math.min(unreadNotifications, 9)}</span> : null}
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => void seedDemoData()}
+                  aria-label="Remplir le site avec des donnees de travail"
+                  disabled={demoBusy}
+                >
+                  <Icon name="spark" size={18} />
                 </button>
                 <button
                   type="button"
@@ -3939,190 +4464,289 @@ export default function FlowApp() {
                   <div className="page-head">
                     <div>
                       <h1>Shopify</h1>
-                      <p>Lecture directe de la boutique sur la période active.</p>
+                      <p>{shopifyState.ready ? `Boutique connectee · ${shopifyState.storeDomain}` : "Connecte ta boutique ou remplis le site avec des donnees de travail."}</p>
                     </div>
                   </div>
 
-                  <div className="shopify-actions">
-                    {SHOPIFY_PERIODS.map((period) => (
-                      <button
-                        key={period.id}
-                        type="button"
-                        className={`pill-button ${shopifyPeriod === period.id ? "active" : ""}`}
-                        onClick={() => setShopifyPeriod(period.id)}
-                      >
-                        {period.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {shopifyState.error ? (
-                    <div className="surface-card">
+                  {!shopifyState.ready && !shopifyState.data ? (
+                    <div className="surface-card shopify-connect-card">
                       <div className="surface-head">
                         <div>
-                          <h2>Connexion Shopify indisponible</h2>
-                          <p>{shopifyState.error}</p>
+                          <h2>Aucune boutique connectee</h2>
+                          <p>Colle une cle au format <code>store.myshopify.com|shpat_xxx</code>. Le token se recupere dans Shopify Admin avec la permission <code>read_orders</code>.</p>
+                        </div>
+                      </div>
+                      <div className="shopify-connect-form">
+                        <textarea
+                          value={shopifyConfigInput}
+                          onChange={(event) => setShopifyConfigInput(event.target.value)}
+                          placeholder="sommeil-leste.myshopify.com|shpat_xxx"
+                        />
+                        <div className="button-row">
+                          <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
+                            {shopifyConfigBusy ? "Connexion..." : "Connecter la boutique"}
+                          </button>
                         </div>
                       </div>
                     </div>
-                  ) : null}
-
-                  <div className="shopify-kpis">
-                    {[
-                      { label: "CA période", value: formatCurrency(shopifyOverview.revenueCurrent), icon: "activity" },
-                      { label: "CA du mois", value: formatCurrency(shopifyOverview.revenueMonth), icon: "grid" },
-                      { label: "Commandes", value: `${shopifyOverview.ordersCurrent}`, icon: "note" },
-                      { label: "Non fulfillées", value: `${shopifyOverview.pendingFulfillment}`, icon: "check" },
-                    ].map((item) => (
-                      <div key={item.label} className="shopify-card">
-                        <div className="shopify-card-head">
-                          <span>{item.label}</span>
-                          <Icon name={item.icon} size={18} />
-                        </div>
-                        {shopifyState.loading && !shopifyState.data ? (
-                          <div className="shopify-skeleton" style={{ marginTop: 22 }}>
-                            <div className="skeleton-line" style={{ width: "62%", height: 36, borderRadius: 18 }} />
-                          </div>
-                        ) : (
-                          <div className="shopify-value">{item.value}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="shopify-card shopify-mobile-kpi-card">
-                    <div className="surface-head">
-                      <div>
-                        <h2>Période · {activeShopifyPeriodLabel}</h2>
-                      </div>
-                    </div>
-                    <div className="shopify-mobile-kpi-grid">
-                      <div className="shopify-mobile-kpi-item">
-                        <span>CA période</span>
-                        <strong>{formatCurrency(shopifyOverview.revenueCurrent)}</strong>
-                      </div>
-                      <div className="shopify-mobile-kpi-item">
-                        <span>CA du mois</span>
-                        <strong>{formatCurrency(shopifyOverview.revenueMonth)}</strong>
-                      </div>
-                      <div className="shopify-mobile-kpi-item">
-                        <span>Commandes</span>
-                        <strong>{shopifyOverview.ordersCurrent}</strong>
-                      </div>
-                      <div className="shopify-mobile-kpi-item">
-                        <span>À traiter</span>
-                        <strong>{shopifyOverview.pendingFulfillment}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="shopify-grid">
-                    <div className="content-stack">
-                      <div className="shopify-card">
-                        <div className="surface-head">
-                          <div>
-                            <h2>CA — {activeShopifyPeriodLabel}</h2>
-                            <p>{shopifyState.refreshedAt ? `Mise à jour ${formatShopifyDate(shopifyState.refreshedAt)}` : "En attente de données Shopify."}</p>
-                          </div>
-                        </div>
-                        {shopifyState.loading && !shopifyState.data ? (
-                          <div className="shopify-skeleton skeleton-box" />
-                        ) : (
-                          <div className="shopify-chart-wrap">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={visibleShopifyChart}>
-                                <defs>
-                                  <linearGradient id="shopifyArea" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="rgba(185,197,171,0.72)" />
-                                    <stop offset="100%" stopColor="rgba(185,197,171,0.04)" />
-                                  </linearGradient>
-                                </defs>
-                                <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
-                                <XAxis dataKey="label" stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12, opacity: 0.7 }} axisLine={false} tickLine={false} />
-                                <YAxis stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12, opacity: 0.7 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(value)}€`} />
-                                <Tooltip
-                                  contentStyle={{
-                                    background: "rgba(16,18,22,0.92)",
-                                    border: "1px solid rgba(255,255,255,0.1)",
-                                    borderRadius: "18px",
-                                    color: "#f5f7fb",
-                                  }}
-                                  formatter={(value) => [formatCurrency(value), "CA"]}
-                                />
-                                <Area type="monotone" dataKey="revenue" stroke="currentColor" strokeWidth={2.4} fill="url(#shopifyArea)" />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          </div>
-                        )}
+                  ) : (
+                    <>
+                      <div className="shopify-actions">
+                        {SHOPIFY_PERIODS.map((period) => (
+                          <button
+                            key={period.id}
+                            type="button"
+                            className={`pill-button ${shopifyPeriod === period.id ? "active" : ""}`}
+                            onClick={() => setShopifyPeriod(period.id)}
+                          >
+                            {period.label}
+                          </button>
+                        ))}
                       </div>
 
-                      <div className="shopify-card">
-                        <div className="surface-head">
-                          <div>
-                            <h2>Dernières commandes</h2>
-                            <p>Les plus récentes en haut. Les anciennes disparaissent après 3 jours si elles sont traitées.</p>
-                          </div>
-                        </div>
-                        {shopifyState.loading && !shopifyState.data ? (
-                          <div className="shopify-skeleton skeleton-box" />
-                        ) : (
-                          <div className="shopify-table-wrap">
-                            <table className="shopify-table">
-                              <thead>
-                                <tr>
-                                  <th>#</th>
-                                  <th>Date</th>
-                                  <th>Client</th>
-                                  <th>Total €</th>
-                                  <th>Paiement</th>
-                                  <th>Fulfillment</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {visibleShopifyOrders.map((order) => (
-                                  <tr key={order.id}>
-                                    <td>{order.number}</td>
-                                    <td>{formatShopifyDate(order.createdAt)}</td>
-                                    <td>{order.customer}</td>
-                                    <td>{formatCurrency(order.total)}</td>
-                                    <td><span className={`status-pill ${normalizeStatusTone(order.paymentStatus)}`}>{order.paymentStatus}</span></td>
-                                    <td><span className={`status-pill ${normalizeStatusTone(order.fulfillmentStatus)}`}>{order.fulfillmentStatus}</span></td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                            {!visibleShopifyOrders.length ? <div className="notification-empty">Aucune commande sur cette période.</div> : null}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="content-stack">
-                      <div className="shopify-card">
-                        <div className="surface-head">
-                          <div>
-                            <h2>Top 5 produits du mois</h2>
-                            <p>Agrégation des <code>line_items</code> des commandes du mois en cours.</p>
-                          </div>
-                        </div>
-                        {shopifyState.loading && !shopifyState.data ? (
-                          <div className="shopify-skeleton skeleton-box" />
-                        ) : (
-                          <div className="shopify-products">
-                            {(shopifyState.data?.topProducts || []).map((product) => (
-                              <div key={product.id} className="shopify-product-row">
-                                <div style={{ minWidth: 0 }}>
-                                  <strong>{product.title}</strong>
-                                  <span>{product.quantity} vente(s)</span>
-                                </div>
-                                <strong>{formatCurrency(product.revenue)}</strong>
+                      <div className="shopify-kpis">
+                        {[
+                          { label: "CA periode", value: formatCurrency(shopifyOverview.revenueCurrent), icon: "activity" },
+                          { label: "CA ce mois", value: formatCurrency(shopifyOverview.revenueMonth), icon: "grid" },
+                          { label: "Commandes", value: `${shopifyOverview.ordersCurrent}`, icon: "note", action: () => setActiveSection("shopify-orders") },
+                          { label: "Non fulfillées", value: `${shopifyOverview.pendingFulfillment}`, icon: "check" },
+                        ].map((item) => {
+                          const Tag = item.action ? "button" : "div";
+                          return (
+                            <Tag key={item.label} type={item.action ? "button" : undefined} className={`shopify-card ${item.action ? "interactive-card" : ""}`} onClick={item.action}>
+                              <div className="shopify-card-head">
+                                <span>{item.label}</span>
+                                <Icon name={item.icon} size={18} />
                               </div>
-                            ))}
-                            {!(shopifyState.data?.topProducts || []).length ? (
-                              <div className="notification-empty">Aucun produit remonté pour la période courante.</div>
-                            ) : null}
+                              {shopifyState.loading && !shopifyState.data ? (
+                                <div className="shopify-skeleton" style={{ marginTop: 22 }}>
+                                  <div className="skeleton-line" style={{ width: "62%", height: 36, borderRadius: 18 }} />
+                                </div>
+                              ) : (
+                                <div className="shopify-value">{item.value}</div>
+                              )}
+                            </Tag>
+                          );
+                        })}
+                      </div>
+
+                      <div className="shopify-card shopify-mobile-kpi-card interactive-card" onClick={() => setActiveSection("shopify-orders")} role="button" tabIndex={0}>
+                        <div className="surface-head">
+                          <div>
+                            <h2>Période · {activeShopifyPeriodLabel}</h2>
                           </div>
-                        )}
+                        </div>
+                        <div className="shopify-mobile-kpi-grid">
+                          <div className="shopify-mobile-kpi-item">
+                            <span>CA période</span>
+                            <strong>{formatCurrency(shopifyOverview.revenueCurrent)}</strong>
+                          </div>
+                          <div className="shopify-mobile-kpi-item">
+                            <span>CA du mois</span>
+                            <strong>{formatCurrency(shopifyOverview.revenueMonth)}</strong>
+                          </div>
+                          <div className="shopify-mobile-kpi-item">
+                            <span>Commandes</span>
+                            <strong>{shopifyOverview.ordersCurrent}</strong>
+                          </div>
+                          <div className="shopify-mobile-kpi-item">
+                            <span>À traiter</span>
+                            <strong>{shopifyOverview.pendingFulfillment}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shopify-grid">
+                        <div className="content-stack">
+                          <div className="shopify-card">
+                            <div className="surface-head">
+                              <div>
+                                <h2>Performance commerciale</h2>
+                                <p>{shopifyState.refreshedAt ? `Mise à jour ${formatShopifyDate(shopifyState.refreshedAt)}` : "En attente de données Shopify."}</p>
+                              </div>
+                            </div>
+                            {shopifyState.loading && !shopifyState.data ? (
+                              <div className="shopify-skeleton skeleton-box" />
+                            ) : (
+                              <div className="shopify-chart-wrap">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <AreaChart data={visibleShopifyChart}>
+                                    <defs>
+                                      <linearGradient id="shopifyCurrentArea" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="rgba(190,201,174,0.44)" />
+                                        <stop offset="100%" stopColor="rgba(190,201,174,0.04)" />
+                                      </linearGradient>
+                                    </defs>
+                                    <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+                                    <XAxis dataKey="label" stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12, opacity: 0.72 }} axisLine={false} tickLine={false} />
+                                    <YAxis stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12, opacity: 0.72 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(value)}€`} />
+                                    <Tooltip
+                                      contentStyle={{
+                                        background: "rgba(16,18,22,0.92)",
+                                        border: "1px solid rgba(255,255,255,0.1)",
+                                        borderRadius: "18px",
+                                        color: "#f5f7fb",
+                                      }}
+                                      formatter={(value, key) => [formatCurrency(value), key === "previous" ? "Periode precedente" : "Periode courante"]}
+                                    />
+                                    <Area type="monotone" dataKey="previous" stroke="rgba(255,255,255,0.3)" strokeWidth={2} fill="rgba(255,255,255,0)" />
+                                    <Area type="monotone" dataKey="current" stroke="currentColor" strokeWidth={2.8} fill="url(#shopifyCurrentArea)" />
+                                  </AreaChart>
+                                </ResponsiveContainer>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="shopify-card interactive-card" onClick={() => setActiveSection("shopify-orders")} role="button" tabIndex={0}>
+                            <div className="surface-head">
+                              <div>
+                                <h2>Dernières commandes</h2>
+                                <p>Les plus récentes en haut. Les commandes traitées de plus de 3 jours sont masquées.</p>
+                              </div>
+                            </div>
+                            {shopifyState.loading && !shopifyState.data ? (
+                              <div className="shopify-skeleton skeleton-box" />
+                            ) : (
+                              <div className="shopify-table-wrap">
+                                <table className="shopify-table">
+                                  <thead>
+                                    <tr>
+                                      <th>#</th>
+                                      <th>Date</th>
+                                      <th>Client</th>
+                                      <th>Total €</th>
+                                      <th>Paiement</th>
+                                      <th>Fulfillment</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {visibleShopifyOrders.map((order) => (
+                                      <tr key={order.id}>
+                                        <td>{order.number}</td>
+                                        <td>{formatShopifyDate(order.createdAt)}</td>
+                                        <td>{order.customer}</td>
+                                        <td>{formatCurrency(order.total)}</td>
+                                        <td><span className={`status-pill ${normalizeStatusTone(order.paymentStatus)}`}>{order.paymentStatus}</span></td>
+                                        <td><span className={`status-pill ${normalizeStatusTone(order.fulfillmentStatus)}`}>{order.fulfillmentStatus}</span></td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                {!visibleShopifyOrders.length ? <div className="notification-empty">Aucune commande sur cette période.</div> : null}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="content-stack">
+                          <div className="shopify-card">
+                            <div className="surface-head">
+                              <div>
+                                <h2>Top 5 produits du mois</h2>
+                                <p>Produits les plus vendus du mois courant.</p>
+                              </div>
+                              {storedShopifyConfig.storeDomain ? (
+                                <button type="button" className="ghost" onClick={() => void clearShopifyConfig()} disabled={shopifyConfigBusy}>
+                                  Déconnecter
+                                </button>
+                              ) : null}
+                            </div>
+                            {shopifyState.loading && !shopifyState.data ? (
+                              <div className="shopify-skeleton skeleton-box" />
+                            ) : (
+                              <div className="shopify-products">
+                                {(shopifyState.data?.topProducts || []).map((product) => (
+                                  <div key={product.id} className="shopify-product-row">
+                                    <div style={{ minWidth: 0 }}>
+                                      <strong>{product.title}</strong>
+                                      <span>{product.quantity} vente(s)</span>
+                                    </div>
+                                    <strong>{formatCurrency(product.revenue)}</strong>
+                                  </div>
+                                ))}
+                                {!(shopifyState.data?.topProducts || []).length ? (
+                                  <div className="notification-empty">Aucun produit sur la période.</div>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </section>
+              ) : activeSection === "shopify-orders" ? (
+                <section className="shopify-layout">
+                  <div className="page-head">
+                    <div>
+                      <h1>Commandes Shopify</h1>
+                      <p>Tri et recherche directe sur les commandes de la période active.</p>
+                    </div>
+                  </div>
+                  <div className="orders-shell">
+                    <div className="orders-toolbar">
+                      <div className="search-box inline-search">
+                        <Icon name="search" size={18} />
+                        <input
+                          value={shopifyOrderQuery}
+                          onChange={(event) => setShopifyOrderQuery(event.target.value)}
+                          placeholder="Rechercher par produit, date ou client"
+                          aria-label="Rechercher dans les commandes Shopify"
+                        />
+                      </div>
+                      <div className="orders-sort-row">
+                        {[
+                          { id: "recent", label: "Récent" },
+                          { id: "oldest", label: "Ancien" },
+                          { id: "expensive", label: "Plus cher" },
+                          { id: "cheap", label: "Moins cher" },
+                        ].map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            className={`pill-button ${shopifyOrderSort === option.id ? "active" : ""}`}
+                            onClick={() => setShopifyOrderSort(option.id)}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="shopify-card">
+                      <div className="surface-head">
+                        <div>
+                          <h2>Commandes visibles</h2>
+                          <p>{shopifyOrdersPageRows.length} résultat(s) sur {activeShopifyPeriodLabel.toLowerCase()}.</p>
+                        </div>
+                      </div>
+                      <div className="shopify-table-wrap orders-table-wrap">
+                        <table className="shopify-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Date</th>
+                              <th>Client</th>
+                              <th>Total €</th>
+                              <th>Paiement</th>
+                              <th>Fulfillment</th>
+                              <th>Produits</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {shopifyOrdersPageRows.map((order) => (
+                              <tr key={order.id}>
+                                <td>{order.number}</td>
+                                <td>{formatShopifyDate(order.createdAt)}</td>
+                                <td>{order.customer}</td>
+                                <td>{formatCurrency(order.total)}</td>
+                                <td><span className={`status-pill ${normalizeStatusTone(order.paymentStatus)}`}>{order.paymentStatus}</span></td>
+                                <td><span className={`status-pill ${normalizeStatusTone(order.fulfillmentStatus)}`}>{order.fulfillmentStatus}</span></td>
+                                <td>{(order.lineItems || []).map((item) => item.title).filter(Boolean).join(", ") || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {!shopifyOrdersPageRows.length ? <div className="notification-empty">Aucune commande ne correspond à cette recherche.</div> : null}
                       </div>
                     </div>
                   </div>
@@ -4131,113 +4755,193 @@ export default function FlowApp() {
                 <section className="overview-layout">
                   <div className="page-head">
                     <div>
-                      <h1>Profil et paramètres</h1>
+                      <h1>Paramètres</h1>
                     </div>
                   </div>
 
-                  <div className="profile-layout-grid">
-                    <div className="setting-stack">
-                      <div className="setting-card">
-                        <div className="profile-identity">
-                          <div className="profile-avatar">
-                            {profilePhotoUrl ? <img src={profilePhotoUrl} alt={user.name || "Profil"} /> : initialsFromName(user.name)}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <strong>{user.name || "Compte Flow"}</strong>
-                            <span>{user.email}</span>
-                          </div>
-                        </div>
-                        <div className="setting-options">
-                          <div className="setting-option active">
-                            <strong>Session active</strong>
-                            <span>Compte mémorisé sur cet appareil.</span>
-                          </div>
-                          <div className="setting-option active">
-                            <strong>Thème actuel: {shellTheme === "dark" ? "Sombre" : "Clair"}</strong>
-                            <span>Bascule disponible dans la topbar.</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="setting-card">
-                        <h2>Structure du site</h2>
-                        <p>Sur téléphone, la vue tableau reste imposée.</p>
-                        <div className="setting-options">
-                          <button
-                            type="button"
-                            className={`setting-option ${dashboardLayout === "overview" ? "active" : ""}`}
-                            onClick={() => void applyLayout("overview")}
-                          >
-                            <strong>Vue tableau</strong>
-                            <span>Sidebar gauche et lecture dense.</span>
-                          </button>
-                          <button
-                            type="button"
-                            className={`setting-option ${dashboardLayout === "immersive" ? "active" : ""} ${isMobile ? "disabled" : ""}`}
-                            onClick={() => void applyLayout("immersive")}
-                            disabled={isMobile}
-                          >
-                            <strong>Vue immersive</strong>
-                            <span>Modules en haut et sans barre gauche.</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="setting-card">
-                        <h2>Fond</h2>
-                        <div className="setting-options">
-                          <div className="setting-option active">
-                            <strong>{shellTheme === "dark" ? "Fond sombre" : "Fond clair"}</strong>
-                            <span>{currentThemeBackground ? "Image personnalisée active." : "Fond par défaut actif."}</span>
-                          </div>
-                        </div>
-                        <div className="button-row" style={{ marginTop: 18 }}>
-                          <button type="button" className="secondary" onClick={() => backgroundInputRef.current?.click()} disabled={backgroundBusy}>
-                            {backgroundBusy ? "Import..." : "Importer une image"}
-                          </button>
-                          <button type="button" className="ghost" onClick={() => void applyCustomBackground("")} disabled={!currentThemeBackground || backgroundBusy}>
-                            Retirer le fond
-                          </button>
-                        </div>
-                      </div>
+                  <div className="settings-layout">
+                    <div className="settings-side">
+                      {[
+                        { id: "account", label: "My Account" },
+                        { id: "appearance", label: "Appearance" },
+                        { id: "integrations", label: "Integrations" },
+                        { id: "notifications", label: "Notifications" },
+                        { id: "advanced", label: "Advanced" },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={`settings-nav-item ${settingsTab === item.id ? "active" : ""}`}
+                          onClick={() => setSettingsTab(item.id)}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
                     </div>
 
-                    <div className="setting-stack">
-                      <div className="setting-card">
-                        <h2>État du shell</h2>
-                        <div className="overview-list" style={{ marginTop: 18 }}>
-                          <div className="overview-list-item">
+                    <div className="settings-panel">
+                      {settingsTab === "account" ? (
+                        <form className="settings-form" onSubmit={saveAccountSettings}>
+                          <div className="surface-head">
                             <div>
-                              <strong>Barre latérale</strong>
-                              <span>{sidebarLocked ? "Verrouillée ouverte" : "Hover pour ouverture temporaire"}</span>
+                              <h2>My Account</h2>
+                              <p>Informations reliees a ton compte et a ta connexion.</p>
                             </div>
                           </div>
-                          <div className="overview-list-item">
-                            <div>
-                              <strong>Vue active</strong>
-                              <span>{effectiveLayout === "immersive" ? "Immersive desktop" : "Tableau"}</span>
-                            </div>
+                          <div className="settings-field-grid">
+                            <Field label="Nom" value={accountForm.name} onChange={(value) => setAccountForm((current) => ({ ...current, name: value }))} placeholder="Ton nom" />
+                            <Field label="Email" type="email" value={accountForm.email} onChange={(value) => setAccountForm((current) => ({ ...current, email: value }))} placeholder="toi@flow.app" />
+                            <Field label="Username" value={accountForm.username} onChange={(value) => setAccountForm((current) => ({ ...current, username: value }))} placeholder="username" />
+                            <Field label="Nom complet" value={accountForm.fullName} onChange={(value) => setAccountForm((current) => ({ ...current, fullName: value }))} placeholder="Nom complet" />
+                            <Field label="Telephone" value={accountForm.phone} onChange={(value) => setAccountForm((current) => ({ ...current, phone: value }))} placeholder="+33..." />
+                            <Field label="Photo" value={accountForm.photoUrl} onChange={(value) => setAccountForm((current) => ({ ...current, photoUrl: value }))} placeholder="URL ou image locale deja importee" />
+                            <Field label="Mot de passe actuel" type="password" value={accountForm.currentPassword} onChange={(value) => setAccountForm((current) => ({ ...current, currentPassword: value }))} placeholder="Mot de passe actuel" />
+                            <Field label="Nouveau mot de passe" type="password" value={accountForm.newPassword} onChange={(value) => setAccountForm((current) => ({ ...current, newPassword: value }))} placeholder="Nouveau mot de passe" />
                           </div>
-                          <div className="overview-list-item">
-                            <div>
-                              <strong>Release chargée</strong>
-                              <span>{releaseMeta}</span>
-                            </div>
+                          <label className="toggle-field">
+                            <input type="checkbox" checked={accountForm.phoneVisible} onChange={(event) => setAccountForm((current) => ({ ...current, phoneVisible: event.target.checked }))} />
+                            <span>Afficher le téléphone dans le compte</span>
+                          </label>
+                          <div className="button-row">
+                            <button type="submit" className="primary" disabled={accountBusy}>
+                              {accountBusy ? "Enregistrement..." : "Enregistrer"}
+                            </button>
                           </div>
-                        </div>
-                      </div>
+                        </form>
+                      ) : null}
 
-                      <div className="setting-card">
-                        <h2>Compte</h2>
-                        <div className="button-row" style={{ marginTop: 18 }}>
-                          <button type="button" className="secondary" onClick={() => setReleaseOpen(true)}>
-                            Voir la version
-                          </button>
-                          <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"}>
-                            {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
-                          </button>
+                      {settingsTab === "appearance" ? (
+                        <div className="settings-form">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Appearance</h2>
+                              <p>Theme, structure et fond du shell.</p>
+                            </div>
+                          </div>
+                          <div className="setting-options">
+                            <button type="button" className={`setting-option ${shellTheme === "dark" ? "active" : ""}`} onClick={() => void applyTheme("dark")}>
+                              <strong>Mode sombre</strong>
+                              <span>Fond sombre anime et cartes opaques.</span>
+                            </button>
+                            <button type="button" className={`setting-option ${shellTheme === "light" ? "active" : ""}`} onClick={() => void applyTheme("light")}>
+                              <strong>Mode clair</strong>
+                              <span>Version eclaircie sans basculer en blanc.</span>
+                            </button>
+                            <button type="button" className={`setting-option ${dashboardLayout === "overview" ? "active" : ""}`} onClick={() => void applyLayout("overview")}>
+                              <strong>Vue tableau</strong>
+                              <span>Sidebar gauche et grille dense.</span>
+                            </button>
+                            <button type="button" className={`setting-option ${dashboardLayout === "immersive" ? "active" : ""} ${isMobile ? "disabled" : ""}`} onClick={() => void applyLayout("immersive")} disabled={isMobile}>
+                              <strong>Vue immersive</strong>
+                              <span>Desktop seulement, modules remontes en haut.</span>
+                            </button>
+                          </div>
+                          <div className="button-row">
+                            <button type="button" className="secondary" onClick={() => backgroundInputRef.current?.click()} disabled={backgroundBusy}>
+                              {backgroundBusy ? "Import..." : "Importer un fond"}
+                            </button>
+                            <button type="button" className="ghost" onClick={() => void applyCustomBackground("")} disabled={!currentThemeBackground || backgroundBusy}>
+                              Retirer le fond
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      ) : null}
+
+                      {settingsTab === "integrations" ? (
+                        <div className="settings-form">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Integrations</h2>
+                              <p>Chaque utilisateur connecte sa propre boutique Shopify.</p>
+                            </div>
+                          </div>
+                          <div className="shopify-connect-form">
+                            <textarea
+                              value={shopifyConfigInput}
+                              onChange={(event) => setShopifyConfigInput(event.target.value)}
+                              placeholder="store.myshopify.com|shpat_xxx"
+                            />
+                            <div className="button-row">
+                              <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
+                                {shopifyConfigBusy ? "Verification..." : "Verifier et connecter"}
+                              </button>
+                              <button type="button" className="ghost" onClick={() => void clearShopifyConfig()} disabled={shopifyConfigBusy || !storedShopifyConfig.storeDomain}>
+                                Deconnecter
+                              </button>
+                            </div>
+                            <p className="helper">{storedShopifyConfig.storeDomain ? `Boutique active : ${storedShopifyConfig.storeDomain}` : "Aucune boutique connectee."}</p>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {settingsTab === "notifications" ? (
+                        <div className="settings-form">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Notifications</h2>
+                              <p>Lecture rapide de ce que ton compte a recu.</p>
+                            </div>
+                          </div>
+                          <div className="overview-list">
+                            {notificationFeed.map((item) => (
+                              <div key={item.id} className="overview-list-item">
+                                <div>
+                                  <strong>{item.title}</strong>
+                                  <span>{item.detail}</span>
+                                </div>
+                                <span className="helper">{formatRelative(item.createdAt)}</span>
+                              </div>
+                            ))}
+                            {!notificationFeed.length ? (
+                              <div className="overview-list-item">
+                                <div>
+                                  <strong>Aucune notification</strong>
+                                  <span>Le centre est pret.</span>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {settingsTab === "advanced" ? (
+                        <div className="settings-form">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Advanced</h2>
+                              <p>Etat du shell, release et session.</p>
+                            </div>
+                          </div>
+                          <div className="overview-list">
+                            <div className="overview-list-item">
+                              <div>
+                                <strong>Barre latérale</strong>
+                                <span>{sidebarLocked ? "Verrouillée ouverte" : "Hover pour ouverture temporaire"}</span>
+                              </div>
+                            </div>
+                            <div className="overview-list-item">
+                              <div>
+                                <strong>Vue active</strong>
+                                <span>{effectiveLayout === "immersive" ? "Immersive desktop" : "Tableau"}</span>
+                              </div>
+                            </div>
+                            <div className="overview-list-item">
+                              <div>
+                                <strong>Version chargee</strong>
+                                <span>{releaseMeta}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="button-row">
+                            <button type="button" className="secondary" onClick={() => setReleaseOpen(true)}>
+                              Ouvrir le journal
+                            </button>
+                            <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"}>
+                              {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </section>

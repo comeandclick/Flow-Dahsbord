@@ -1,4 +1,4 @@
-import { chromium } from "playwright";
+import { chromium } from "../node_modules/playwright/index.mjs";
 
 const targetUrl = process.argv[2] || process.env.FLOW_URL || "http://127.0.0.1:3100";
 const errors = [];
