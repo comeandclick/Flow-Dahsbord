@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.23.7
+### 1.23.8
 
-- **Date** : 30/04/2026 00:24
-- **Résumé** : Flow exclut maintenant les commandes Shopify annulées de tous les calculs utiles, tout en gardant le shell bloqué dans le viewport et le dashboard plus dense.
+- **Date** : 30/04/2026 00:58
+- **Résumé** : Flow protège maintenant la continuité des comptes en refusant toute bascule silencieuse vers un store vide, tout en gardant Shopify cohérent sur les commandes annulées.
 
+- **Continuité des comptes verrouillée** : En production, Flow ne recrée plus jamais un store vide sur erreur distante et renvoie une erreur claire si le stockage comptes est indisponible.
 - **Commandes annulées neutralisées** : Les commandes Shopify annulées ne comptent plus dans le CA, le non fulfillé, le top produits du mois ni le widget Shopify du dashboard.
 - **Shell verrouillé et couches nettoyées** : La page principale ne scrolle plus, les popups restent au premier plan et la sidebar fermée desktop n'affiche plus que la photo ou l'initiale.
-- **Shopify piloté par période** : Les filtres Aujourd'hui, Hier, 7 jours, 1 mois, 1 an et Depuis toujours pilotent maintenant le widget dashboard, les KPI, le graphique et les dernières commandes.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

@@ -83,7 +83,11 @@ export async function POST(request) {
 
     return Response.json({ user: sessionUser, db, admin });
   } catch (error) {
-    const status = error.retryAfterMs ? 429 : error.message === "Ce compte existe déjà" ? 409 : 500;
+    const status = error.retryAfterMs
+      ? 429
+      : error.message === "Ce compte existe déjà"
+        ? 409
+        : error.status || 500;
     return Response.json({ error: error.message || "Impossible de créer le compte." }, { status });
   }
 }

@@ -85,7 +85,7 @@ export async function POST(request) {
 
     return Response.json({ user: sessionUser, db, admin: isAdminAccount(account, store) });
   } catch (error) {
-    const status = error.retryAfterMs ? 429 : 500;
+    const status = error.retryAfterMs ? 429 : error.status || 500;
     return Response.json({ error: error.message || "Connexion impossible." }, { status });
   }
 }

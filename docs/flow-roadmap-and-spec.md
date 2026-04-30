@@ -8,6 +8,8 @@
   - ne jamais supprimer les comptes utilisateurs existants
   - ne jamais réinitialiser le store à cause d'une mise à jour visuelle ou produit
   - garder la connexion multi-appareils via le compte unique et le store distant
+  - en production, ne jamais recréer automatiquement un store vide si l'URL distante disparaît
+  - si le stockage comptes est indisponible, remonter une vraie erreur au lieu de faire croire que le compte n'existe plus
 - Shopify:
   - module Shopify ajouté sans casser l'auth existante
   - proxy Shopify branché côté serveur

@@ -61,12 +61,13 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.23.6`
+- Version actuelle: `v1.23.8`
 
 ## Priorités ouvertes - 30/04/2026
 
 - suivre `docs/flow-roadmap-and-spec.md` comme to-do active
 - ne jamais supprimer ni invalider les comptes ou données existants pendant les prochaines passes
+- ne jamais autoriser en production une auto-création de store vide si le store distant répond `404`
 - priorité UX:
   - shell principal non scrollable
   - dashboard d'accueil orienté données utilisateur
@@ -76,6 +77,24 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
   - fonds dark/light animés maison
   - Shopify mobile compact
   - drag and drop des blocs sans trous
+
+## Passe produit 26 - 30/04/2026 00:58
+
+### Fait dans cette passe
+
+- continuité comptes durcie:
+  - en production, `readStore()` ne retourne plus jamais une base vide quand le store distant répond `404`
+  - en production, `writeStore()` ne recrée plus jamais automatiquement un store vide
+  - les routes `session / login / register` renvoient maintenant une vraie erreur de stockage au lieu d'un faux `Compte introuvable`
+- Shopify:
+  - les commandes annulées restent exclues du CA, du non fulfillé, du top produits et du widget dashboard
+
+### Vérification réelle faite
+
+- `npm run build` OK
+- simulation `FLOW_STORE_URL` manquant en production:
+  - erreur `503`
+  - message explicite `Le stockage des comptes est indisponible...`
 
 ## Passe produit 24 - 30/04/2026 00:14
 

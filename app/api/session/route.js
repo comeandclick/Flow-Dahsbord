@@ -28,7 +28,10 @@ export async function GET() {
 
     const user = { uid: account.uid, name: account.name, email: account.email };
     return Response.json({ user, db: normalizeDb(account.db, user), admin: isAdminAccount(account, store) });
-  } catch {
-    return Response.json({ user: null, db: null });
+  } catch (error) {
+    return Response.json(
+      { user: null, db: null, error: error.message || "Session indisponible" },
+      { status: error.status || 500 },
+    );
   }
 }

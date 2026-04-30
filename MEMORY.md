@@ -24,6 +24,9 @@
   - module Shopify dédié
   - filtres Shopify par période globale
   - fond personnalisable par thème actif depuis le profil
+  - continuité du store durcie en production:
+    - pas de recréation automatique de base vide si le store distant disparaît
+    - erreur explicite de stockage au lieu d'un faux `Compte introuvable`
 - le dashboard admin reste present a part
 - mémoire de DA à suivre:
   - `docs/design-theme-memory.md`
