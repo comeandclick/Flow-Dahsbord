@@ -265,6 +265,11 @@ function safeAmount(value) {
   return Number.parseFloat(value || 0) || 0;
 }
 
+function isShopifyOrderCancelled(order) {
+  const paymentStatus = `${order?.financial_status || order?.paymentStatus || ""}`.toLowerCase();
+  return Boolean(order?.cancelled_at || order?.cancelledAt || order?.cancel_reason || order?.cancelReason || paymentStatus === "voided");
+}
+
 function toTimestamp(value) {
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : 0;
@@ -436,6 +441,8 @@ function summarizeShopifyData({ orders }) {
       id: order.id,
       number: order.name || `#${order.order_number || order.id}`,
       createdAt: order.created_at,
+      cancelledAt: order.cancelled_at || "",
+      cancelReason: order.cancel_reason || "",
       customer: order.customer?.first_name || order.customer?.last_name
         ? `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim()
         : order.email || "Client inconnu",
@@ -444,6 +451,7 @@ function summarizeShopifyData({ orders }) {
       fulfillmentStatus: order.fulfillment_status || "unfulfilled",
       lineItems: order.line_items || [],
     }))
+    .filter((order) => !isShopifyOrderCancelled(order))
     .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
 
   const monthStart = startOfMonth().getTime();
@@ -1037,7 +1045,7 @@ export default function FlowApp() {
       const ordersPayload = await fetchShopifyProxy("orders", {
         status: "any",
         limit: 250,
-        fields: "id,name,order_number,created_at,total_price,financial_status,fulfillment_status,customer,email,line_items",
+        fields: "id,name,order_number,created_at,cancelled_at,cancel_reason,total_price,financial_status,fulfillment_status,customer,email,line_items",
         order: "created_at desc",
       });
 

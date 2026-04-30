@@ -17,6 +17,7 @@
   - filtres `Aujourd'hui / Hier / 7 jours / 1 mois / 1 an / Depuis toujours`
   - le widget dashboard, les KPI, le graphique et les commandes suivent la période
   - les commandes traitées de plus de 3 jours sortent de la liste
+  - les commandes annulées sortent du CA, du non fulfillé, du top produits et du widget dashboard
 - Fond utilisateur:
   - l'utilisateur peut importer une image locale comme fond du thème actif
   - l'utilisateur peut retirer son image et revenir au fond par défaut

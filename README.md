@@ -56,13 +56,13 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.23.6
+### 1.23.7
 
-- **Date** : 30/04/2026 00:14
-- **Résumé** : Le shell Flow bloque désormais la page dans le viewport, densifie le dashboard utilisateur, assombrit le thème clair et donne à Shopify des filtres période plus propres.
+- **Date** : 30/04/2026 00:24
+- **Résumé** : Flow exclut maintenant les commandes Shopify annulées de tous les calculs utiles, tout en gardant le shell bloqué dans le viewport et le dashboard plus dense.
 
+- **Commandes annulées neutralisées** : Les commandes Shopify annulées ne comptent plus dans le CA, le non fulfillé, le top produits du mois ni le widget Shopify du dashboard.
 - **Shell verrouillé et couches nettoyées** : La page principale ne scrolle plus, les popups restent au premier plan et la sidebar fermée desktop n'affiche plus que la photo ou l'initiale.
-- **Dashboard recentré sur le compte** : Les cartes du haut deviennent cliquables, parlent des données utilisateur et le contenu du dashboard enlève une bonne partie des textes inutiles.
 - **Shopify piloté par période** : Les filtres Aujourd'hui, Hier, 7 jours, 1 mois, 1 an et Depuis toujours pilotent maintenant le widget dashboard, les KPI, le graphique et les dernières commandes.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
