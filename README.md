@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.23.5
+### 1.23.6
 
-- **Date** : 29/04/2026 21:12
-- **Résumé** : Le shell Flow allège son auth, garde la continuité des comptes, ajoute un fond importable par thème et enrichit le dashboard plus Shopify sans casser le store utilisateur.
+- **Date** : 30/04/2026 00:14
+- **Résumé** : Le shell Flow bloque désormais la page dans le viewport, densifie le dashboard utilisateur, assombrit le thème clair et donne à Shopify des filtres période plus propres.
 
-- **Auth et démarrage allégés** : La session hydrate d’abord le compte puis charge le reste en arrière-plan, avec un écran d’attente réduit et sans réinitialiser les données utilisateurs.
-- **Fond personnalisable par thème** : Depuis Profil / Paramètres, l’utilisateur peut importer un fond pour le thème actif puis le retirer pour revenir au fond de base.
-- **Dashboard et Shopify enrichis** : Ajout d’actions rapides, filtres 7/30 jours, filtres commandes, rafraîchissement manuel et rendu plus dense sur les cartes et panneaux.
+- **Shell verrouillé et couches nettoyées** : La page principale ne scrolle plus, les popups restent au premier plan et la sidebar fermée desktop n'affiche plus que la photo ou l'initiale.
+- **Dashboard recentré sur le compte** : Les cartes du haut deviennent cliquables, parlent des données utilisateur et le contenu du dashboard enlève une bonne partie des textes inutiles.
+- **Shopify piloté par période** : Les filtres Aujourd'hui, Hier, 7 jours, 1 mois, 1 an et Depuis toujours pilotent maintenant le widget dashboard, les KPI, le graphique et les dernières commandes.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

@@ -61,7 +61,51 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.23.5`
+- Version actuelle: `v1.23.6`
+
+## Priorités ouvertes - 30/04/2026
+
+- suivre `docs/flow-roadmap-and-spec.md` comme to-do active
+- ne jamais supprimer ni invalider les comptes ou données existants pendant les prochaines passes
+- priorité UX:
+  - shell principal non scrollable
+  - dashboard d'accueil orienté données utilisateur
+  - popups toujours au premier plan
+  - sidebar fermée nettoyée
+  - thème clair moins blanc
+  - fonds dark/light animés maison
+  - Shopify mobile compact
+  - drag and drop des blocs sans trous
+
+## Passe produit 24 - 30/04/2026 00:14
+
+### Fait dans cette passe
+
+- shell:
+  - la page principale reste verrouillée dans le viewport
+  - le scroll ne vit plus que dans les panneaux internes
+  - recherche et notifications restent devant les autres surfaces
+- sidebar:
+  - le lock desktop reste actif
+  - le lock est bloqué sur téléphone
+  - la barre fermée n'affiche plus que la photo ou l'initiale
+- dashboard:
+  - les cartes du haut deviennent directement cliquables
+  - le contenu parle davantage du compte utilisateur que du produit Flow
+  - une partie des textes de structure a été retirée
+- thème:
+  - le thème clair a été assombri
+  - le fond global passe sur une base maison gradient / vague / glow animé
+- Shopify:
+  - fin du bouton `En attente`
+  - nouveaux filtres `Aujourd'hui / Hier / 7 jours / 1 mois / 1 an / Depuis toujours`
+  - les filtres pilotent le widget dashboard, les KPI, le graphique et les dernières commandes
+  - sur téléphone, les KPI hauts passent dans un seul bloc compact
+
+### Vérification réelle faite
+
+- `npm run build` OK
+- `npm run check:client -- http://127.0.0.1:4030` OK
 
 ## Passe produit 23 - 29/04/2026 21:12
 

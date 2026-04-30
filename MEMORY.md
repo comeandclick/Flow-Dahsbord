@@ -13,6 +13,8 @@
   - switch dark / light
   - sidebar desktop hover + lock
   - drawer mobile à gauche
+  - shell bloqué dans le viewport
+  - scroll interne réservé aux panneaux
   - deux structures visuelles:
     - `overview`
     - `immersive`
@@ -20,10 +22,18 @@
   - vue immersive desktop sans sidebar
   - vue mobile forcée en tableau
   - module Shopify dédié
+  - filtres Shopify par période globale
   - fond personnalisable par thème actif depuis le profil
 - le dashboard admin reste present a part
 - mémoire de DA à suivre:
   - `docs/design-theme-memory.md`
+- backlog produit prioritaire à suivre pas à pas:
+  - `docs/flow-roadmap-and-spec.md`
+  - dashboard d'accueil recentré sur les données utilisateur
+  - thème clair assombri
+  - fonds dark/light maison animés
+  - Shopify mobile compact
+  - drag and drop réorganisable sans trous
 
 ## Ce que fait le code
 

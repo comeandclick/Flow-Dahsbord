@@ -1,5 +1,87 @@
 # Flow - Todo, Spec fonctionnelle et pistes d'amelioration
 
+## Backlog prioritaire - 30/04/2026
+
+### Termine
+
+- Continuité de données:
+  - ne jamais supprimer les comptes utilisateurs existants
+  - ne jamais réinitialiser le store à cause d'une mise à jour visuelle ou produit
+  - garder la connexion multi-appareils via le compte unique et le store distant
+- Shopify:
+  - module Shopify ajouté sans casser l'auth existante
+  - proxy Shopify branché côté serveur
+  - callback OAuth Shopify ajouté
+  - widget Shopify présent sur le dashboard d'accueil
+- Shopify périodes:
+  - filtres `Aujourd'hui / Hier / 7 jours / 1 mois / 1 an / Depuis toujours`
+  - le widget dashboard, les KPI, le graphique et les commandes suivent la période
+  - les commandes traitées de plus de 3 jours sortent de la liste
+- Fond utilisateur:
+  - l'utilisateur peut importer une image locale comme fond du thème actif
+  - l'utilisateur peut retirer son image et revenir au fond par défaut
+- Shell et couches:
+  - shell principal verrouillé dans le viewport, sans scroll global de page
+  - recherche et notifications passent au premier plan
+  - sidebar fermée desktop réduite à la photo ou à l'initiale
+  - lock de sidebar désactivé sur téléphone
+- Dashboard d'accueil:
+  - les cartes hautes sont cliquables
+  - le contenu commence à se recentrer sur les données du compte
+
+### En cours
+
+- Dashboard d'accueil:
+  - recentrer tout le contenu sur les vraies données utilisateur
+  - rapprocher l'organisation des blocs du niveau de densité et d'alignement déjà atteint dans Shopify
+- Matière visuelle globale:
+  - pousser tous les blocs vers une même matière `gradient + opacité + blur + glow doux`
+  - unifier encore les couleurs, bordures, profondeurs et effets entre dark et light
+- Nettoyage UX:
+  - retirer les derniers textes inutiles ou trop “produit Flow”
+  - remplacer les derniers boutons secondaires décoratifs quand le bloc entier doit être cliquable
+- Fonds animés:
+  - remplacer les images statiques actuelles par de vrais fonds dark/light maison animés
+- Drag and drop des blocs:
+  - préparer une grille sans trous
+  - définir le comportement du maintien, du tremblement et du réagencement
+
+### A ameliorer
+
+- Thème clair:
+  - éclaircir sans blanchir
+  - garder une ambiance premium sombre éclaircie, pas un fond blanc vide
+- Mobile:
+  - adapter plus finement la hauteur et la densité des blocs
+  - la barre latérale doit tenir dans l'écran sans forcer un long scroll
+- Shopify mobile:
+  - terminé pour les 4 KPI du haut
+  - garder ce bloc compact cohérent pendant les prochaines évolutions
+  - empêcher tout débordement des textes, notamment dans `Top 5 produits du mois`
+
+### A faire
+- Cartes dashboard:
+  - terminé pour la carte Shopify du dashboard et les cartes hautes principales
+  - continuer à réorganiser les informations internes, supprimer le bruit et améliorer la hiérarchie
+- Dashboard d'accueil orienté utilisateur:
+  - afficher des données utiles au compte connecté
+  - ne plus afficher de contenu lié au fait que le site Flow existe ou a été créé
+- Vue immersive:
+  - continuer à la garder desktop only
+  - faire vivre toute la navigation modules en haut
+  - maintenir les deux structures `tableau / immersive` en parallèle
+- Déplacement des blocs:
+  - activer le drag and drop sur dashboard, Shopify et futurs modules
+  - au maintien: mini tremblement du bloc saisi
+  - au survol d'une zone cible: les autres blocs se décalent proprement
+  - zéro trou dans la grille après déplacement
+- Shopify filtres:
+  - terminé
+- Shopify commandes:
+  - terminé
+- Shopify actions:
+  - terminé pour le bouton `Rafraîchir`
+
 ## 0. Regle de synchronisation obligatoire
 
 - A chaque mise a jour importante du produit, synchroniser tout de suite:

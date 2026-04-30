@@ -14,6 +14,14 @@ const UPDATE_POLL_MS = 45_000;
 const AUTO_RELOAD_SECONDS = 12;
 const CUSTOM_BACKGROUND_MAX_DIMENSION = 1800;
 const CUSTOM_BACKGROUND_QUALITY = 0.84;
+const SHOPIFY_PERIODS = [
+  { id: "today", label: "Aujourd'hui" },
+  { id: "yesterday", label: "Hier" },
+  { id: "7d", label: "7 jours" },
+  { id: "30d", label: "1 mois" },
+  { id: "365d", label: "1 an" },
+  { id: "all", label: "Depuis toujours" },
+];
 
 function formatReleaseLabel(release) {
   const formattedDate = new Intl.DateTimeFormat("fr-FR", {
@@ -225,6 +233,24 @@ function startOfMonth() {
   return date;
 }
 
+function startOfYesterday() {
+  const date = startOfToday();
+  date.setDate(date.getDate() - 1);
+  return date;
+}
+
+function startOfTomorrow() {
+  const date = startOfToday();
+  date.setDate(date.getDate() + 1);
+  return date;
+}
+
+function startOfYear() {
+  const date = startOfToday();
+  date.setMonth(0, 1);
+  return date;
+}
+
 function startOfDaysAgo(days) {
   const date = startOfToday();
   date.setDate(date.getDate() - days);
@@ -237,6 +263,148 @@ function isoDate(date) {
 
 function safeAmount(value) {
   return Number.parseFloat(value || 0) || 0;
+}
+
+function toTimestamp(value) {
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function startOfDayFromValue(value) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getShopifyPeriodBounds(period, orders) {
+  const now = new Date();
+  const today = startOfToday();
+  if (period === "today") return { start: today, end: startOfTomorrow(), mode: "day" };
+  if (period === "yesterday") return { start: startOfYesterday(), end: today, mode: "day" };
+  if (period === "7d") return { start: startOfDaysAgo(6), end: null, mode: "day" };
+  if (period === "30d") return { start: startOfDaysAgo(29), end: null, mode: "day" };
+  if (period === "365d") return { start: startOfYear(), end: null, mode: "day" };
+
+  const oldest = [...(orders || [])]
+    .sort((left, right) => toTimestamp(left.createdAt) - toTimestamp(right.createdAt))[0]?.createdAt;
+  const start = oldest ? startOfDayFromValue(oldest) : startOfDaysAgo(29);
+  const daySpan = Math.max(1, Math.ceil((now.getTime() - start.getTime()) / 86_400_000));
+  return { start, end: null, mode: daySpan > 120 ? "month" : "day" };
+}
+
+function filterShopifyOrdersByPeriod(orders, period) {
+  const { start, end } = getShopifyPeriodBounds(period, orders);
+  return [...(orders || [])]
+    .filter((order) => {
+      const createdAt = new Date(order.createdAt);
+      if (Number.isNaN(createdAt.getTime())) return false;
+      if (createdAt < start) return false;
+      if (end && createdAt >= end) return false;
+      return true;
+    })
+    .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
+}
+
+function buildShopifyChartData(orders, period) {
+  const { start, mode } = getShopifyPeriodBounds(period, orders);
+  const now = new Date();
+  const buckets = new Map();
+
+  if (mode === "month") {
+    const cursor = new Date(start);
+    cursor.setDate(1);
+    while (cursor <= now) {
+      const key = `${cursor.getFullYear()}-${cursor.getMonth() + 1}`;
+      buckets.set(key, {
+        key,
+        label: new Intl.DateTimeFormat("fr-FR", { month: "short", year: "2-digit" }).format(cursor),
+        revenue: 0,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    orders.forEach((order) => {
+      const date = new Date(order.createdAt);
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      if (!buckets.has(key)) return;
+      buckets.get(key).revenue += safeAmount(order.total);
+    });
+    return [...buckets.values()];
+  }
+
+  const dayCursor = new Date(start);
+  while (dayCursor <= now) {
+    const key = dayCursor.toISOString().slice(0, 10);
+    buckets.set(key, {
+      key,
+      label: formatDayLabel(dayCursor),
+      revenue: 0,
+    });
+    dayCursor.setDate(dayCursor.getDate() + 1);
+  }
+  orders.forEach((order) => {
+    const key = `${order.createdAt || ""}`.slice(0, 10);
+    if (!buckets.has(key)) return;
+    buckets.get(key).revenue += safeAmount(order.total);
+  });
+  return [...buckets.values()];
+}
+
+function buildShopifyKpis(orders) {
+  return {
+    revenue: orders.reduce((sum, order) => sum + safeAmount(order.total), 0),
+    orders: orders.length,
+    pendingFulfillment: orders.filter((order) => normalizeStatusTone(order.fulfillmentStatus) !== "success").length,
+  };
+}
+
+function buildLatestVisibleShopifyOrders(orders) {
+  const threshold = startOfDaysAgo(3).getTime();
+  return [...(orders || [])]
+    .filter((order) => {
+      const createdAt = toTimestamp(order.createdAt);
+      if (createdAt >= threshold) return true;
+      return normalizeStatusTone(order.fulfillmentStatus) !== "success";
+    })
+    .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt))
+    .slice(0, 12);
+}
+
+function buildDashboardFeed(db) {
+  const source = db || createEmptyDb();
+  const activity = [...(source.activity || [])]
+    .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt))
+    .slice(0, 5);
+  if (activity.length) {
+    return activity.map((item) => ({
+      id: item.id,
+      title: item.title || "Activité",
+      subtitle: item.detail || item.type || "Mise à jour",
+      meta: formatRelative(item.createdAt),
+    }));
+  }
+
+  const fallback = [
+    ...(source.tasks || []).slice(0, 2).map((item) => ({
+      id: `task:${item.id}`,
+      title: item.title || "Tâche",
+      subtitle: item.status || "En cours",
+      meta: item.dueDate ? formatShortDate(item.dueDate) : "Sans date",
+    })),
+    ...(source.events || []).slice(0, 2).map((item) => ({
+      id: `event:${item.id}`,
+      title: item.title || "Événement",
+      subtitle: item.desc || "Planifié",
+      meta: item.date ? formatShortDate(item.date) : "À venir",
+    })),
+    ...(source.notes || []).slice(0, 1).map((item) => ({
+      id: `note:${item.id}`,
+      title: item.title || "Note",
+      subtitle: item.cat || "Brouillon",
+      meta: "Note",
+    })),
+  ];
+
+  return fallback.slice(0, 5);
 }
 
 function buildShopifyQuery(params) {
@@ -262,32 +430,27 @@ async function fetchShopifyProxy(endpoint, params = {}) {
   return payload;
 }
 
-function summarizeShopifyData({ todayOrders, monthOrders, recentOrders, latestOrders, unfulfilledCount }) {
-  const revenueToday = todayOrders.reduce((sum, order) => sum + safeAmount(order.total_price), 0);
-  const revenueMonth = monthOrders.reduce((sum, order) => sum + safeAmount(order.total_price), 0);
-  const ordersToday = todayOrders.length;
-  const pendingFulfillment = Number(unfulfilledCount?.count) || 0;
+function summarizeShopifyData({ orders }) {
+  const allOrders = [...(orders || [])]
+    .map((order) => ({
+      id: order.id,
+      number: order.name || `#${order.order_number || order.id}`,
+      createdAt: order.created_at,
+      customer: order.customer?.first_name || order.customer?.last_name
+        ? `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim()
+        : order.email || "Client inconnu",
+      total: safeAmount(order.total_price),
+      paymentStatus: order.financial_status || "pending",
+      fulfillmentStatus: order.fulfillment_status || "unfulfilled",
+      lineItems: order.line_items || [],
+    }))
+    .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
 
-  const byDay = new Map();
-  for (let offset = 29; offset >= 0; offset -= 1) {
-    const date = startOfDaysAgo(offset);
-    const key = date.toISOString().slice(0, 10);
-    byDay.set(key, {
-      key,
-      label: formatDayLabel(date),
-      revenue: 0,
-    });
-  }
-
-  recentOrders.forEach((order) => {
-    const key = `${order.created_at || ""}`.slice(0, 10);
-    if (!byDay.has(key)) return;
-    byDay.get(key).revenue += safeAmount(order.total_price);
-  });
-
+  const monthStart = startOfMonth().getTime();
   const topProductsMap = new Map();
-  monthOrders.forEach((order) => {
-    (order.line_items || []).forEach((item) => {
+  allOrders.forEach((order) => {
+    if (toTimestamp(order.createdAt) < monthStart) return;
+    (order.lineItems || []).forEach((item) => {
       const key = item.product_id || item.variant_id || item.title;
       const current = topProductsMap.get(key) || {
         id: key,
@@ -302,24 +465,7 @@ function summarizeShopifyData({ todayOrders, monthOrders, recentOrders, latestOr
   });
 
   return {
-    kpis: {
-      revenueToday,
-      revenueMonth,
-      ordersToday,
-      pendingFulfillment,
-    },
-    chart: [...byDay.values()],
-    latestOrders: latestOrders.map((order) => ({
-      id: order.id,
-      number: order.name || `#${order.order_number || order.id}`,
-      createdAt: order.created_at,
-      customer: order.customer?.first_name || order.customer?.last_name
-        ? `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim()
-        : order.email || "Client inconnu",
-      total: safeAmount(order.total_price),
-      paymentStatus: order.financial_status || "pending",
-      fulfillmentStatus: order.fulfillment_status || "unfulfilled",
-    })),
+    allOrders,
     topProducts: [...topProductsMap.values()]
       .sort((left, right) => right.quantity - left.quantity)
       .slice(0, 5),
@@ -651,8 +797,7 @@ export default function FlowApp() {
   const [sidebarLocked, setSidebarLocked] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [backgroundBusy, setBackgroundBusy] = useState(false);
-  const [shopifyRangeDays, setShopifyRangeDays] = useState(30);
-  const [shopifyOrderFilter, setShopifyOrderFilter] = useState("all");
+  const [shopifyPeriod, setShopifyPeriod] = useState("30d");
   const [shopifyState, setShopifyState] = useState({
     loading: false,
     error: "",
@@ -693,26 +838,22 @@ export default function FlowApp() {
     };
   }, [db, unreadNotifications]);
 
-  const shopifyOverview = useMemo(
-    () =>
-      shopifyState.data?.kpis || {
-        revenueToday: 0,
-        revenueMonth: 0,
-        ordersToday: 0,
-        pendingFulfillment: 0,
-      },
-    [shopifyState.data],
+  const dashboardFeed = useMemo(() => buildDashboardFeed(db), [db]);
+  const activeShopifyPeriodLabel = useMemo(
+    () => SHOPIFY_PERIODS.find((item) => item.id === shopifyPeriod)?.label || "1 mois",
+    [shopifyPeriod],
   );
 
   const currentThemeBackground = useMemo(() => {
     const customBackgrounds = db.settings?.customBackgrounds || {};
     return shellTheme === "light" ? customBackgrounds.light || "" : customBackgrounds.dark || "";
   }, [db.settings?.customBackgrounds, shellTheme]);
+  const profilePhotoUrl = db.profile?.photoUrl || "";
 
   const flowShellStyle = useMemo(() => {
     if (!currentThemeBackground) return undefined;
     const overlay = shellTheme === "light"
-      ? "linear-gradient(180deg, rgba(255,255,255,0.54), rgba(242,239,232,0.88))"
+      ? "linear-gradient(180deg, rgba(214,220,227,0.42), rgba(169,177,188,0.84))"
       : "linear-gradient(180deg, rgba(6,8,11,0.42), rgba(6,8,11,0.88))";
     return {
       background: `${overlay}, url("${currentThemeBackground}") center center / cover no-repeat fixed`,
@@ -722,29 +863,38 @@ export default function FlowApp() {
   const immersiveBackgroundStyle = useMemo(() => {
     if (!currentThemeBackground) return undefined;
     const overlay = shellTheme === "light"
-      ? "linear-gradient(180deg, rgba(255,255,255,0.28), rgba(247,245,239,0.82))"
+      ? "linear-gradient(180deg, rgba(214,220,227,0.24), rgba(166,174,185,0.8))"
       : "linear-gradient(180deg, rgba(10,12,14,0.18), rgba(10,12,14,0.78))";
     return {
       background: `${overlay}, url("${currentThemeBackground}") center center / cover no-repeat`,
     };
   }, [currentThemeBackground, shellTheme]);
 
-  const visibleShopifyChart = useMemo(() => {
-    const chart = shopifyState.data?.chart || [];
-    return chart.slice(-shopifyRangeDays);
-  }, [shopifyRangeDays, shopifyState.data]);
+  const filteredShopifyOrders = useMemo(
+    () => filterShopifyOrdersByPeriod(shopifyState.data?.allOrders || [], shopifyPeriod),
+    [shopifyPeriod, shopifyState.data],
+  );
 
-  const visibleShopifyOrders = useMemo(() => {
-    const orders = shopifyState.data?.latestOrders || [];
-    if (shopifyOrderFilter === "today") {
-      const todayKey = new Date().toISOString().slice(0, 10);
-      return orders.filter((order) => `${order.createdAt || ""}`.slice(0, 10) === todayKey);
-    }
-    if (shopifyOrderFilter === "pending") {
-      return orders.filter((order) => normalizeStatusTone(order.fulfillmentStatus) !== "success");
-    }
-    return orders;
-  }, [shopifyOrderFilter, shopifyState.data]);
+  const visibleShopifyChart = useMemo(
+    () => buildShopifyChartData(filteredShopifyOrders, shopifyPeriod),
+    [filteredShopifyOrders, shopifyPeriod],
+  );
+
+  const visibleShopifyOrders = useMemo(
+    () => buildLatestVisibleShopifyOrders(filteredShopifyOrders),
+    [filteredShopifyOrders],
+  );
+
+  const shopifyOverview = useMemo(() => {
+    const current = buildShopifyKpis(filteredShopifyOrders);
+    const monthOrders = filterShopifyOrdersByPeriod(shopifyState.data?.allOrders || [], "30d");
+    return {
+      revenueCurrent: current.revenue,
+      ordersCurrent: current.orders,
+      pendingFulfillment: current.pendingFulfillment,
+      revenueMonth: buildShopifyKpis(monthOrders).revenue,
+    };
+  }, [filteredShopifyOrders, shopifyState.data]);
 
   const searchResults = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
@@ -771,6 +921,45 @@ export default function FlowApp() {
     [dashboardMetrics],
   );
 
+  const dashboardCards = useMemo(
+    () => [
+      {
+        id: "notes",
+        section: "notes",
+        label: "Notes",
+        value: `${dashboardMetrics.notes}`,
+        meta: `${dashboardMetrics.bookmarks} signet(s)`,
+        icon: "note",
+        primary: true,
+      },
+      {
+        id: "tasks",
+        section: "tasks",
+        label: "Tâches ouvertes",
+        value: `${dashboardMetrics.tasks}`,
+        meta: dashboardMetrics.tasks ? "À reprendre" : "Aucune en attente",
+        icon: "check",
+      },
+      {
+        id: "events",
+        section: "events",
+        label: "Événements",
+        value: `${dashboardMetrics.events}`,
+        meta: dashboardMetrics.events ? "Planifiés" : "Aucun prévu",
+        icon: "calendar",
+      },
+      {
+        id: "shopify",
+        section: "shopify",
+        label: `Shopify · ${activeShopifyPeriodLabel}`,
+        value: formatCurrency(shopifyOverview.revenueCurrent),
+        meta: `${shopifyOverview.ordersCurrent} commande(s) · ${shopifyOverview.pendingFulfillment} à traiter`,
+        icon: "bag",
+      },
+    ],
+    [activeShopifyPeriodLabel, dashboardMetrics, shopifyOverview],
+  );
+
   const navSections = useMemo(
     () => [
       { id: "dashboard", label: "Dashboard", icon: "grid" },
@@ -785,10 +974,11 @@ export default function FlowApp() {
   );
 
   const effectiveLayout = isMobile ? "overview" : dashboardLayout;
-  const sidebarExpanded = sidebarLocked || sidebarHover;
-  const shellCollapsedClass = !sidebarExpanded ? "collapsed" : "";
+  const sidebarExpanded = isMobile ? mobileNavOpen : sidebarLocked || sidebarHover;
+  const shellCollapsedClass = !sidebarExpanded && !isMobile ? "collapsed" : "";
   const themeClass = shellTheme === "light" ? "theme-light" : "theme-dark";
   const shouldShowSidebar = effectiveLayout !== "immersive";
+  const sidebarShowsDetails = isMobile || sidebarExpanded;
 
   useEffect(() => {
     const savedEmail = readStoredEmail();
@@ -809,6 +999,24 @@ export default function FlowApp() {
   }, []);
 
   useEffect(() => {
+    const { body, documentElement } = document;
+    const previousBodyOverflow = body.style.overflow;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousBodyHeight = body.style.height;
+    const previousHtmlHeight = documentElement.style.height;
+    body.style.overflow = "hidden";
+    documentElement.style.overflow = "hidden";
+    body.style.height = "100%";
+    documentElement.style.height = "100%";
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      documentElement.style.overflow = previousHtmlOverflow;
+      body.style.height = previousBodyHeight;
+      documentElement.style.height = previousHtmlHeight;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isMobile) return;
     setMobileNavOpen(false);
   }, [isMobile]);
@@ -826,50 +1034,15 @@ export default function FlowApp() {
         throw new Error(statusPayload?.error || "Shopify non configuré");
       }
 
-      const todayStart = isoDate(startOfToday());
-      const monthStart = isoDate(startOfMonth());
-      const last30Start = isoDate(startOfDaysAgo(29));
-
-      const [todayPayload, monthPayload, recentPayload, latestPayload, unfulfilledPayload] = await Promise.all([
-        fetchShopifyProxy("orders", {
-          status: "any",
-          limit: 250,
-          created_at_min: todayStart,
-          fields: "id,name,order_number,created_at,total_price,financial_status,fulfillment_status,customer,email",
-          order: "created_at desc",
-        }),
-        fetchShopifyProxy("orders", {
-          status: "any",
-          limit: 250,
-          created_at_min: monthStart,
-          fields: "id,name,order_number,created_at,total_price,financial_status,fulfillment_status,customer,email,line_items",
-          order: "created_at desc",
-        }),
-        fetchShopifyProxy("orders", {
-          status: "any",
-          limit: 250,
-          created_at_min: last30Start,
-          fields: "id,created_at,total_price",
-          order: "created_at desc",
-        }),
-        fetchShopifyProxy("orders", {
-          status: "any",
-          limit: 10,
-          fields: "id,name,order_number,created_at,total_price,financial_status,fulfillment_status,customer,email",
-          order: "created_at desc",
-        }),
-        fetchShopifyProxy("orders/count", {
-          status: "any",
-          fulfillment_status: "unfulfilled",
-        }),
-      ]);
+      const ordersPayload = await fetchShopifyProxy("orders", {
+        status: "any",
+        limit: 250,
+        fields: "id,name,order_number,created_at,total_price,financial_status,fulfillment_status,customer,email,line_items",
+        order: "created_at desc",
+      });
 
       const data = summarizeShopifyData({
-        todayOrders: todayPayload.orders || [],
-        monthOrders: monthPayload.orders || [],
-        recentOrders: recentPayload.orders || [],
-        latestOrders: latestPayload.orders || [],
-        unfulfilledCount: unfulfilledPayload,
+        orders: ordersPayload.orders || [],
       });
 
       setShopifyState({
@@ -1155,6 +1328,7 @@ export default function FlowApp() {
   }
 
   async function applySidebarLock(nextValue) {
+    if (isMobile) return;
     setSidebarLocked(nextValue);
     rememberSidebarLock(nextValue);
     const nextDb = nextDbWithSettings({ sidebarLocked: nextValue });
@@ -1397,8 +1571,10 @@ export default function FlowApp() {
         }
         .theme-dark {
           --page-bg:
-            linear-gradient(180deg, rgba(5, 7, 9, 0.46), rgba(5, 7, 9, 0.88)),
-            url("/theme-dark-wave.jpg") center center / cover no-repeat fixed;
+            radial-gradient(circle at 18% 20%, rgba(116, 139, 94, 0.14), transparent 24%),
+            radial-gradient(circle at 76% 18%, rgba(255, 255, 255, 0.06), transparent 18%),
+            radial-gradient(circle at 58% 82%, rgba(101, 119, 90, 0.12), transparent 26%),
+            linear-gradient(140deg, #08090b 0%, #0b0d10 28%, #101318 58%, #090b0e 100%);
           --shell-bg: rgba(10, 12, 14, 0.64);
           --shell-border: rgba(255, 255, 255, 0.07);
           --panel-bg: rgba(23, 25, 29, 0.66);
@@ -1432,13 +1608,15 @@ export default function FlowApp() {
         }
         .theme-light {
           --page-bg:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(243, 241, 235, 0.88)),
-            url("/theme-light-grain.jpg") center center / cover no-repeat fixed;
-          --shell-bg: rgba(250, 248, 243, 0.68);
+            radial-gradient(circle at 18% 18%, rgba(117, 132, 101, 0.14), transparent 24%),
+            radial-gradient(circle at 74% 22%, rgba(255, 255, 255, 0.14), transparent 18%),
+            radial-gradient(circle at 52% 78%, rgba(156, 167, 140, 0.12), transparent 26%),
+            linear-gradient(145deg, #c3c7cc 0%, #a7adb4 34%, #9198a0 62%, #878d95 100%);
+          --shell-bg: rgba(208, 214, 221, 0.46);
           --shell-border: rgba(17, 20, 26, 0.08);
-          --panel-bg: rgba(255, 255, 255, 0.7);
-          --panel-soft: rgba(250, 248, 244, 0.84);
-          --panel-strong: rgba(255, 255, 255, 0.9);
+          --panel-bg: rgba(229, 233, 238, 0.54);
+          --panel-soft: rgba(213, 219, 226, 0.64);
+          --panel-strong: rgba(221, 226, 232, 0.72);
           --text-main: #15171b;
           --text-soft: rgba(21, 23, 27, 0.7);
           --text-faint: rgba(21, 23, 27, 0.46);
@@ -1446,38 +1624,85 @@ export default function FlowApp() {
           --line-strong: rgba(17, 20, 26, 0.15);
           --accent: #111316;
           --accent-strong: #030405;
-          --accent-glow: rgba(118, 134, 98, 0.12);
-          --danger: rgba(176, 118, 108, 0.22);
-          --notice: rgba(255, 255, 255, 0.94);
-          --shadow: 0 22px 70px rgba(42, 45, 57, 0.12);
-          --map-veil: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.86));
-          --topbar-glow: rgba(166, 171, 150, 0.12);
+          --accent-glow: rgba(118, 134, 98, 0.16);
+          --danger: rgba(176, 118, 108, 0.24);
+          --notice: rgba(218, 223, 230, 0.96);
+          --shadow: 0 26px 72px rgba(26, 30, 38, 0.18);
+          --map-veil: linear-gradient(180deg, rgba(214, 219, 225, 0.2), rgba(176, 183, 192, 0.86));
+          --topbar-glow: rgba(120, 130, 110, 0.16);
           --surface-layer:
-            radial-gradient(circle at 0% 0%, rgba(156, 169, 129, 0.12), transparent 34%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.28) 52%, rgba(255, 255, 255, 0.5)),
-            rgba(255, 255, 255, 0.62);
+            radial-gradient(circle at 0% 0%, rgba(126, 142, 106, 0.16), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08) 52%, rgba(255, 255, 255, 0.16)),
+            rgba(191, 198, 207, 0.54);
           --surface-layer-strong:
-            radial-gradient(circle at 0% 0%, rgba(147, 159, 121, 0.14), transparent 36%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.34) 52%, rgba(255, 255, 255, 0.62)),
-            rgba(255, 255, 255, 0.74);
+            radial-gradient(circle at 0% 0%, rgba(117, 132, 101, 0.18), transparent 36%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08) 52%, rgba(255, 255, 255, 0.16)),
+            rgba(178, 186, 195, 0.66);
           --surface-layer-soft:
-            radial-gradient(circle at 0% 0%, rgba(165, 174, 138, 0.1), transparent 30%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.22) 52%, rgba(255, 255, 255, 0.42)),
-            rgba(255, 255, 255, 0.54);
+            radial-gradient(circle at 0% 0%, rgba(144, 158, 122, 0.14), transparent 30%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 52%, rgba(255, 255, 255, 0.11)),
+            rgba(184, 191, 199, 0.44);
+        }
+        :global(html),
+        :global(body) {
+          min-height: 100%;
+          height: 100%;
+        }
+        :global(body) {
+          margin: 0;
         }
         .flow-shell {
-          min-height: 100vh;
+          min-height: 100dvh;
+          height: 100dvh;
           padding: 18px;
           position: relative;
-          overflow-x: hidden;
+          overflow: hidden;
           background: var(--page-bg);
           color: var(--text-main);
           transition: background 0.35s ease, color 0.35s ease;
           animation: shellFadeIn 0.52s ease;
         }
+        .flow-shell::before,
+        .flow-shell::after {
+          content: "";
+          position: absolute;
+          inset: -8%;
+          pointer-events: none;
+        }
+        .flow-shell::before {
+          background:
+            radial-gradient(55% 32% at 20% 18%, rgba(128, 152, 108, 0.14), transparent 60%),
+            radial-gradient(44% 28% at 82% 22%, rgba(255, 255, 255, 0.06), transparent 62%),
+            radial-gradient(60% 30% at 58% 86%, rgba(110, 129, 94, 0.12), transparent 64%);
+          filter: blur(18px);
+          animation: ambientFloat 22s ease-in-out infinite alternate;
+          opacity: 0.92;
+          z-index: 0;
+        }
+        .flow-shell::after {
+          background:
+            linear-gradient(115deg, transparent 10%, rgba(255,255,255,0.05) 28%, transparent 46%),
+            linear-gradient(295deg, transparent 34%, rgba(131, 151, 111, 0.08) 52%, transparent 70%);
+          opacity: 0.56;
+          animation: ambientShift 30s ease-in-out infinite;
+          z-index: 0;
+        }
+        .flow-shell > * {
+          position: relative;
+          z-index: 1;
+        }
         @keyframes shellFadeIn {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes ambientFloat {
+          0% { transform: translate3d(-2%, -1%, 0) scale(1); }
+          100% { transform: translate3d(2%, 1%, 0) scale(1.04); }
+        }
+        @keyframes ambientShift {
+          0% { transform: translate3d(-1%, 0, 0); opacity: 0.42; }
+          50% { transform: translate3d(1%, -1%, 0); opacity: 0.58; }
+          100% { transform: translate3d(-1%, 1%, 0); opacity: 0.42; }
         }
         @keyframes riseIn {
           from { opacity: 0; transform: translateY(18px) scale(0.985); }
@@ -1532,9 +1757,10 @@ export default function FlowApp() {
           cursor: pointer;
         }
         .auth-stage {
-          min-height: calc(100vh - 36px);
+          min-height: calc(100dvh - 36px);
           display: grid;
           place-items: center;
+          overflow: hidden;
         }
         .auth-card {
           width: min(440px, 100%);
@@ -1716,7 +1942,8 @@ export default function FlowApp() {
           line-height: 1.55;
         }
         .app-shell {
-          min-height: calc(100vh - 36px);
+          min-height: calc(100dvh - 36px);
+          height: calc(100dvh - 36px);
           border-radius: 34px;
           border: 1px solid var(--shell-border);
           background: var(--shell-bg);
@@ -1742,6 +1969,7 @@ export default function FlowApp() {
           transition: width 0.28s ease, transform 0.28s ease, padding 0.28s ease;
           position: relative;
           z-index: 20;
+          overflow: hidden;
         }
         .theme-light .sidebar {
           background: var(--surface-layer-strong);
@@ -1888,6 +2116,35 @@ export default function FlowApp() {
           border-radius: 26px;
           background: var(--surface-layer-soft);
           border: 1px solid var(--line);
+          min-height: 74px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        .sidebar-footer.collapsed {
+          padding: 10px;
+          align-items: center;
+          justify-content: center;
+        }
+        .sidebar-footer-mini {
+          width: 46px;
+          height: 46px;
+          border-radius: 16px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.06);
+          display: grid;
+          place-items: center;
+          overflow: hidden;
+          font-weight: 700;
+          font-size: 15px;
+          flex: none;
+        }
+        .sidebar-footer-mini img,
+        .profile-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
         .sidebar-footer-copy strong {
           display: block;
@@ -1902,12 +2159,14 @@ export default function FlowApp() {
         }
         .app-main {
           min-width: 0;
+          min-height: 0;
           padding: 18px;
           display: flex;
           flex-direction: column;
           gap: 18px;
           position: relative;
           background: transparent;
+          overflow: hidden;
         }
         .app-main.immersive-main {
           padding: 18px;
@@ -1923,6 +2182,9 @@ export default function FlowApp() {
           background: var(--surface-layer);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
           backdrop-filter: blur(18px);
+          position: relative;
+          z-index: 60;
+          flex: none;
         }
         .topbar-actions {
           display: flex;
@@ -1968,6 +2230,10 @@ export default function FlowApp() {
         .search-wrap {
           position: relative;
           min-width: 0;
+          z-index: 1;
+        }
+        .search-wrap.active {
+          z-index: 90;
         }
         .search-box {
           width: 100%;
@@ -2024,7 +2290,7 @@ export default function FlowApp() {
           right: 0;
           border-radius: 24px;
           padding: 12px;
-          z-index: 30;
+          z-index: 95;
           animation: riseIn 0.24s ease;
         }
         .search-result {
@@ -2068,15 +2334,22 @@ export default function FlowApp() {
           flex: 1;
           min-height: 0;
           min-width: 0;
+          overflow: hidden;
         }
         .shell-panel {
           display: grid;
           gap: 18px;
           animation: riseIn 0.28s ease;
+          height: 100%;
+          min-height: 0;
+          overflow: auto;
+          padding-right: 6px;
+          overscroll-behavior: contain;
         }
         .overview-layout {
           display: grid;
           gap: 18px;
+          align-content: start;
         }
         .page-head {
           display: flex;
@@ -2139,6 +2412,16 @@ export default function FlowApp() {
           padding: 18px;
           animation: riseIn 0.32s ease;
         }
+        button.metric-card {
+          width: 100%;
+          text-align: left;
+          cursor: pointer;
+          transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+        }
+        button.metric-card:hover {
+          transform: translateY(-2px);
+          border-color: var(--line-strong);
+        }
         .metric-card.primary {
           background: var(--surface-layer-strong);
           color: var(--text-main);
@@ -2164,6 +2447,18 @@ export default function FlowApp() {
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
+          color: var(--text-soft);
+          font-size: 12px;
+        }
+        .metric-meta {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          min-height: 32px;
+          padding: 0 12px;
+          border-radius: 999px;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.04);
           color: var(--text-soft);
           font-size: 12px;
         }
@@ -2314,9 +2609,12 @@ export default function FlowApp() {
           width: min(390px, calc(100vw - 36px));
           border-radius: 30px;
           padding: 16px;
-          z-index: 35;
+          z-index: 95;
           background: var(--surface-layer-strong);
           animation: riseIn 0.24s ease;
+          max-height: min(72dvh, 760px);
+          overflow: auto;
+          overscroll-behavior: contain;
         }
         .notification-panel-header {
           display: flex;
@@ -2381,7 +2679,7 @@ export default function FlowApp() {
           backdrop-filter: blur(10px);
           display: grid;
           place-items: center;
-          z-index: 60;
+          z-index: 120;
           padding: 18px;
         }
         .command-modal {
@@ -2423,18 +2721,23 @@ export default function FlowApp() {
         }
         .immersive-layout {
           min-height: 100%;
+          height: 100%;
           border-radius: 34px;
           position: relative;
           overflow: hidden;
           border: 1px solid var(--line);
           background:
             linear-gradient(180deg, rgba(10, 12, 14, 0.18), rgba(10, 12, 14, 0.78)),
-            url("/theme-dark-wave.jpg") center center / cover no-repeat;
+            radial-gradient(circle at 16% 18%, rgba(116, 141, 95, 0.18), transparent 24%),
+            radial-gradient(circle at 74% 20%, rgba(255, 255, 255, 0.06), transparent 18%),
+            linear-gradient(145deg, #090b0d 0%, #0d1013 44%, #12161a 100%);
         }
         .theme-light .immersive-layout {
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(247, 245, 239, 0.82)),
-            url("/theme-light-grain.jpg") center center / cover no-repeat;
+            linear-gradient(180deg, rgba(220, 226, 233, 0.34), rgba(176, 184, 193, 0.82)),
+            linear-gradient(135deg, rgba(255,255,255,0.18), transparent 42%),
+            radial-gradient(circle at 18% 20%, rgba(123, 139, 106, 0.16), transparent 26%),
+            linear-gradient(145deg, #bfc5cc 0%, #9da5ae 44%, #8f98a1 100%);
         }
         .immersive-map {
           position: absolute;
@@ -2466,6 +2769,7 @@ export default function FlowApp() {
           z-index: 2;
           padding: 22px;
           min-height: 100%;
+          height: 100%;
           display: grid;
           grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
           gap: 18px;
@@ -2685,6 +2989,37 @@ export default function FlowApp() {
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 16px;
         }
+        .shopify-mobile-kpi-card {
+          display: none;
+        }
+        .shopify-mobile-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+          margin-top: 14px;
+        }
+        .shopify-mobile-kpi-item {
+          min-width: 0;
+          border-radius: 22px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-soft);
+          padding: 14px;
+        }
+        .shopify-mobile-kpi-item span {
+          display: block;
+          color: var(--text-soft);
+          font-size: 12px;
+        }
+        .shopify-mobile-kpi-item strong {
+          display: block;
+          margin-top: 10px;
+          font-size: 24px;
+          letter-spacing: -0.04em;
+          line-height: 1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
         .shopify-card {
           border-radius: 30px;
           padding: 18px;
@@ -2793,6 +3128,11 @@ export default function FlowApp() {
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+        .shopify-product-row > div:last-child {
+          flex: none;
+          text-align: right;
+          max-width: 40%;
+        }
         .shopify-actions {
           display: flex;
           gap: 10px;
@@ -2892,7 +3232,8 @@ export default function FlowApp() {
             bottom: 14px;
           }
           .app-shell {
-            min-height: calc(100vh - 24px);
+            min-height: calc(100dvh - 24px);
+            height: calc(100dvh - 24px);
             grid-template-columns: 1fr;
           }
           .sidebar {
@@ -2904,6 +3245,7 @@ export default function FlowApp() {
             transform: translateX(-100%);
             border-right: 1px solid var(--line);
             border-radius: 0 30px 30px 0;
+            z-index: 90;
           }
           .sidebar.mobile-open {
             transform: translateX(0);
@@ -2949,7 +3291,8 @@ export default function FlowApp() {
           }
           .auth-stage,
           .app-shell {
-            min-height: 100vh;
+            min-height: 100dvh;
+            height: 100dvh;
             border-radius: 0;
             border: 0;
           }
@@ -2973,9 +3316,14 @@ export default function FlowApp() {
             display: none;
           }
           .metrics-grid,
-          .mini-grid,
-          .shopify-kpis {
+          .mini-grid {
             grid-template-columns: 1fr;
+          }
+          .shopify-kpis {
+            display: none;
+          }
+          .shopify-mobile-kpi-card {
+            display: block;
           }
           .module-rail {
             display: grid;
@@ -2985,6 +3333,7 @@ export default function FlowApp() {
             right: 14px;
             left: 14px;
             width: auto;
+            max-height: min(68dvh, 640px);
           }
           .command-backdrop {
             padding: 10px;
@@ -3074,14 +3423,16 @@ export default function FlowApp() {
                     <strong>Flow</strong>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="lock-button"
-                  onClick={() => applySidebarLock(!sidebarLocked)}
-                  aria-label={sidebarLocked ? "Déverrouiller la barre" : "Verrouiller la barre"}
-                >
-                  <Icon name={sidebarLocked ? "lock" : "unlock"} size={16} />
-                </button>
+                {!isMobile ? (
+                  <button
+                    type="button"
+                    className="lock-button"
+                    onClick={() => applySidebarLock(!sidebarLocked)}
+                    aria-label={sidebarLocked ? "Déverrouiller la barre" : "Verrouiller la barre"}
+                  >
+                    <Icon name={sidebarLocked ? "lock" : "unlock"} size={16} />
+                  </button>
+                ) : null}
               </div>
 
               <div className="sidebar-nav">
@@ -3101,19 +3452,27 @@ export default function FlowApp() {
                 ))}
               </div>
 
-              <div className="sidebar-footer">
-                <div className="sidebar-footer-copy">
-                  <strong>{user.name || "Compte Flow"}</strong>
-                  <span>{user.email}</span>
-                </div>
-                <div className="button-row" style={{ marginTop: 14 }}>
-                  <button type="button" className="secondary" onClick={() => setActiveSection("profile")} style={{ width: "100%" }}>
-                    Ouvrir le profil
-                  </button>
-                  <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"} style={{ width: "100%" }}>
-                    {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
-                  </button>
-                </div>
+              <div className={`sidebar-footer ${sidebarShowsDetails ? "" : "collapsed"}`}>
+                {sidebarShowsDetails ? (
+                  <>
+                    <div className="sidebar-footer-copy">
+                      <strong>{user.name || "Compte Flow"}</strong>
+                      <span>{user.email}</span>
+                    </div>
+                    <div className="button-row" style={{ marginTop: 14 }}>
+                      <button type="button" className="secondary" onClick={() => setActiveSection("profile")} style={{ width: "100%" }}>
+                        Profil
+                      </button>
+                      <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"} style={{ width: "100%" }}>
+                        {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="sidebar-footer-mini" aria-label={user.name || "Profil"}>
+                    {profilePhotoUrl ? <img src={profilePhotoUrl} alt={user.name || "Profil"} /> : initialsFromName(user.name).slice(0, 1)}
+                  </div>
+                )}
               </div>
             </aside>
           ) : null}
@@ -3131,7 +3490,7 @@ export default function FlowApp() {
                 </button>
               ) : null}
 
-              <div className="search-wrap" ref={searchWrapRef}>
+              <div className={`search-wrap ${searchOpen ? "active" : ""}`} ref={searchWrapRef}>
                 <div className="search-box">
                   <Icon name="search" size={18} />
                   <input
@@ -3245,65 +3604,32 @@ export default function FlowApp() {
 
               {activeSection === "dashboard" ? (
                 effectiveLayout === "overview" ? (
-                  <section className="overview-layout">
-                    <div className="page-head">
-                      <div>
-                        <h1>Bienvenue, {firstName(user.name)}</h1>
-                      </div>
+                <section className="overview-layout">
+                  <div className="page-head">
+                    <div>
+                      <h1>Bienvenue, {firstName(user.name)}</h1>
+                      <p>Résumé direct de ton compte, de tes éléments actifs et de la période Shopify sélectionnée.</p>
                     </div>
+                  </div>
 
-                    <div className="metrics-grid">
-                      <div className="metric-card primary">
+                  <div className="metrics-grid">
+                    {dashboardCards.map((card) => (
+                      <button
+                        key={card.id}
+                        type="button"
+                        className={`metric-card ${card.primary ? "primary" : ""}`}
+                        onClick={() => setActiveSection(card.section)}
+                      >
                         <div className="metric-card-head">
-                          <span>Notes</span>
-                          <Icon name="note" size={18} />
+                          <span>{card.label}</span>
+                          <Icon name={card.icon} size={18} />
                         </div>
-                        <div className="metric-value">{dashboardMetrics.notes}</div>
-                        <div className="metric-foot">
-                          <span>{dashboardMetrics.bookmarks} signets</span>
-                        </div>
-                      </div>
-                      <div className="metric-card">
-                        <div className="metric-card-head">
-                          <span>Tâches ouvertes</span>
-                          <Icon name="check" size={18} />
-                        </div>
-                        <div className="metric-value">{dashboardMetrics.tasks}</div>
-                        <div className="metric-foot">
-                          <span>En cours</span>
-                        </div>
-                      </div>
-                      <div className="metric-card">
-                        <div className="metric-card-head">
-                          <span>Événements</span>
-                          <Icon name="calendar" size={18} />
-                        </div>
-                        <div className="metric-value">{dashboardMetrics.events}</div>
-                        <div className="metric-foot">
-                          <span>Planifiés</span>
-                        </div>
-                      </div>
-                      <div className="metric-card">
-                        <div className="metric-card-head">
-                          <span>Notifications</span>
-                          <Icon name="bell" size={18} />
-                        </div>
-                        <div className="metric-value">{dashboardMetrics.notifications}</div>
-                        <div className="metric-foot">
-                          <span>{dashboardMetrics.contacts} contact(s) connus</span>
-                        </div>
-                      </div>
-                      <div className="metric-card primary">
-                        <div className="metric-card-head">
-                          <span>Shopify</span>
-                          <Icon name="bag" size={18} />
-                        </div>
-                        {shopifyState.loading && !shopifyState.data ? (
+                        {card.id === "shopify" && shopifyState.loading && !shopifyState.data ? (
                           <div className="shopify-skeleton" style={{ marginTop: 22 }}>
                             <div className="skeleton-line" style={{ width: "58%", height: 38, borderRadius: 20 }} />
                             <div className="skeleton-line" style={{ width: "74%", marginTop: 14 }} />
                           </div>
-                        ) : shopifyState.error ? (
+                        ) : card.id === "shopify" && shopifyState.error ? (
                           <>
                             <div className="metric-value">—</div>
                             <div className="metric-foot">
@@ -3312,24 +3638,23 @@ export default function FlowApp() {
                           </>
                         ) : (
                           <>
-                            <div className="metric-value">{formatCurrency(shopifyOverview.revenueToday)}</div>
+                            <div className="metric-value">{card.value}</div>
                             <div className="metric-foot">
-                              <span>{formatCurrency(shopifyOverview.revenueMonth)} ce mois</span>
-                              <button type="button" className="ghost" onClick={() => setActiveSection("shopify")}>
-                                Voir détails
-                              </button>
+                              <span className="metric-meta">{card.meta}</span>
                             </div>
                           </>
                         )}
-                      </div>
-                    </div>
+                      </button>
+                    ))}
+                  </div>
 
-                    <div className="overview-grid">
+                  <div className="overview-grid">
                       <div className="content-stack">
                         <div className="content-card">
                           <div className="content-card-header">
                             <div>
-                              <h2>Performance du workspace</h2>
+                              <h2>Rythme du compte</h2>
+                              <p>Variation simple basée sur tes notes, tâches, événements, signets et alertes.</p>
                             </div>
                             <button type="button" className="release-chip" onClick={() => setReleaseOpen(true)}>
                               <Icon name="spark" size={15} />
@@ -3361,34 +3686,33 @@ export default function FlowApp() {
                           <div className="content-card-header">
                             <div>
                               <h2>Actions rapides</h2>
+                              <p>Raccourcis vers ce que tu utilises vraiment.</p>
                             </div>
                           </div>
                           <div className="button-row">
                             <button type="button" className="secondary" onClick={() => setCommandOpen(true)}>Rechercher</button>
                             <button type="button" className="secondary" onClick={() => setNotificationOpen(true)}>Notifications</button>
                             <button type="button" className="secondary" onClick={() => setActiveSection("shopify")}>Shopify</button>
-                            <button type="button" className="secondary" onClick={() => void refreshShopifyData()} disabled={shopifyState.loading}>
-                              {shopifyState.loading ? "Actualisation..." : "Actualiser"}
-                            </button>
+                            <button type="button" className="secondary" onClick={() => setActiveSection("profile")}>Profil</button>
                           </div>
                         </div>
 
                         <div className="mini-grid">
                           <div className="mini-card">
-                            <strong>Recherche globale</strong>
-                            <span>La barre du haut et `⌘K / Ctrl+K` utilisent la même indexation sans doublons.</span>
+                            <strong>Contacts suivis</strong>
+                            <span>{dashboardMetrics.contacts} contact(s) reliés à tes événements et à ton compte.</span>
                           </div>
                           <div className="mini-card">
-                            <strong>Sidebar vivante</strong>
-                            <span>Hover pour ouvrir, clic sur le cadenas pour la laisser ouverte entre les visites.</span>
+                            <strong>Notifications</strong>
+                            <span>{dashboardMetrics.notifications} notification(s) non lue(s).</span>
                           </div>
                           <div className="mini-card">
-                            <strong>Thème persistant</strong>
-                            <span>Le switch clair / sombre est sauvegardé dans le compte, pas seulement dans le navigateur.</span>
+                            <strong>Shopify</strong>
+                            <span>{formatCurrency(shopifyOverview.revenueMonth)} sur le mois courant.</span>
                           </div>
                           <div className="mini-card">
-                            <strong>Layouts jumeaux</strong>
-                            <span>Le changement complet de structure se règle depuis le profil utilisateur.</span>
+                            <strong>Fond actif</strong>
+                            <span>{currentThemeBackground ? "Image personnalisée active." : "Fond de base actif."}</span>
                           </div>
                         </div>
                       </div>
@@ -3408,7 +3732,7 @@ export default function FlowApp() {
                           ) : (
                             <>
                               <h3>Zone de focus</h3>
-                              <p>Sélectionne un résultat depuis la recherche.</p>
+                              <p>Sélectionne une note, un contact, un événement ou une tâche.</p>
                             </>
                           )}
                         </div>
@@ -3416,24 +3740,25 @@ export default function FlowApp() {
                         <div className="surface-card">
                           <div className="surface-head">
                             <div>
-                              <h2>Activité récente</h2>
+                              <h2>Derniers éléments</h2>
+                              <p>Ce qui bouge le plus récemment dans ton compte.</p>
                             </div>
                           </div>
                           <div className="overview-list">
-                            {(db.activity || []).slice(0, 4).map((item) => (
+                            {dashboardFeed.map((item) => (
                               <div key={item.id} className="overview-list-item">
                                 <div>
                                   <strong>{item.title}</strong>
-                                  <span>{item.detail || item.type}</span>
+                                  <span>{item.subtitle}</span>
                                 </div>
-                                <span className="helper">{formatRelative(item.createdAt)}</span>
+                                <span className="helper">{item.meta}</span>
                               </div>
                             ))}
-                            {!db.activity.length ? (
+                            {!dashboardFeed.length ? (
                               <div className="overview-list-item">
                                 <div>
-                                  <strong>Aucune activité récente</strong>
-                                  <span>Rien à afficher.</span>
+                                  <strong>Rien de récent</strong>
+                                  <span>Le compte attend ses premiers éléments.</span>
                                 </div>
                               </div>
                             ) : null}
@@ -3606,38 +3931,19 @@ export default function FlowApp() {
                   <div className="page-head">
                     <div>
                       <h1>Shopify</h1>
-                    </div>
-                    <div className="shopify-actions">
-                      <button type="button" className="secondary" onClick={() => void refreshShopifyData()} disabled={shopifyState.loading}>
-                        <Icon name="refresh" size={16} />
-                        {shopifyState.loading ? "Rafraîchissement..." : "Rafraîchir"}
-                      </button>
+                      <p>Lecture directe de la boutique sur la période active.</p>
                     </div>
                   </div>
 
                   <div className="shopify-actions">
-                    {[7, 30].map((range) => (
+                    {SHOPIFY_PERIODS.map((period) => (
                       <button
-                        key={range}
+                        key={period.id}
                         type="button"
-                        className={`pill-button ${shopifyRangeDays === range ? "active" : ""}`}
-                        onClick={() => setShopifyRangeDays(range)}
+                        className={`pill-button ${shopifyPeriod === period.id ? "active" : ""}`}
+                        onClick={() => setShopifyPeriod(period.id)}
                       >
-                        {range} jours
-                      </button>
-                    ))}
-                    {[
-                      { id: "all", label: "Toutes" },
-                      { id: "today", label: "Aujourd'hui" },
-                      { id: "pending", label: "En attente" },
-                    ].map((filter) => (
-                      <button
-                        key={filter.id}
-                        type="button"
-                        className={`pill-button ${shopifyOrderFilter === filter.id ? "active" : ""}`}
-                        onClick={() => setShopifyOrderFilter(filter.id)}
-                      >
-                        {filter.label}
+                        {period.label}
                       </button>
                     ))}
                   </div>
@@ -3655,9 +3961,9 @@ export default function FlowApp() {
 
                   <div className="shopify-kpis">
                     {[
-                      { label: "CA aujourd'hui", value: formatCurrency(shopifyOverview.revenueToday), icon: "activity" },
-                      { label: "CA ce mois", value: formatCurrency(shopifyOverview.revenueMonth), icon: "grid" },
-                      { label: "Commandes aujourd'hui", value: `${shopifyOverview.ordersToday}`, icon: "note" },
+                      { label: "CA période", value: formatCurrency(shopifyOverview.revenueCurrent), icon: "activity" },
+                      { label: "CA du mois", value: formatCurrency(shopifyOverview.revenueMonth), icon: "grid" },
+                      { label: "Commandes", value: `${shopifyOverview.ordersCurrent}`, icon: "note" },
                       { label: "Non fulfillées", value: `${shopifyOverview.pendingFulfillment}`, icon: "check" },
                     ].map((item) => (
                       <div key={item.label} className="shopify-card">
@@ -3676,13 +3982,39 @@ export default function FlowApp() {
                     ))}
                   </div>
 
+                  <div className="shopify-card shopify-mobile-kpi-card">
+                    <div className="surface-head">
+                      <div>
+                        <h2>Période · {activeShopifyPeriodLabel}</h2>
+                      </div>
+                    </div>
+                    <div className="shopify-mobile-kpi-grid">
+                      <div className="shopify-mobile-kpi-item">
+                        <span>CA période</span>
+                        <strong>{formatCurrency(shopifyOverview.revenueCurrent)}</strong>
+                      </div>
+                      <div className="shopify-mobile-kpi-item">
+                        <span>CA du mois</span>
+                        <strong>{formatCurrency(shopifyOverview.revenueMonth)}</strong>
+                      </div>
+                      <div className="shopify-mobile-kpi-item">
+                        <span>Commandes</span>
+                        <strong>{shopifyOverview.ordersCurrent}</strong>
+                      </div>
+                      <div className="shopify-mobile-kpi-item">
+                        <span>À traiter</span>
+                        <strong>{shopifyOverview.pendingFulfillment}</strong>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="shopify-grid">
                     <div className="content-stack">
                       <div className="shopify-card">
                         <div className="surface-head">
                           <div>
-                            <h2>CA — {shopifyRangeDays} derniers jours</h2>
-                            <p>{shopifyState.refreshedAt ? `Dernière mise à jour ${formatShopifyDate(shopifyState.refreshedAt)}` : "En attente de données Shopify."}</p>
+                            <h2>CA — {activeShopifyPeriodLabel}</h2>
+                            <p>{shopifyState.refreshedAt ? `Mise à jour ${formatShopifyDate(shopifyState.refreshedAt)}` : "En attente de données Shopify."}</p>
                           </div>
                         </div>
                         {shopifyState.loading && !shopifyState.data ? (
@@ -3719,8 +4051,8 @@ export default function FlowApp() {
                       <div className="shopify-card">
                         <div className="surface-head">
                           <div>
-                            <h2>10 dernières commandes</h2>
-                            <p>{shopifyOrderFilter === "all" ? "Flux direct Shopify." : `Filtre: ${shopifyOrderFilter === "today" ? "Aujourd'hui" : "En attente"}`}</p>
+                            <h2>Dernières commandes</h2>
+                            <p>Les plus récentes en haut. Les anciennes disparaissent après 3 jours si elles sont traitées.</p>
                           </div>
                         </div>
                         {shopifyState.loading && !shopifyState.data ? (
@@ -3751,7 +4083,7 @@ export default function FlowApp() {
                                 ))}
                               </tbody>
                             </table>
-                            {!visibleShopifyOrders.length ? <div className="notification-empty">Aucune commande pour ce filtre.</div> : null}
+                            {!visibleShopifyOrders.length ? <div className="notification-empty">Aucune commande sur cette période.</div> : null}
                           </div>
                         )}
                       </div>
@@ -3799,7 +4131,9 @@ export default function FlowApp() {
                     <div className="setting-stack">
                       <div className="setting-card">
                         <div className="profile-identity">
-                          <div className="profile-avatar">{initialsFromName(user.name)}</div>
+                          <div className="profile-avatar">
+                            {profilePhotoUrl ? <img src={profilePhotoUrl} alt={user.name || "Profil"} /> : initialsFromName(user.name)}
+                          </div>
                           <div style={{ minWidth: 0 }}>
                             <strong>{user.name || "Compte Flow"}</strong>
                             <span>{user.email}</span>
