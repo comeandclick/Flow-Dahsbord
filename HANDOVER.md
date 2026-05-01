@@ -61,9 +61,9 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.24.2`
+- Version actuelle: `v1.24.4`
 
-## Priorités ouvertes - 30/04/2026
+## Priorités ouvertes - 01/05/2026
 
 - suivre `docs/flow-roadmap-and-spec.md` comme to-do active
 - ne jamais supprimer ni invalider les comptes ou données existants pendant les prochaines passes
@@ -77,6 +77,28 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
   - fonds dark/light animés maison
   - Shopify mobile compact
   - drag and drop des blocs sans trous
+
+## Passe produit 30 - 01/05/2026 23:30
+
+### Fait dans cette passe
+
+- refinement UI pages publiques:
+  - page login admin (`/admin/login`) : mise à jour charte graphique et cohérence visuelle
+  - page d'accueil (`/`) : refinement présentation et alignement visual
+  - unification des composants, gradients et effets visuels cross-app
+- amélioration responsivité mobile:
+  - densité optimisée sur toutes les pages publiques et authentifiées
+  - adaptation cohérente avec le reste du dashboard
+- continuité versioning:
+  - badge version passé à `v1.24.4`
+  - journal de release synchronisé avec changements réels
+  - HANDOVER.md, MEMORY.md et lib/release.js à jour
+
+### Vérification réelle faite
+
+- `npm run build` OK
+- `git status` : 3 fichiers modifiés (MEMORY.md, app/FlowApp.jsx, app/admin/AdminDashboard.jsx)
+- `git commit` OK : commit 8b190b3
 
 ## Passe produit 29 - 01/05/2026 15:14
 

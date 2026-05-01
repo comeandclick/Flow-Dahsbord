@@ -1,5 +1,7 @@
 # FLOW DASHBORD - MEMOIRE PROJET
 
+**Dernière passe (v1.24.4):** Refinement UI pages publiques (`/admin/login`, `/`) avec cohérence visuelle cross-app et responsivité mobile améliorée - 01/05/2026 23:30
+
 ## Etat courant prioritaire
 
 - la page publique `/` n'est plus un portail de présentation:

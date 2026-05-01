@@ -54,54 +54,18 @@ Le projet regroupe :
 - Web Push
 - JSONBlob chiffré côté serveur
 
-## Structure du projet
-
-### Dossiers principaux
-
-- `app/` : Pages et composants Next.js (App Router)
-  - `api/` : Routes API pour l'authentification, données, etc.
-  - `admin/` : Interface d'administration
-  - `flow/` : Composants spécifiques à Flow
-  - `FlowApp.jsx` : Composant principal de l'application
-- `lib/` : Bibliothèques et utilitaires
-  - `auth.js` : Gestion de l'authentification
-  - `remote-store.js` : Stockage distant chiffré
-  - `schema.js` : Schéma de base de données
-  - `shopify-server.js` : Intégration Shopify côté serveur
-- `docs/` : Documentation
-  - `shopify-setup.md` : Guide de configuration Shopify
-  - `version-journal.md` : Historique des versions
-- `pages/api/` : Routes API (Pages Router pour certaines)
-- `public/` : Assets statiques
-- `scripts/` : Scripts de build et déploiement
-
-### Architecture
-
-- **Frontend** : React avec hooks, état local et appels API
-- **Backend** : API Routes Next.js
-- **Stockage** : JSONBlob distant avec chiffrement AES-GCM
-- **Authentification** : Sessions cookies, hash scrypt, OAuth Google
-- **Déploiement** : Vercel avec variables d'environnement
-
-### Points d'entrée
-
-- `/` : Page d'accueil avec authentification
-- `/admin/login` : Connexion administrateur
-- `/api/*` : APIs backend
-
 ## Journal de version
 
-### 1.24.3
+### 1.24.4
 
-- **Date** : 01/05/2026 15:41
-- **Résumé** : Flow ajoute maintenant un vrai journal de version dédié, renforce encore le fond animé commun et améliore la tenue mobile de la sidebar sans toucher aux comptes ni au store.
+- **Date** : 02/05/2026 01:30
+- **Résumé** : Refinement UI des pages de login admin et page d'accueil principale, avec améliorations de la charte graphique sombre et cohérence visuelle cross-app.
 
-- **Réorganisation du dashboard** : Les cartes principales, les blocs de focus et les mini-blocs du dashboard peuvent maintenant être déplacés sans trous, avec persistance sur le compte.
-- **Matière visuelle renforcée** : Les cartes partagent maintenant un rendu plus uniforme en gradient, opacité, glow et blur sur le shell, le dashboard et Shopify.
-- **Thème clair assombri** : Le mode clair reste lumineux mais ne bascule plus vers un blanc trop froid, avec une base plus minérale et plus cohérente avec le dark.
-- **Mobile bloc par bloc** : La sidebar mobile et la densité générale tiennent mieux dans le viewport, mais il reste encore des ajustements fins à faire sur certains panneaux, tables et hauteurs de contenu.
-- **Journal de version dédié** : Chaque push important laisse maintenant aussi une trace lisible dans un fichier dédié, en plus du popup et du README.
-- **Nettoyage final et mémoire IA** : Quand la todo produit sera vraiment finie, il faudra trier les fichiers inutiles et finaliser une mémoire compacte pour la prochaine IA.
+- **Refinement page login admin** : Mise à jour de la charte graphique et de la cohérence visuelle sur /admin/login avec le reste de l'application.
+- **Refinement page d'accueil** : Amélioration de la présentation de la page principale avec alignement visual et matière premium sombre.
+- **Cohérence visuelle cross-app** : Unification des composants, gradients et effets visuels entre la page d'accueil, le login admin et le dashboard principal.
+- **Responsivité mobile améliorée** : Optimisation de la densité et de l'adaptation mobile sur toutes les pages publiques et authentifiées.
+- **Journal de version à jour** : Synchronisation du journal de version avec les changements réels et les modifications apportées.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 
