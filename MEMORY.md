@@ -22,6 +22,9 @@
   - vue immersive desktop sans sidebar
   - vue mobile forcée en tableau
   - module Shopify dédié
+  - configuration Shopify par compte utilisateur
+  - écran commandes Shopify dédié
+  - bouton de remplissage de démo pendant le développement
   - filtres Shopify par période globale
   - fond personnalisable par thème actif depuis le profil
   - continuité du store durcie en production:
@@ -33,9 +36,9 @@
 - backlog produit prioritaire à suivre pas à pas:
   - `docs/flow-roadmap-and-spec.md`
   - dashboard d'accueil recentré sur les données utilisateur
-  - thème clair assombri
-  - fonds dark/light maison animés
-  - Shopify mobile compact
+  - matière visuelle uniforme sur tous les blocs
+  - fonds dark/light maison animés plus poussés
+  - adaptation mobile bloc par bloc
   - drag and drop réorganisable sans trous
 
 ## Ce que fait le code

@@ -1,6 +1,6 @@
 # Flow Dashbord
 
-Site principal : [https://flow-online-aymen.vercel.app](https://flow-online-aymen.vercel.app)
+Site principal : [https://flow-core-public-04291307.vercel.app](https://flow-core-public-04291307.vercel.app)
 
 ## But du projet
 
@@ -56,23 +56,23 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.23.8
+### 1.24.0
 
-- **Date** : 30/04/2026 00:58
-- **Résumé** : Flow protège maintenant la continuité des comptes en refusant toute bascule silencieuse vers un store vide, tout en gardant Shopify cohérent sur les commandes annulées.
+- **Date** : 01/05/2026 11:06
+- **Résumé** : Flow pousse maintenant un shell plus propre avec paramètres structurés, Shopify par compte et un mode de remplissage de démo pour accélérer le développement sans toucher aux vraies boutiques.
 
-- **Continuité des comptes verrouillée** : En production, Flow ne recrée plus jamais un store vide sur erreur distante et renvoie une erreur claire si le stockage comptes est indisponible.
-- **Commandes annulées neutralisées** : Les commandes Shopify annulées ne comptent plus dans le CA, le non fulfillé, le top produits du mois ni le widget Shopify du dashboard.
-- **Shell verrouillé et couches nettoyées** : La page principale ne scrolle plus, les popups restent au premier plan et la sidebar fermée desktop n'affiche plus que la photo ou l'initiale.
+- **Paramètres et shell structurés** : La page Paramètres est réorganisée en sections stables, les couches du shell restent devant et les parcours profil / apparence / intégrations sont regroupés proprement.
+- **Shopify par compte** : Chaque utilisateur peut maintenant brancher sa propre boutique, voir son état de connexion et utiliser un écran commandes séparé sans dépendre d'une configuration globale.
+- **Remplissage de démo contrôlé** : Un bouton de développement peut injecter des données cohérentes pour accélérer les tests visuels, sans écraser une vraie boutique Shopify déjà connectée.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 
 ## Déploiement
 
-- Production : [https://flow-online-aymen.vercel.app](https://flow-online-aymen.vercel.app)
+- Production : [https://flow-core-public-04291307.vercel.app](https://flow-core-public-04291307.vercel.app)
 - Build local : `npm run build`
 - Publication release : `npm run publish:release`
 
 ## Lien admin
 
-[https://flow-online-aymen.vercel.app/admin/login](https://flow-online-aymen.vercel.app/admin/login)
+[https://flow-core-public-04291307.vercel.app/admin/login](https://flow-core-public-04291307.vercel.app/admin/login)

@@ -8,8 +8,8 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 
 ## Site en ligne
 
-- URL principale a conserver: `https://flow-online-aymen.vercel.app`
-- URL Vercel de production actuelle: `https://flow-online-aymen.vercel.app`
+- URL principale actuelle: `https://flow-core-public-04291307.vercel.app`
+- URL Vercel de production actuelle: `https://flow-core-public-04291307.vercel.app`
 
 ## Regles absolues
 
@@ -61,7 +61,7 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.23.8`
+- Version actuelle: `v1.24.0`
 
 ## Priorités ouvertes - 30/04/2026
 
@@ -77,6 +77,30 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
   - fonds dark/light animés maison
   - Shopify mobile compact
   - drag and drop des blocs sans trous
+
+## Passe produit 27 - 01/05/2026 11:06
+
+### Fait dans cette passe
+
+- paramètres / shell:
+  - écran Paramètres restructuré en vraies sections `My Account / Appearance / Integrations / Notifications / Advanced`
+  - couches du shell réordonnées pour garder recherche, notifications et palette devant
+- Shopify:
+  - configuration Shopify déplacée au niveau du compte utilisateur
+  - écran commandes dédié avec recherche et tri
+  - état vide propre si aucune boutique n'est connectée
+- développement:
+  - bouton de remplissage de démo ajouté dans la topbar
+  - ce bouton injecte des données cohérentes dans le compte courant sans écraser une vraie boutique Shopify
+
+### Vérification réelle faite
+
+- `npm run build` OK
+- `GET /` local : `200`
+- inscription locale OK
+- session locale OK
+- `GET /api/shopify?endpoint=__status` local :
+  - renvoie bien un état vide propre sans boutique connectée
 
 ## Passe produit 26 - 30/04/2026 00:58
 

@@ -1,6 +1,6 @@
 # Flow - Todo, Spec fonctionnelle et pistes d'amelioration
 
-## Backlog prioritaire - 30/04/2026
+## Backlog prioritaire - 01/05/2026
 
 ### Termine
 
@@ -15,6 +15,8 @@
   - proxy Shopify branché côté serveur
   - callback OAuth Shopify ajouté
   - widget Shopify présent sur le dashboard d'accueil
+  - configuration Shopify maintenant gérée par compte utilisateur
+  - écran commandes dédié avec recherche et tri
 - Shopify périodes:
   - filtres `Aujourd'hui / Hier / 7 jours / 1 mois / 1 an / Depuis toujours`
   - le widget dashboard, les KPI, le graphique et les commandes suivent la période
@@ -23,6 +25,10 @@
 - Fond utilisateur:
   - l'utilisateur peut importer une image locale comme fond du thème actif
   - l'utilisateur peut retirer son image et revenir au fond par défaut
+- Développement:
+  - bouton de remplissage de démo présent dans la topbar
+  - injecte des données cohérentes dans le compte courant
+  - n'écrase pas une vraie boutique Shopify déjà connectée
 - Shell et couches:
   - shell principal verrouillé dans le viewport, sans scroll global de page
   - recherche et notifications passent au premier plan
@@ -37,6 +43,9 @@
 - Dashboard d'accueil:
   - recentrer tout le contenu sur les vraies données utilisateur
   - rapprocher l'organisation des blocs du niveau de densité et d'alignement déjà atteint dans Shopify
+- Paramètres:
+  - pousser encore la page vers une vraie structure `settings app`
+  - finir les comportements liés à la sécurité, au profil et aux intégrations
 - Matière visuelle globale:
   - pousser tous les blocs vers une même matière `gradient + opacité + blur + glow doux`
   - unifier encore les couleurs, bordures, profondeurs et effets entre dark et light
@@ -61,6 +70,9 @@
   - terminé pour les 4 KPI du haut
   - garder ce bloc compact cohérent pendant les prochaines évolutions
   - empêcher tout débordement des textes, notamment dans `Top 5 produits du mois`
+- Shopify connecté utilisateur:
+  - guider proprement la saisie de clé
+  - remonter des erreurs de validation claires si la clé ou la boutique sont invalides
 
 ### A faire
 - Cartes dashboard:
@@ -73,6 +85,9 @@
   - continuer à la garder desktop only
   - faire vivre toute la navigation modules en haut
   - maintenir les deux structures `tableau / immersive` en parallèle
+- Journal de version:
+  - l'ouvrir en popup
+  - afficher clairement les états `fait / en cours / pas encore fait`
 - Déplacement des blocs:
   - activer le drag and drop sur dashboard, Shopify et futurs modules
   - au maintien: mini tremblement du bloc saisi
