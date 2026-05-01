@@ -86,26 +86,26 @@ export default function AdminLogin() {
       <style jsx>{`
         :global(html),:global(body){margin:0;min-height:100%;overflow-x:hidden}
         :global(body){
-          font-family:"Geist",system-ui,sans-serif;
-          background:
-            radial-gradient(circle at top left, rgba(255,255,255,.12), transparent 26%),
-            linear-gradient(145deg, rgba(255,255,255,.03), transparent 28%),
-            #0b0b0d;
-          color:#f7f7fb;
+          font-family:"Inter",system-ui,sans-serif;
+          color:#eef1f8;
+          background-color:#05060a;
+          background-image:
+            radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
+            linear-gradient(180deg, #05060a 0%, #090b10 100%);
+          background-size:26px 26px;
         }
         :global(body)::before{
           content:"";
           position:fixed;
-          top:-180px;
-          left:-140px;
-          width:min(54vw,620px);
-          height:min(54vw,620px);
+          inset:0;
           pointer-events:none;
           background:
-            radial-gradient(circle at 40% 42%, rgba(255,255,255,.18) 0%, rgba(255,255,255,.08) 22%, transparent 60%),
-            conic-gradient(from 220deg at 42% 42%, rgba(255,255,255,.12) 0deg, transparent 64deg, rgba(255,255,255,.04) 96deg, transparent 170deg, rgba(255,255,255,.06) 220deg, transparent 360deg);
-          opacity:.95;
-          filter:blur(10px);
+            radial-gradient(circle at 26% 24%, rgba(255,255,255,.12), transparent 24%),
+            radial-gradient(circle at 74% 28%, rgba(255,143,105,0.12), transparent 18%),
+            linear-gradient(180deg, rgba(255,255,255,.03), transparent 46%);
+          opacity:.72;
+          filter:blur(18px);
+          z-index:0;
         }
         .shell{
           min-height:100vh;
@@ -117,13 +117,13 @@ export default function AdminLogin() {
         .card{
           width:min(480px,100%);
           border-radius:30px;
-          padding:28px;
+          padding:32px;
           border:1px solid rgba(255,255,255,.08);
-          background:
-            radial-gradient(circle at top left, rgba(255,255,255,.08), transparent 30%),
-            linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015) 18%, transparent 44%),
-            #121318;
-          box-shadow:0 24px 70px rgba(0,0,0,.24);
+          background:rgba(12,14,19,0.84);
+          box-shadow:0 28px 90px rgba(0,0,0,.32);
+          backdrop-filter:blur(24px);
+          position:relative;
+          z-index:1;
         }
         .logo{
           width:52px;
@@ -153,7 +153,7 @@ export default function AdminLogin() {
         }
         p{
           margin:0 0 20px;
-          color:rgba(242,243,248,.7);
+          color:rgba(242,243,248,.72);
           line-height:1.6;
         }
         label{
@@ -169,7 +169,7 @@ export default function AdminLogin() {
           box-sizing:border-box;
           border-radius:16px;
           border:1px solid rgba(255,255,255,.08);
-          background:#17191f;
+          background:rgba(18,21,29,0.94);
           color:#f7f7fb;
           padding:14px 16px;
           outline:none;
@@ -177,13 +177,14 @@ export default function AdminLogin() {
         button{
           width:100%;
           margin-top:18px;
-          border:1px solid rgba(255,255,255,.22);
+          border:1px solid rgba(255,124,85,.28);
           border-radius:16px;
-          background:linear-gradient(180deg,#f5f5f7,#cfcfd4);
-          color:#111113;
+          background:linear-gradient(180deg, rgba(255,142,108,0.22), rgba(221,92,76,0.26));
+          color:#eef3ff;
           padding:14px 16px;
           font-weight:800;
           cursor:pointer;
+          box-shadow:0 14px 32px rgba(120, 45, 32, 0.18);
         }
         button:disabled{opacity:.6;cursor:wait}
         .error{
@@ -191,14 +192,14 @@ export default function AdminLogin() {
           padding:12px 14px;
           border-radius:14px;
           border:1px solid rgba(255,133,133,.18);
-          background:rgba(226,98,98,.08);
+          background:rgba(216,92,101,.14);
           color:#ffd3db;
         }
         .link{
           margin-top:16px;
           text-align:center;
         }
-        .link a{color:#f0f0f3}
+        .link a{color:#afc8ff}
       `}</style>
 
       <form className="card" onSubmit={submitLogin}>

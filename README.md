@@ -54,6 +54,41 @@ Le projet regroupe :
 - Web Push
 - JSONBlob chiffré côté serveur
 
+## Structure du projet
+
+### Dossiers principaux
+
+- `app/` : Pages et composants Next.js (App Router)
+  - `api/` : Routes API pour l'authentification, données, etc.
+  - `admin/` : Interface d'administration
+  - `flow/` : Composants spécifiques à Flow
+  - `FlowApp.jsx` : Composant principal de l'application
+- `lib/` : Bibliothèques et utilitaires
+  - `auth.js` : Gestion de l'authentification
+  - `remote-store.js` : Stockage distant chiffré
+  - `schema.js` : Schéma de base de données
+  - `shopify-server.js` : Intégration Shopify côté serveur
+- `docs/` : Documentation
+  - `shopify-setup.md` : Guide de configuration Shopify
+  - `version-journal.md` : Historique des versions
+- `pages/api/` : Routes API (Pages Router pour certaines)
+- `public/` : Assets statiques
+- `scripts/` : Scripts de build et déploiement
+
+### Architecture
+
+- **Frontend** : React avec hooks, état local et appels API
+- **Backend** : API Routes Next.js
+- **Stockage** : JSONBlob distant avec chiffrement AES-GCM
+- **Authentification** : Sessions cookies, hash scrypt, OAuth Google
+- **Déploiement** : Vercel avec variables d'environnement
+
+### Points d'entrée
+
+- `/` : Page d'accueil avec authentification
+- `/admin/login` : Connexion administrateur
+- `/api/*` : APIs backend
+
 ## Journal de version
 
 ### 1.24.3

@@ -386,27 +386,26 @@ export default function AdminDashboard() {
       <style jsx>{`
         :global(html),:global(body){margin:0;min-height:100%}
         :global(body){
-          font-family:"Geist",system-ui,sans-serif;
-          background:
-            radial-gradient(circle at top left, rgba(255,255,255,.12), transparent 26%),
-            linear-gradient(145deg, rgba(255,255,255,.03), transparent 28%),
-            #0b0b0d;
-          color:#f7f7fb;
+          font-family:"Inter",system-ui,sans-serif;
+          color:#eef1f8;
+          background-color:#04050a;
+          background-image:
+            radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
+            linear-gradient(180deg, #04050a 0%, #06070b 100%);
+          background-size:26px 26px;
           overflow:auto;
         }
         :global(body)::before{
           content:"";
           position:fixed;
-          top:-180px;
-          left:-140px;
-          width:min(54vw,620px);
-          height:min(54vw,620px);
+          inset:0;
           pointer-events:none;
           background:
-            radial-gradient(circle at 40% 42%, rgba(255,255,255,.18) 0%, rgba(255,255,255,.08) 22%, transparent 60%),
-            conic-gradient(from 220deg at 42% 42%, rgba(255,255,255,.12) 0deg, transparent 64deg, rgba(255,255,255,.04) 96deg, transparent 170deg, rgba(255,255,255,.06) 220deg, transparent 360deg);
-          opacity:.95;
-          filter:blur(10px);
+            radial-gradient(circle at 18% 20%, rgba(255,255,255,.12), transparent 24%),
+            radial-gradient(circle at 82% 18%, rgba(255,138,102,.10), transparent 16%),
+            linear-gradient(180deg, rgba(255,255,255,.03), transparent 40%);
+          opacity:.72;
+          filter:blur(22px);
           z-index:0;
         }
         .admin-shell{
@@ -424,13 +423,13 @@ export default function AdminDashboard() {
         }
         .flow-card{
           border:1px solid rgba(255,255,255,.08);
-          border-radius:28px;
-          background:
-            radial-gradient(circle at top left, rgba(255,255,255,.08), transparent 26%),
-            linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015) 18%, transparent 44%),
-            #121318;
-          box-shadow:0 24px 70px rgba(0,0,0,.24);
+          border-radius:30px;
+          background:rgba(10,12,16,0.78);
+          box-shadow:0 32px 120px rgba(0,0,0,.28);
           overflow:hidden;
+          backdrop-filter:blur(18px);
+          position:relative;
+          z-index:1;
         }
         .sidebar{
           padding:18px;
@@ -563,24 +562,25 @@ export default function AdminDashboard() {
           appearance:none;
           border:1px solid rgba(255,255,255,.08);
           border-radius:16px;
-          background:#1a1c22;
-          color:#f6f7fb;
+          background:rgba(24,28,36,0.92);
+          color:#eef1f8;
           padding:12px 16px;
           font-weight:700;
           cursor:pointer;
-          transition:transform .16s ease,border-color .16s ease,background .16s ease;
+          transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease;
+          box-shadow:0 18px 40px rgba(0,0,0,.18);
         }
         .btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.14)}
         .btn.primary{
-          background:linear-gradient(180deg,#f5f5f7,#cfcfd4);
-          color:#111113;
-          border-color:rgba(255,255,255,.22);
+          background:linear-gradient(180deg, rgba(255,136,100,0.18), rgba(210,85,66,0.24));
+          color:#eef3ff;
+          border-color:rgba(255,124,88,.26);
         }
         .btn.soft{
-          background:#17191f;
+          background:rgba(18,22,30,0.94);
         }
         .btn.danger{
-          background:linear-gradient(180deg,#ef8a8a,#e26262);
+          background:linear-gradient(180deg, rgba(235,95,112,0.18), rgba(213,67,84,0.24));
           color:white;
           border-color:rgba(255,133,133,.24);
         }
@@ -753,9 +753,9 @@ export default function AdminDashboard() {
         .badge{
           padding:7px 10px;
           border-radius:999px;
-          border:1px solid rgba(115,208,170,.18);
-          background:rgba(83,185,143,.12);
-          color:#a9efcf;
+          border:1px solid rgba(255, 125, 98, .18);
+          background:rgba(255, 112, 82, .12);
+          color:#ffe5d8;
           font-size:11px;
           font-weight:700;
           white-space:nowrap;
@@ -847,8 +847,8 @@ export default function AdminDashboard() {
         .notice{
           padding:13px 14px;
           border-radius:18px;
-          border:1px solid rgba(178,167,255,.24);
-          background:rgba(139,125,255,.1);
+          border:1px solid rgba(255, 152, 113, .22);
+          background:rgba(255, 142, 110, .08);
         }
         .warning-row{
           display:flex;

@@ -1546,3 +1546,25 @@ Ta première réponse doit :
   - deployment prod courant: `https://flow-online-aymen-57ixqrrtv-meinays-projects.vercel.app`
   - deployment id: `dpl_Az85vt9tdR48TgjNkCMheexsD6mu`
   - version prod verifiee: `v1.10.4`
+
+## Convention - Fichiers RESSOURCE
+
+### Objectif
+Créer des fichiers ressource pour que les futures IA comprennent rapidement les structures de pages et composants clés.
+
+### Emplacement
+Tous les fichiers ressource sont créés dans `/docs/` avec le prefix `RESSOURCE-`:
+- `docs/RESSOURCE-[nom-page].md`
+
+### Contenu requis
+Chaque fichier ressource doit inclure:
+- Description de la page/composant
+- Liste structurée des éléments ou blocs
+- Styles CSS principaux (variantes, couleurs, animations)
+- Interactions utilisateur (hover, click, etc.)
+- Points techniques importants
+- Chemin du fichier source
+
+### Fichiers ressource existants
+- `docs/RESSOURCE-preview-blocs.md` - Page preview avec 5 blocs glassmorphisme (01/05/2026)
+- `docs/RESSOURCE-design-refonte-01mai2026.md` - Refonte design: suppression orange et unification vers "bright + flare" (01/05/2026)

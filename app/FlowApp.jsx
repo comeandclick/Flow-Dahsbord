@@ -1,5 +1,24 @@
 "use client";
 
+/**
+ * FlowApp.jsx - Application principale Flow
+ *
+ * Ce fichier contient le composant principal de l'application Flow.
+ * Il gère l'authentification, le dashboard, et tous les modules (notes, contacts, événements, tâches, Shopify).
+ *
+ * Structure :
+ * - États et constantes
+ * - Fonctions utilitaires (formatage, API, etc.)
+ * - Hooks et effets
+ * - Gestionnaires d'événements (submit functions)
+ * - Composant principal FlowApp
+ * - Rendu conditionnel selon l'état d'authentification
+ * - Dashboard avec sections (métriques, focus, mini-widgets)
+ * - Sections spécialisées (notes, contacts, événements, tâches, Shopify)
+ * - Sidebar et navigation
+ * - Modales et overlays
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ReleaseWidget } from "./flow/release-ui";
@@ -1041,6 +1060,7 @@ export default function FlowApp() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [releaseOpen, setReleaseOpen] = useState(false);
+  const [shopifyGuideOpen, setShopifyGuideOpen] = useState(false);
   const [remoteRelease, setRemoteRelease] = useState(RELEASE);
   const [availableUpdate, setAvailableUpdate] = useState(null);
   const [reloadCountdown, setReloadCountdown] = useState(AUTO_RELOAD_SECONDS);
@@ -1708,6 +1728,14 @@ export default function FlowApp() {
   }, [commandOpen]);
 
   useEffect(() => {
+    const overlayActive = commandOpen || shopifyGuideOpen || releaseOpen || searchOpen || notificationOpen;
+    document.body.style.overflow = overlayActive ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [commandOpen, shopifyGuideOpen, releaseOpen, searchOpen, notificationOpen]);
+
+  useEffect(() => {
     function onPointerDown(event) {
       const target = event.target;
       if (searchWrapRef.current && !searchWrapRef.current.contains(target)) setSearchOpen(false);
@@ -2167,9 +2195,14 @@ export default function FlowApp() {
           min-height: 100%;
         }
         :global(body) {
-          background: #090a0d;
-          color: #f6f7fb;
+          background-color: #05060a;
+          background-image:
+            radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
+            linear-gradient(180deg, #05060a 0%, #090b11 100%);
+          background-size: 24px 24px;
+          color: #f4f5f8;
           font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+          background-attachment: fixed;
         }
         :global(*) {
           box-sizing: border-box;
@@ -2191,46 +2224,41 @@ export default function FlowApp() {
         }
         .theme-dark {
           --page-bg:
-            radial-gradient(circle at 18% 20%, rgba(116, 139, 94, 0.14), transparent 24%),
-            radial-gradient(circle at 76% 18%, rgba(255, 255, 255, 0.06), transparent 18%),
-            radial-gradient(circle at 58% 82%, rgba(101, 119, 90, 0.12), transparent 26%),
-            linear-gradient(140deg, #08090b 0%, #0b0d10 28%, #101318 58%, #090b0e 100%);
-          --shell-bg: rgba(10, 12, 14, 0.64);
-          --shell-border: rgba(255, 255, 255, 0.07);
-          --panel-bg: rgba(23, 25, 29, 0.66);
-          --panel-soft: rgba(28, 31, 35, 0.76);
-          --panel-strong: rgba(18, 20, 24, 0.88);
-          --text-main: #f4f5f7;
-          --text-soft: rgba(230, 233, 239, 0.74);
-          --text-faint: rgba(199, 205, 216, 0.48);
+            linear-gradient(145deg, #07080c 0%, #090b10 32%, #0d1014 65%, #090a0e 100%);
+          --shell-bg: rgba(8, 10, 14, 0.78);
+          --shell-border: rgba(255, 255, 255, 0.08);
+          --panel-bg: rgba(18, 21, 27, 0.72);
+          --panel-soft: rgba(20, 24, 32, 0.78);
+          --panel-strong: rgba(12, 14, 18, 0.94);
+          --text-main: #f2f2f5;
+          --text-soft: rgba(230, 230, 240, 0.72);
+          --text-faint: rgba(190, 194, 203, 0.44);
           --line: rgba(255, 255, 255, 0.08);
           --line-strong: rgba(255, 255, 255, 0.16);
-          --accent: #dde3d7;
+          --accent: #ffffff;
           --accent-strong: #ffffff;
-          --accent-glow: rgba(133, 160, 113, 0.16);
-          --danger: rgba(96, 51, 46, 0.72);
-          --notice: rgba(23, 25, 29, 0.92);
-          --shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
-          --map-veil: linear-gradient(180deg, rgba(8, 9, 12, 0.1), rgba(8, 9, 12, 0.8));
-          --topbar-glow: rgba(101, 123, 87, 0.22);
+          --accent-glow: rgba(255, 255, 255, 0.08);
+          --danger: rgba(220, 98, 94, 0.82);
+          --orange: #ffffff;
+          --orange-d: rgba(255, 255, 255, 0.08);
+          --red: #ff6b5c;
+          --red-d: rgba(255, 102, 92, 0.14);
+          --notice: rgba(24, 18, 16, 0.96);
+          --shadow: 0 30px 90px rgba(0, 0, 0, 0.44);
+          --map-veil: linear-gradient(180deg, rgba(8, 10, 14, 0.1), rgba(8, 10, 14, 0.88));
+          --topbar-glow: rgba(255, 255, 255, 0.08);
           --surface-layer:
-            radial-gradient(circle at 0% 0%, rgba(137, 159, 114, 0.14), transparent 38%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 46%, rgba(255, 255, 255, 0.028)),
-            rgba(18, 21, 24, 0.72);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02) 46%, rgba(255, 255, 255, 0.03)),
+            rgba(18, 22, 30, 0.78);
           --surface-layer-strong:
-            radial-gradient(circle at 0% 0%, rgba(148, 174, 119, 0.18), transparent 40%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018) 48%, rgba(255, 255, 255, 0.035)),
-            rgba(16, 18, 21, 0.82);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.016) 48%, rgba(255, 255, 255, 0.04)),
+            rgba(14, 16, 20, 0.88);
           --surface-layer-soft:
-            radial-gradient(circle at 0% 0%, rgba(120, 142, 98, 0.12), transparent 34%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.014) 52%, rgba(255, 255, 255, 0.026)),
-            rgba(20, 23, 26, 0.58);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.028)),
+            rgba(20, 24, 34, 0.58);
         }
         .theme-light {
           --page-bg:
-            radial-gradient(circle at 18% 18%, rgba(106, 120, 93, 0.16), transparent 24%),
-            radial-gradient(circle at 74% 22%, rgba(246, 248, 250, 0.13), transparent 18%),
-            radial-gradient(circle at 52% 78%, rgba(143, 154, 127, 0.13), transparent 26%),
             linear-gradient(145deg, #acb3bc 0%, #959da7 34%, #838b95 62%, #7a828c 100%);
           --shell-bg: rgba(182, 190, 199, 0.44);
           --shell-border: rgba(17, 20, 26, 0.1);
@@ -2244,23 +2272,25 @@ export default function FlowApp() {
           --line-strong: rgba(17, 20, 26, 0.18);
           --accent: #111316;
           --accent-strong: #030405;
-          --accent-glow: rgba(104, 118, 87, 0.18);
+          --accent-glow: rgba(255, 255, 255, 0.08);
           --danger: rgba(176, 118, 108, 0.28);
+          --orange: #ffffff;
+          --orange-d: rgba(255, 255, 255, 0.08);
+          --red: #ff6b5c;
+          --red-d: rgba(255, 102, 92, 0.14);
           --notice: rgba(205, 212, 220, 0.96);
           --shadow: 0 28px 78px rgba(22, 26, 33, 0.22);
           --map-veil: linear-gradient(180deg, rgba(197, 204, 212, 0.16), rgba(157, 166, 176, 0.82));
-          --topbar-glow: rgba(110, 121, 101, 0.18);
+          --topbar-glow: rgba(255, 255, 255, 0.08);
           --surface-layer:
-            radial-gradient(circle at 0% 0%, rgba(118, 132, 99, 0.16), transparent 34%),
-            linear-gradient(180deg, rgba(244, 246, 248, 0.18), rgba(255, 255, 255, 0.05) 52%, rgba(248, 250, 252, 0.12)),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05) 52%, rgba(255, 255, 255, 0.12)),
             rgba(171, 180, 189, 0.58);
           --surface-layer-strong:
-            radial-gradient(circle at 0% 0%, rgba(111, 126, 96, 0.2), transparent 36%),
-            linear-gradient(180deg, rgba(248, 250, 251, 0.2), rgba(255, 255, 255, 0.06) 52%, rgba(250, 252, 253, 0.12)),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06) 52%, rgba(255, 255, 255, 0.12)),
             rgba(162, 172, 181, 0.72);
           --surface-layer-soft:
-            radial-gradient(circle at 0% 0%, rgba(134, 146, 114, 0.16), transparent 30%),
-            linear-gradient(180deg, rgba(250, 251, 252, 0.14), rgba(255, 255, 255, 0.04) 52%, rgba(245, 247, 249, 0.1)),
+            radial-gradient(circle at 0% 0%, rgba(205, 130, 100, 0.16), transparent 30%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.1)),
             rgba(173, 181, 188, 0.46);
         }
         :global(html),
@@ -2313,6 +2343,11 @@ export default function FlowApp() {
         .flow-shell > * {
           position: relative;
           z-index: 1;
+        }
+        .flow-shell > .command-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 2000;
         }
         @keyframes shellFadeIn {
           from { opacity: 0; transform: translateY(8px); }
@@ -2904,7 +2939,6 @@ export default function FlowApp() {
         }
         .search-dropdown,
         .command-modal,
-        .notification-panel,
         .spotlight-card,
         .metric-card,
         .content-card,
@@ -2916,6 +2950,16 @@ export default function FlowApp() {
           backdrop-filter: blur(20px);
           position: relative;
           overflow: hidden;
+        }
+        .notification-panel {
+          position: fixed;
+          top: 76px;
+          right: 20px;
+          width: min(420px, calc(100% - 40px));
+          max-height: min(68vh, 640px);
+          z-index: 190;
+          overflow: auto;
+          border-radius: 24px;
         }
         .search-dropdown::before,
         .command-modal::before,
@@ -3319,7 +3363,6 @@ export default function FlowApp() {
           border-radius: 24px;
           border: 1px solid var(--line);
           background:
-            radial-gradient(circle at 0% 0%, rgba(162, 94, 81, 0.16), transparent 36%),
             linear-gradient(180deg, rgba(139, 92, 84, 0.16), rgba(255, 255, 255, 0.01) 46%, rgba(80, 45, 40, 0.12)),
             rgba(88, 54, 50, 0.22);
           padding: 14px;
@@ -3358,18 +3401,29 @@ export default function FlowApp() {
         .command-backdrop {
           position: fixed;
           inset: 0;
-          background: rgba(4, 6, 10, 0.54);
-          backdrop-filter: blur(10px);
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(4, 6, 10, 0.92);
+          backdrop-filter: blur(18px);
           display: grid;
           place-items: center;
-          z-index: 180;
-          padding: 18px;
+          z-index: 99999;
+          padding: 24px;
+          overflow: auto;
+          pointer-events: auto;
         }
         .command-modal {
+          position: relative;
+          z-index: 100000;
           width: min(760px, 100%);
+          max-height: min(84vh, 860px);
           border-radius: 30px;
           padding: 16px;
           animation: riseIn 0.26s ease;
+          overflow: hidden;
+          box-shadow: 0 40px 120px rgba(0, 0, 0, 0.28);
         }
         .command-input {
           display: flex;
@@ -3719,10 +3773,10 @@ export default function FlowApp() {
           position: absolute;
           inset: 0 auto 0 0;
           border-radius: inherit;
-          background: linear-gradient(90deg, rgba(150, 172, 125, 0.25), rgba(236, 239, 228, 0.82));
+          background: linear-gradient(90deg, rgba(255, 138, 102, 0.28), rgba(255, 225, 205, 0.78));
         }
         .theme-light .scale-fill {
-          background: linear-gradient(90deg, rgba(113, 131, 94, 0.32), rgba(30, 34, 39, 0.92));
+          background: linear-gradient(90deg, rgba(255, 156, 112, 0.32), rgba(44, 34, 30, 0.92));
         }
         .shopify-layout {
           display: grid;
@@ -3852,14 +3906,14 @@ export default function FlowApp() {
           font-weight: 700;
         }
         .status-pill.success {
-          color: #d7f5df;
-          border-color: rgba(110, 183, 132, 0.24);
-          background: rgba(37, 96, 54, 0.34);
+          color: #f7d8cf;
+          border-color: rgba(255, 120, 88, 0.24);
+          background: rgba(108, 46, 36, 0.34);
         }
         .status-pill.warning {
           color: #f6ead2;
-          border-color: rgba(212, 169, 101, 0.26);
-          background: rgba(120, 84, 28, 0.3);
+          border-color: rgba(224, 129, 98, 0.26);
+          background: rgba(128, 60, 42, 0.3);
         }
         .status-pill.danger {
           color: #f8dbd7;
@@ -4163,11 +4217,13 @@ export default function FlowApp() {
             display: grid;
           }
           .notification-panel {
-            top: 68px;
-            right: 14px;
-            left: 14px;
-            width: auto;
+            position: fixed;
+            top: 76px;
+            right: 20px;
+            width: min(420px, calc(100% - 40px));
             max-height: min(68dvh, 640px);
+            z-index: 2200;
+            overflow: auto;
           }
           .page-head p,
           .content-card-header p,
@@ -4183,11 +4239,13 @@ export default function FlowApp() {
           }
           .command-backdrop {
             padding: 10px;
-            align-items: flex-start;
+            align-items: center;
+            place-items: center;
           }
           .command-modal {
-            margin-top: 70px;
+            margin-top: 0;
             border-radius: 24px;
+            width: min(100%, 96vw);
           }
           .command-footer {
             display: none;
@@ -4527,8 +4585,8 @@ export default function FlowApp() {
                             <svg viewBox="0 0 520 190" width="100%" height="220" preserveAspectRatio="none">
                               <defs>
                                 <linearGradient id="flowChartFill" x1="0" x2="0" y1="0" y2="1">
-                                  <stop offset="0%" stopColor="rgba(181, 197, 157, 0.42)" />
-                                  <stop offset="100%" stopColor="rgba(181, 197, 157, 0.02)" />
+                                  <stop offset="0%" stopColor="rgba(255, 146, 113, 0.42)" />
+                                  <stop offset="100%" stopColor="rgba(255, 146, 113, 0.02)" />
                                 </linearGradient>
                               </defs>
                               {[30, 80, 130, 180].map((line) => (
@@ -4540,7 +4598,7 @@ export default function FlowApp() {
                           </div>
                           <div className="chart-legend">
                             <span><span className="legend-dot" style={{ background: "currentColor" }} />Charge active</span>
-                            <span><span className="legend-dot" style={{ background: "rgba(181,197,157,0.45)" }} />Résumé synthétique</span>
+                            <span><span className="legend-dot" style={{ background: "rgba(255,146,113,0.45)" }} />Résumé synthétique</span>
                           </div>
                         </div>
 
@@ -4818,7 +4876,7 @@ export default function FlowApp() {
                       <div className="surface-head">
                         <div>
                           <h2>Aucune boutique connectee</h2>
-                          <p>Colle une cle au format <code>store.myshopify.com|shpat_xxx</code>. Le token se recupere dans Shopify Admin avec la permission <code>read_orders</code>.</p>
+                          <p>Colle une cle au format <code>store.myshopify.com|shpat_xxx</code>. Le token se recupere dans Shopify Admin avec la permission <code>read_orders</code>. <button type="button" onClick={() => setShopifyGuideOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Guide complet</button>.</p>
                         </div>
                       </div>
                       <div className="shopify-connect-form">
@@ -5587,6 +5645,72 @@ export default function FlowApp() {
             <div className="command-footer">
               <span>Échap pour fermer</span>
               <span>Recherche unique sans doublons</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {shopifyGuideOpen ? (
+        <div className="command-backdrop" onClick={() => setShopifyGuideOpen(false)}>
+          <div className="command-modal" onClick={(event) => event.stopPropagation()} style={{ maxHeight: '84vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Guide Shopify
+                </div>
+                <h3 style={{ margin: 0, fontSize: '22px' }}>Installation de Shopify</h3>
+                <p style={{ margin: '12px 0 0', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  Suivez ces étapes pour récupérer votre token Shopify et le connecter directement sans quitter la page.
+                </p>
+              </div>
+              <button type="button" onClick={() => setShopifyGuideOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px', padding: '8px' }} aria-label="Fermer le guide Shopify">
+                ✕
+              </button>
+            </div>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              <section>
+                <h4>1. Créer l'application Shopify</h4>
+                <ol style={{ margin: '10px 0 0 16px', color: 'var(--text-soft)' }}>
+                  <li>Connectez-vous à l’admin Shopify.</li>
+                  <li>Ouvrez <strong>Apps</strong> puis <strong>Develop apps</strong>.</li>
+                  <li>Créez une app, donnez-lui un nom et sauvegardez.</li>
+                </ol>
+              </section>
+              <section>
+                <h4>2. Donner les permissions API</h4>
+                <p style={{ margin: '8px 0 4px', color: 'var(--text-soft)' }}>Activez au minimum :</p>
+                <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--text-soft)' }}>
+                  <li><code>read_orders</code></li>
+                  <li><code>read_products</code></li>
+                  <li><code>read_customers</code></li>
+                  <li><code>read_inventory</code></li>
+                </ul>
+              </section>
+              <section>
+                <h4>3. Installer l'application</h4>
+                <p style={{ margin: '8px 0 0', color: 'var(--text-soft)' }}>
+                  Installez l’app depuis l’onglet <strong>API credentials</strong> puis copiez le token une fois affiché.
+                </p>
+              </section>
+              <section>
+                <h4>4. Récupérer le token</h4>
+                <p style={{ margin: '8px 0 0', color: 'var(--text-soft)' }}>
+                  Copiez le token d’accès affiché (début <code>shpat_</code>) car il ne sera visible qu’une seule fois.
+                </p>
+              </section>
+              <section>
+                <h4>5. Connecter Shopify sur Flow</h4>
+                <p style={{ margin: '8px 0 0', color: 'var(--text-soft)' }}>
+                  Collez le domaine Shopify et le token dans le formulaire de connexion Shopify présent ici même.
+                </p>
+                <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)' }}><strong>Format attendu :</strong> <code>store.myshopify.com|shpat_xxx</code></p>
+              </section>
+              <section style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h4 style={{ margin: '0 0 10px' }}>Astuce rapide</h4>
+                <p style={{ margin: 0, color: 'var(--text-soft)' }}>
+                  Si vous perdez le token, régénérez-en un nouveau depuis Shopify puis remplacez l’ancien.
+                </p>
+              </section>
             </div>
           </div>
         </div>
