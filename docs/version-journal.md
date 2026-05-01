@@ -16,6 +16,7 @@ Ce fichier est mis à jour à chaque push significatif et chaque mise en ligne.
 - **Terminé** · Thème clair assombri : Le mode clair reste lumineux mais ne bascule plus vers un blanc trop froid, avec une base plus minérale et plus cohérente avec le dark.
 - **En cours** · Mobile bloc par bloc : La sidebar mobile et la densité générale tiennent mieux dans le viewport, mais il reste encore des ajustements fins à faire sur certains panneaux, tables et hauteurs de contenu.
 - **Terminé** · Journal de version dédié : Chaque push important laisse maintenant aussi une trace lisible dans un fichier dédié, en plus du popup et du README.
+- **En cours** · Authentification et stockage : corriger la création/connexion de compte et s'assurer que les données utilisateurs persistent entre les mises à jour.
 - **À faire** · Nettoyage final et mémoire IA : Quand la todo produit sera vraiment finie, il faudra trier les fichiers inutiles et finaliser une mémoire compacte pour la prochaine IA.
 
 ## Règles

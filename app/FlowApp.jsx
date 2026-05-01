@@ -58,7 +58,14 @@ async function api(path, options = {}) {
     cache: "no-store",
   });
 
-  const payload = await response.json().catch(() => ({}));
+  let payload = {};
+  const responseText = await response.text();
+  try {
+    payload = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    payload = { error: responseText || "Une erreur interne est survenue." };
+  }
+
   if (!response.ok) {
     const error = new Error(payload?.error || "Une erreur interne est survenue.");
     error.status = response.status;
@@ -5396,6 +5403,9 @@ export default function FlowApp() {
               <div className="auth-brand-copy">
                 <strong>Flow</strong>
               </div>
+              <button type="button" className="ghost auth-journal-button" onClick={() => setReleaseOpen(true)}>
+                Journal de version
+              </button>
             </div>
 
             <div className="auth-tabs">

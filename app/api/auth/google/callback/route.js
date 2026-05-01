@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { createSessionCookieValue, readOAuthStateToken, sessionCookieOptions } from "../../../../../lib/auth";
 import { isAdminAccount } from "../../../../../lib/admin";
-import { createEmptyDb } from "../../../../../lib/schema";
+import { createEmptyDb, normalizeDb } from "../../../../../lib/schema";
 import { getAppBaseUrl, getGoogleClientId, getGoogleClientSecret, getGoogleRedirectUri, isGoogleAuthConfigured } from "../../../../../lib/google-auth";
 import { readStore, withStoreLock, writeStore } from "../../../../../lib/remote-store";
 
@@ -76,14 +76,6 @@ export async function GET(request) {
 
       if (!account) {
         const now = new Date().toISOString();
-        const db = createEmptyDb();
-        db.profile = {
-          ...db.profile,
-          name: profile.name || profile.given_name || profile.email.split("@")[0],
-          email: profile.email,
-          fullName: profile.name || "",
-          photoUrl: profile.picture || "",
-        };
         account = {
           uid: crypto.randomUUID(),
           name: profile.name || profile.given_name || profile.email.split("@")[0],
@@ -98,7 +90,18 @@ export async function GET(request) {
           createdAt: now,
           lastLoginAt: now,
           lastSeenAt: now,
-          db,
+          db: normalizeDb(createEmptyDb(), {
+            uid: "",
+            name: profile.name || profile.given_name || profile.email.split("@")[0],
+            email: `${profile.email}`.toLowerCase(),
+          }),
+        };
+        account.db.profile = {
+          ...account.db.profile,
+          name: account.name,
+          email: account.email,
+          fullName: profile.name || "",
+          photoUrl: profile.picture || "",
         };
         store.users.push(account);
       } else {
@@ -108,7 +111,7 @@ export async function GET(request) {
         account.lastLoginAt = new Date().toISOString();
         account.lastSeenAt = account.lastLoginAt;
         account.loginCount = (Number(account.loginCount) || 0) + 1;
-        account.db = {
+        account.db = normalizeDb({
           ...account.db,
           profile: {
             ...(account.db?.profile || {}),
@@ -117,7 +120,7 @@ export async function GET(request) {
             fullName: account.db?.profile?.fullName || profile.name || "",
             photoUrl: account.db?.profile?.photoUrl || profile.picture || "",
           },
-        };
+        }, account);
       }
 
       await writeStore(store);

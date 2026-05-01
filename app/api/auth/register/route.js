@@ -6,7 +6,7 @@ import {
 } from "../../../../lib/auth";
 import { isAdminAccount } from "../../../../lib/admin";
 import { readStore, withStoreLock, writeStore } from "../../../../lib/remote-store";
-import { createEmptyDb } from "../../../../lib/schema";
+import { createEmptyDb, normalizeDb } from "../../../../lib/schema";
 import {
   assertRateLimit,
   clearFailures,
@@ -63,7 +63,7 @@ export async function POST(request) {
         lastSeenAt: new Date().toISOString(),
       };
 
-      const db = createEmptyDb();
+      const db = normalizeDb(createEmptyDb(), user);
       db.profile = {
         ...db.profile,
         name,
