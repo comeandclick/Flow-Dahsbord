@@ -38,6 +38,7 @@
   - les cartes hautes sont cliquables
   - le contenu commence à se recentrer sur les données du compte
   - la hiérarchie du dashboard avance vers un vrai résumé utilisateur
+  - premier drag and drop persistant sur les zones clés du dashboard
 
 ### En cours
 
@@ -48,8 +49,8 @@
   - pousser encore la page vers une vraie structure `settings app`
   - finir les comportements liés au billing, à la confidentialité et aux raccourcis
 - Matière visuelle globale:
-  - pousser tous les blocs vers une même matière `gradient + opacité + blur + glow doux`
-  - unifier encore les couleurs, bordures, profondeurs et effets entre dark et light
+  - pousser encore plus loin la cohérence entre tous les panneaux
+  - continuer à affiner les profondeurs et halos entre dark et light
 - Nettoyage UX:
   - retirer les derniers textes inutiles ou trop “produit Flow”
   - remplacer les derniers boutons secondaires décoratifs quand le bloc entier doit être cliquable
@@ -62,8 +63,8 @@
 ### A ameliorer
 
 - Thème clair:
-  - éclaircir sans blanchir
-  - garder une ambiance premium sombre éclaircie, pas un fond blanc vide
+  - continuer à l’éclaircir sans retomber dans un blanc froid
+  - garder une ambiance premium minérale
 - Mobile:
   - adapter plus finement la hauteur et la densité des blocs
   - la barre latérale doit tenir dans l'écran sans forcer un long scroll
@@ -90,10 +91,8 @@
   - l'ouvrir en popup
   - afficher clairement les états `fait / en cours / pas encore fait`
 - Déplacement des blocs:
-  - activer le drag and drop sur dashboard, Shopify et futurs modules
-  - au maintien: mini tremblement du bloc saisi
-  - au survol d'une zone cible: les autres blocs se décalent proprement
-  - zéro trou dans la grille après déplacement
+  - terminé sur le dashboard d'accueil
+  - étendre plus tard à Shopify et aux futurs modules si ça reste utile
 - Shopify filtres:
   - terminé
 - Shopify commandes:

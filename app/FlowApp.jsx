@@ -22,6 +22,11 @@ const SHOPIFY_PERIODS = [
   { id: "365d", label: "1 an" },
   { id: "all", label: "Depuis toujours" },
 ];
+const DEFAULT_DASHBOARD_ARRANGEMENT = {
+  metrics: ["notes", "tasks", "events", "shopify"],
+  focus: ["upcoming", "tasks", "notifications", "shopify"],
+  mini: ["contacts", "latest-note", "month-revenue", "background"],
+};
 
 function formatReleaseLabel(release) {
   const formattedDate = new Intl.DateTimeFormat("fr-FR", {
@@ -33,6 +38,14 @@ function formatReleaseLabel(release) {
     minute: "2-digit",
   }).format(new Date(release.deployedAt)).replace(",", " ·");
   return `v${release.version} · ${formattedDate}`;
+}
+
+function normalizeDashboardArrangement(input = {}) {
+  return {
+    metrics: Array.isArray(input.metrics) && input.metrics.length ? [...input.metrics] : [...DEFAULT_DASHBOARD_ARRANGEMENT.metrics],
+    focus: Array.isArray(input.focus) && input.focus.length ? [...input.focus] : [...DEFAULT_DASHBOARD_ARRANGEMENT.focus],
+    mini: Array.isArray(input.mini) && input.mini.length ? [...input.mini] : [...DEFAULT_DASHBOARD_ARRANGEMENT.mini],
+  };
 }
 
 async function api(path, options = {}) {
@@ -195,6 +208,26 @@ function formatEventSlot(value, time) {
   } catch {
     return time ? `${value} · ${time}` : value;
   }
+}
+
+function orderItemsByIds(items, order) {
+  const rank = new Map((order || []).map((id, index) => [id, index]));
+  return [...items].sort((left, right) => {
+    const leftRank = rank.has(left.id) ? rank.get(left.id) : 10_000;
+    const rightRank = rank.has(right.id) ? rank.get(right.id) : 10_000;
+    return leftRank - rightRank;
+  });
+}
+
+function reorderIds(list, draggedId, overId) {
+  if (!draggedId || !overId || draggedId === overId) return list;
+  const current = [...list];
+  const from = current.indexOf(draggedId);
+  const to = current.indexOf(overId);
+  if (from === -1 || to === -1) return list;
+  current.splice(from, 1);
+  current.splice(to, 0, draggedId);
+  return current;
 }
 
 function readFileAsDataUrl(file) {
@@ -1020,6 +1053,8 @@ export default function FlowApp() {
   const [isMobile, setIsMobile] = useState(false);
   const [backgroundBusy, setBackgroundBusy] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
+  const [dashboardArrangement, setDashboardArrangement] = useState(() => normalizeDashboardArrangement());
+  const [draggingCard, setDraggingCard] = useState(null);
   const [settingsTab, setSettingsTab] = useState("account");
   const [accountBusy, setAccountBusy] = useState(false);
   const [accountForm, setAccountForm] = useState({
@@ -1081,6 +1116,11 @@ export default function FlowApp() {
   }, [db, unreadNotifications]);
 
   const dashboardFeed = useMemo(() => buildDashboardFeed(db), [db]);
+  const notificationFeed = useMemo(() => {
+    return [...(db.notifications || [])]
+      .sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))
+      .slice(0, 8);
+  }, [db.notifications]);
   const upcomingEvents = useMemo(
     () =>
       [...(db.events || [])]
@@ -1236,6 +1276,79 @@ export default function FlowApp() {
     [activeShopifyPeriodLabel, dashboardMetrics, openTasks, recentNotes, shopifyOverview, shopifyState.ready, upcomingEvents],
   );
 
+  const dashboardFocusCards = useMemo(
+    () => [
+      {
+        id: "upcoming",
+        title: upcomingEvents[0]?.title || "Aucun événement proche",
+        body: upcomingEvents[0] ? formatEventSlot(upcomingEvents[0].date, upcomingEvents[0].time) : "Ajoute un créneau ou utilise la recherche.",
+        onClick: () => (upcomingEvents[0] ? setActiveSection("events") : setCommandOpen(true)),
+      },
+      {
+        id: "tasks",
+        title: openTasks[0]?.title || "Aucune tâche urgente",
+        body: openTasks[0]?.desc || "Tes prochaines tâches apparaîtront ici.",
+        onClick: () => (openTasks[0] ? setActiveSection("tasks") : setCommandOpen(true)),
+      },
+      {
+        id: "notifications",
+        title: unreadNotifications ? `${unreadNotifications} notification(s) à lire` : "Centre de notifications propre",
+        body: notificationFeed[0]?.detail || "Le panneau reste prêt pour les retours modules et système.",
+        onClick: () => setNotificationOpen(true),
+      },
+      {
+        id: "shopify",
+        title: shopifyState.ready ? `${shopifyState.storeDomain}` : "Shopify non connecté",
+        body: shopifyState.ready ? `${shopifyOverview.pendingFulfillment} commande(s) à traiter.` : "Connecte une boutique ou injecte une démo de travail.",
+        onClick: () => setActiveSection("shopify"),
+      },
+    ],
+    [notificationFeed, openTasks, shopifyOverview.pendingFulfillment, shopifyState.ready, shopifyState.storeDomain, unreadNotifications, upcomingEvents],
+  );
+
+  const dashboardMiniCards = useMemo(
+    () => [
+      {
+        id: "contacts",
+        title: "Contacts suivis",
+        body: `${dashboardMetrics.contacts} contact(s) reliés à tes événements et à ton compte.`,
+        onClick: () => setActiveSection("contacts"),
+      },
+      {
+        id: "latest-note",
+        title: "Dernière note",
+        body: recentNotes[0]?.title || "Aucune note récente.",
+        onClick: () => setActiveSection("notes"),
+      },
+      {
+        id: "month-revenue",
+        title: "CA du mois",
+        body: formatCurrency(shopifyOverview.revenueMonth),
+        onClick: () => setActiveSection("shopify"),
+      },
+      {
+        id: "background",
+        title: "Fond actif",
+        body: currentThemeBackground ? "Image personnalisée active." : "Fond de base actif.",
+        onClick: () => setActiveSection("profile"),
+      },
+    ],
+    [currentThemeBackground, dashboardMetrics.contacts, recentNotes, shopifyOverview.revenueMonth],
+  );
+
+  const orderedDashboardCards = useMemo(
+    () => orderItemsByIds(dashboardCards, dashboardArrangement.metrics),
+    [dashboardArrangement.metrics, dashboardCards],
+  );
+  const orderedDashboardFocusCards = useMemo(
+    () => orderItemsByIds(dashboardFocusCards, dashboardArrangement.focus),
+    [dashboardArrangement.focus, dashboardFocusCards],
+  );
+  const orderedDashboardMiniCards = useMemo(
+    () => orderItemsByIds(dashboardMiniCards, dashboardArrangement.mini),
+    [dashboardArrangement.mini, dashboardMiniCards],
+  );
+
   const settingsItems = useMemo(
     () => [
       { id: "account", label: "My Account" },
@@ -1325,6 +1438,10 @@ export default function FlowApp() {
       newPassword: "",
     });
   }, [db.profile, user]);
+
+  useEffect(() => {
+    setDashboardArrangement(normalizeDashboardArrangement(db.settings?.dashboardArrangement));
+  }, [db.settings?.dashboardArrangement]);
 
   useEffect(() => {
     const config = db.settings?.shopify || {};
@@ -1915,6 +2032,38 @@ export default function FlowApp() {
     }
   }
 
+  async function saveDashboardArrangement(nextArrangement) {
+    setDashboardArrangement(nextArrangement);
+    try {
+      await persistDb(nextDbWithSettings({ dashboardArrangement: nextArrangement }), "Disposition du dashboard mise à jour.");
+    } catch {
+      setDashboardArrangement(normalizeDashboardArrangement(db.settings?.dashboardArrangement));
+    }
+  }
+
+  function onDragStart(group, id) {
+    setDraggingCard({ group, id });
+  }
+
+  function onDragOver(group, id) {
+    if (!draggingCard || draggingCard.group !== group || draggingCard.id === id) return;
+    setDashboardArrangement((current) => {
+      const next = normalizeDashboardArrangement(current);
+      next[group] = reorderIds(next[group], draggingCard.id, id);
+      return next;
+    });
+  }
+
+  async function onDragEnd(group) {
+    if (!draggingCard || draggingCard.group !== group) {
+      setDraggingCard(null);
+      return;
+    }
+    const nextArrangement = normalizeDashboardArrangement(dashboardArrangement);
+    setDraggingCard(null);
+    await saveDashboardArrangement(nextArrangement);
+  }
+
   async function saveShopifyConfig() {
     if (shopifyConfigBusy) return;
     setShopifyConfigBusy(true);
@@ -2003,12 +2152,6 @@ export default function FlowApp() {
     }
   }
 
-  const notificationFeed = useMemo(() => {
-    return [...(db.notifications || [])]
-      .sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))
-      .slice(0, 8);
-  }, [db.notifications]);
-
   return (
     <div className={`flow-shell ${themeClass}`} style={flowShellStyle}>
       <style jsx>{`
@@ -2078,40 +2221,40 @@ export default function FlowApp() {
         }
         .theme-light {
           --page-bg:
-            radial-gradient(circle at 18% 18%, rgba(117, 132, 101, 0.14), transparent 24%),
-            radial-gradient(circle at 74% 22%, rgba(255, 255, 255, 0.14), transparent 18%),
-            radial-gradient(circle at 52% 78%, rgba(156, 167, 140, 0.12), transparent 26%),
-            linear-gradient(145deg, #c3c7cc 0%, #a7adb4 34%, #9198a0 62%, #878d95 100%);
-          --shell-bg: rgba(208, 214, 221, 0.46);
-          --shell-border: rgba(17, 20, 26, 0.08);
-          --panel-bg: rgba(229, 233, 238, 0.54);
-          --panel-soft: rgba(213, 219, 226, 0.64);
-          --panel-strong: rgba(221, 226, 232, 0.72);
+            radial-gradient(circle at 18% 18%, rgba(106, 120, 93, 0.16), transparent 24%),
+            radial-gradient(circle at 74% 22%, rgba(246, 248, 250, 0.13), transparent 18%),
+            radial-gradient(circle at 52% 78%, rgba(143, 154, 127, 0.13), transparent 26%),
+            linear-gradient(145deg, #acb3bc 0%, #959da7 34%, #838b95 62%, #7a828c 100%);
+          --shell-bg: rgba(182, 190, 199, 0.44);
+          --shell-border: rgba(17, 20, 26, 0.1);
+          --panel-bg: rgba(214, 220, 227, 0.5);
+          --panel-soft: rgba(194, 201, 209, 0.62);
+          --panel-strong: rgba(204, 211, 219, 0.72);
           --text-main: #15171b;
-          --text-soft: rgba(21, 23, 27, 0.7);
-          --text-faint: rgba(21, 23, 27, 0.46);
-          --line: rgba(17, 20, 26, 0.08);
-          --line-strong: rgba(17, 20, 26, 0.15);
+          --text-soft: rgba(21, 23, 27, 0.74);
+          --text-faint: rgba(21, 23, 27, 0.5);
+          --line: rgba(17, 20, 26, 0.1);
+          --line-strong: rgba(17, 20, 26, 0.18);
           --accent: #111316;
           --accent-strong: #030405;
-          --accent-glow: rgba(118, 134, 98, 0.16);
-          --danger: rgba(176, 118, 108, 0.24);
-          --notice: rgba(218, 223, 230, 0.96);
-          --shadow: 0 26px 72px rgba(26, 30, 38, 0.18);
-          --map-veil: linear-gradient(180deg, rgba(214, 219, 225, 0.2), rgba(176, 183, 192, 0.86));
-          --topbar-glow: rgba(120, 130, 110, 0.16);
+          --accent-glow: rgba(104, 118, 87, 0.18);
+          --danger: rgba(176, 118, 108, 0.28);
+          --notice: rgba(205, 212, 220, 0.96);
+          --shadow: 0 28px 78px rgba(22, 26, 33, 0.22);
+          --map-veil: linear-gradient(180deg, rgba(197, 204, 212, 0.16), rgba(157, 166, 176, 0.82));
+          --topbar-glow: rgba(110, 121, 101, 0.18);
           --surface-layer:
-            radial-gradient(circle at 0% 0%, rgba(126, 142, 106, 0.16), transparent 34%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08) 52%, rgba(255, 255, 255, 0.16)),
-            rgba(191, 198, 207, 0.54);
+            radial-gradient(circle at 0% 0%, rgba(118, 132, 99, 0.16), transparent 34%),
+            linear-gradient(180deg, rgba(244, 246, 248, 0.18), rgba(255, 255, 255, 0.05) 52%, rgba(248, 250, 252, 0.12)),
+            rgba(171, 180, 189, 0.58);
           --surface-layer-strong:
-            radial-gradient(circle at 0% 0%, rgba(117, 132, 101, 0.18), transparent 36%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08) 52%, rgba(255, 255, 255, 0.16)),
-            rgba(178, 186, 195, 0.66);
+            radial-gradient(circle at 0% 0%, rgba(111, 126, 96, 0.2), transparent 36%),
+            linear-gradient(180deg, rgba(248, 250, 251, 0.2), rgba(255, 255, 255, 0.06) 52%, rgba(250, 252, 253, 0.12)),
+            rgba(162, 172, 181, 0.72);
           --surface-layer-soft:
-            radial-gradient(circle at 0% 0%, rgba(144, 158, 122, 0.14), transparent 30%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 52%, rgba(255, 255, 255, 0.11)),
-            rgba(184, 191, 199, 0.44);
+            radial-gradient(circle at 0% 0%, rgba(134, 146, 114, 0.16), transparent 30%),
+            linear-gradient(180deg, rgba(250, 251, 252, 0.14), rgba(255, 255, 255, 0.04) 52%, rgba(245, 247, 249, 0.1)),
+            rgba(173, 181, 188, 0.46);
         }
         :global(html),
         :global(body) {
@@ -2143,8 +2286,9 @@ export default function FlowApp() {
           background:
             radial-gradient(55% 32% at 20% 18%, rgba(128, 152, 108, 0.14), transparent 60%),
             radial-gradient(44% 28% at 82% 22%, rgba(255, 255, 255, 0.06), transparent 62%),
-            radial-gradient(60% 30% at 58% 86%, rgba(110, 129, 94, 0.12), transparent 64%);
-          filter: blur(18px);
+            radial-gradient(60% 30% at 58% 86%, rgba(110, 129, 94, 0.12), transparent 64%),
+            linear-gradient(115deg, transparent 24%, rgba(255,255,255,0.03) 31%, transparent 39% 61%, rgba(122,146,98,0.08) 69%, transparent 78%);
+          filter: blur(24px);
           animation: ambientFloat 22s ease-in-out infinite alternate;
           opacity: 0.92;
           z-index: 0;
@@ -2757,6 +2901,40 @@ export default function FlowApp() {
           background: var(--surface-layer-strong);
           box-shadow: var(--shadow);
           backdrop-filter: blur(20px);
+          position: relative;
+          overflow: hidden;
+        }
+        .search-dropdown::before,
+        .command-modal::before,
+        .notification-panel::before,
+        .spotlight-card::before,
+        .metric-card::before,
+        .content-card::before,
+        .surface-card::before,
+        .floating-card::before,
+        .shopify-card::before,
+        .mini-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 0% 0%, rgba(181, 199, 160, 0.12), transparent 34%),
+            linear-gradient(180deg, rgba(255,255,255,0.06), transparent 30%);
+          opacity: 0.88;
+        }
+        .search-dropdown > *,
+        .command-modal > *,
+        .notification-panel > *,
+        .spotlight-card > *,
+        .metric-card > *,
+        .content-card > *,
+        .surface-card > *,
+        .floating-card > *,
+        .shopify-card > *,
+        .mini-card > * {
+          position: relative;
+          z-index: 1;
         }
         .search-dropdown {
           position: absolute;
@@ -2820,6 +2998,18 @@ export default function FlowApp() {
           overflow: auto;
           padding-right: 6px;
           overscroll-behavior: contain;
+        }
+        .metric-card,
+        .mini-card,
+        .shopify-card,
+        .interactive-card {
+          cursor: pointer;
+        }
+        .metric-card.dragging,
+        .mini-card.dragging {
+          animation: cardWiggle 0.45s ease-in-out infinite;
+          transform: scale(0.985);
+          border-color: var(--line-strong);
         }
         .overview-layout {
           display: grid;
@@ -3765,6 +3955,11 @@ export default function FlowApp() {
             transform: translateX(100%);
           }
         }
+        @keyframes cardWiggle {
+          0% { transform: rotate(-0.9deg) scale(0.985); }
+          50% { transform: rotate(0.9deg) scale(0.985); }
+          100% { transform: rotate(-0.9deg) scale(0.985); }
+        }
         .mobile-backdrop {
           display: none;
         }
@@ -3871,6 +4066,14 @@ export default function FlowApp() {
           .topbar {
             grid-template-columns: auto minmax(0, 1fr) auto;
           }
+          .topbar-actions {
+            gap: 8px;
+          }
+          .icon-button {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+          }
           .topbar.mobile-topbar {
             padding-left: 12px;
           }
@@ -3905,6 +4108,9 @@ export default function FlowApp() {
           }
           .topbar {
             gap: 10px;
+          }
+          .topbar-actions {
+            gap: 6px;
           }
           .search-box {
             height: 50px;
@@ -3941,6 +4147,18 @@ export default function FlowApp() {
             left: 14px;
             width: auto;
             max-height: min(68dvh, 640px);
+          }
+          .page-head p,
+          .content-card-header p,
+          .surface-head p,
+          .mini-card span,
+          .overview-list-item span {
+            font-size: 12px;
+          }
+          .shopify-table th,
+          .shopify-table td {
+            padding: 12px 13px;
+            font-size: 12px;
           }
           .command-backdrop {
             padding: 10px;
@@ -4229,12 +4447,19 @@ export default function FlowApp() {
                   </div>
 
                   <div className="metrics-grid">
-                    {dashboardCards.map((card) => (
+                    {orderedDashboardCards.map((card) => (
                       <button
                         key={card.id}
                         type="button"
-                        className={`metric-card ${card.primary ? "primary" : ""}`}
+                        className={`metric-card ${card.primary ? "primary" : ""} ${draggingCard?.group === "metrics" && draggingCard?.id === card.id ? "dragging" : ""}`}
                         onClick={() => setActiveSection(card.section)}
+                        draggable={!isMobile}
+                        onDragStart={() => onDragStart("metrics", card.id)}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          onDragOver("metrics", card.id);
+                        }}
+                        onDragEnd={() => void onDragEnd("metrics")}
                       >
                         <div className="metric-card-head">
                           <span>{card.label}</span>
@@ -4306,42 +4531,46 @@ export default function FlowApp() {
                             </div>
                           </div>
                           <div className="dashboard-focus-grid">
-                            <button type="button" className="mini-card interactive-card" onClick={() => upcomingEvents[0] ? setActiveSection("events") : setCommandOpen(true)}>
-                              <strong>{upcomingEvents[0]?.title || "Aucun événement proche"}</strong>
-                              <span>{upcomingEvents[0] ? formatEventSlot(upcomingEvents[0].date, upcomingEvents[0].time) : "Ajoute un créneau ou utilise la recherche."}</span>
-                            </button>
-                            <button type="button" className="mini-card interactive-card" onClick={() => openTasks[0] ? setActiveSection("tasks") : setCommandOpen(true)}>
-                              <strong>{openTasks[0]?.title || "Aucune tâche urgente"}</strong>
-                              <span>{openTasks[0]?.desc || "Tes prochaines tâches apparaîtront ici."}</span>
-                            </button>
-                            <button type="button" className="mini-card interactive-card" onClick={() => setNotificationOpen(true)}>
-                              <strong>{unreadNotifications ? `${unreadNotifications} notification(s) à lire` : "Centre de notifications propre"}</strong>
-                              <span>{notificationFeed[0]?.detail || "Le panneau reste prêt pour les retours modules et système."}</span>
-                            </button>
-                            <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("shopify")}>
-                              <strong>{shopifyState.ready ? `${shopifyState.storeDomain}` : "Shopify non connecté"}</strong>
-                              <span>{shopifyState.ready ? `${shopifyOverview.pendingFulfillment} commande(s) à traiter.` : "Connecte une boutique ou injecte une démo de travail."}</span>
-                            </button>
+                            {orderedDashboardFocusCards.map((card) => (
+                              <button
+                                key={card.id}
+                                type="button"
+                                className={`mini-card interactive-card ${draggingCard?.group === "focus" && draggingCard?.id === card.id ? "dragging" : ""}`}
+                                onClick={card.onClick}
+                                draggable={!isMobile}
+                                onDragStart={() => onDragStart("focus", card.id)}
+                                onDragOver={(event) => {
+                                  event.preventDefault();
+                                  onDragOver("focus", card.id);
+                                }}
+                                onDragEnd={() => void onDragEnd("focus")}
+                              >
+                                <strong>{card.title}</strong>
+                                <span>{card.body}</span>
+                              </button>
+                            ))}
                           </div>
                         </div>
 
                         <div className="mini-grid">
-                          <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("contacts")}>
-                            <strong>Contacts suivis</strong>
-                            <span>{dashboardMetrics.contacts} contact(s) reliés à tes événements et à ton compte.</span>
-                          </button>
-                          <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("notes")}>
-                            <strong>Dernière note</strong>
-                            <span>{recentNotes[0]?.title || "Aucune note récente."}</span>
-                          </button>
-                          <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("shopify")}>
-                            <strong>CA du mois</strong>
-                            <span>{formatCurrency(shopifyOverview.revenueMonth)}</span>
-                          </button>
-                          <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("profile")}>
-                            <strong>Fond actif</strong>
-                            <span>{currentThemeBackground ? "Image personnalisée active." : "Fond de base actif."}</span>
-                          </button>
+                          {orderedDashboardMiniCards.map((card) => (
+                            <button
+                              key={card.id}
+                              type="button"
+                              className={`mini-card interactive-card ${draggingCard?.group === "mini" && draggingCard?.id === card.id ? "dragging" : ""}`}
+                              onClick={card.onClick}
+                              draggable={!isMobile}
+                              onDragStart={() => onDragStart("mini", card.id)}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                onDragOver("mini", card.id);
+                              }}
+                              onDragEnd={() => void onDragEnd("mini")}
+                            >
+                              <strong>{card.title}</strong>
+                              <span>{card.body}</span>
+                            </button>
+                          ))}
                         </div>
                       </div>
 

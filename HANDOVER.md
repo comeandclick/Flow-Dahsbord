@@ -61,7 +61,7 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.24.1`
+- Version actuelle: `v1.24.2`
 
 ## Priorités ouvertes - 30/04/2026
 
@@ -77,6 +77,25 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
   - fonds dark/light animés maison
   - Shopify mobile compact
   - drag and drop des blocs sans trous
+
+## Passe produit 29 - 01/05/2026 15:14
+
+### Fait dans cette passe
+
+- dashboard:
+  - premier drag-and-drop persistant ajouté sur les cartes hautes, les blocs focus et les mini-blocs
+  - maintien visuel avec mini tremblement pendant le déplacement
+  - réagencement sans trous dans la grille
+- thème et matière:
+  - matière visuelle encore renforcée sur les cartes et panneaux
+  - thème clair encore assombri pour rester minéral et moins blanc
+  - mobile resserré sur les actions de topbar, les cartes et les tableaux
+
+### Vérification réelle faite
+
+- `npm run build` OK
+- `POST /api/auth/register` local OK
+- `GET /api/session` local OK
 
 ## Passe produit 28 - 01/05/2026 11:43
 

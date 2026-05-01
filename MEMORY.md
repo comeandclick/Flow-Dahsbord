@@ -26,6 +26,7 @@
   - écran commandes Shopify dédié
   - bouton de remplissage de démo pendant le développement
   - page Paramètres élargie en plusieurs sections métier
+  - premier drag-and-drop persistant sur le dashboard
   - filtres Shopify par période globale
   - fond personnalisable par thème actif depuis le profil
   - continuité du store durcie en production:
@@ -36,10 +37,9 @@
   - `docs/design-theme-memory.md`
 - backlog produit prioritaire à suivre pas à pas:
   - `docs/flow-roadmap-and-spec.md`
-  - matière visuelle uniforme sur tous les blocs
   - fonds dark/light maison animés plus poussés
   - adaptation mobile bloc par bloc
-  - drag and drop réorganisable sans trous
+  - étendre le drag and drop aux autres modules si nécessaire
 
 ## Ce que fait le code
 
