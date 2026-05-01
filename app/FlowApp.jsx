@@ -182,6 +182,21 @@ function formatShopifyDate(value) {
   }
 }
 
+function formatEventSlot(value, time) {
+  if (!value) return "Aucun créneau";
+  try {
+    const date = new Date(value);
+    const day = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+    }).format(date);
+    return time ? `${day} · ${time}` : day;
+  } catch {
+    return time ? `${value} · ${time}` : value;
+  }
+}
+
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -949,6 +964,14 @@ function Field({ label, type = "text", value, onChange, placeholder, autoComplet
   );
 }
 
+function SettingQuickButton({ active, onClick, children }) {
+  return (
+    <button type="button" className={`setting-option compact ${active ? "active" : ""}`} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
 function NavItem({ active, icon, label, collapsed, onClick }) {
   return (
     <button type="button" className={`nav-item ${active ? "active" : ""} ${collapsed ? "collapsed" : ""}`} onClick={onClick}>
@@ -1058,6 +1081,33 @@ export default function FlowApp() {
   }, [db, unreadNotifications]);
 
   const dashboardFeed = useMemo(() => buildDashboardFeed(db), [db]);
+  const upcomingEvents = useMemo(
+    () =>
+      [...(db.events || [])]
+        .filter((item) => toTimestamp(item.date) >= startOfToday().getTime())
+        .sort((left, right) => toTimestamp(left.date) - toTimestamp(right.date))
+        .slice(0, 3),
+    [db.events],
+  );
+  const openTasks = useMemo(
+    () =>
+      [...(db.tasks || [])]
+        .filter((item) => item.status !== "done")
+        .sort((left, right) => {
+          const leftDue = toTimestamp(left.due || left.createdAt);
+          const rightDue = toTimestamp(right.due || right.createdAt);
+          return leftDue - rightDue;
+        })
+        .slice(0, 4),
+    [db.tasks],
+  );
+  const recentNotes = useMemo(
+    () =>
+      [...(db.notes || [])]
+        .sort((left, right) => toTimestamp(right.updatedAt || right.createdAt) - toTimestamp(left.updatedAt || left.createdAt))
+        .slice(0, 3),
+    [db.notes],
+  );
   const activeShopifyPeriodLabel = useMemo(
     () => SHOPIFY_PERIODS.find((item) => item.id === shopifyPeriod)?.label || "1 mois",
     [shopifyPeriod],
@@ -1152,26 +1202,26 @@ export default function FlowApp() {
       {
         id: "notes",
         section: "notes",
-        label: "Notes",
+        label: "Notes actives",
         value: `${dashboardMetrics.notes}`,
-        meta: `${dashboardMetrics.bookmarks} signet(s)`,
+        meta: recentNotes[0]?.title || `${dashboardMetrics.bookmarks} signet(s)`,
         icon: "note",
         primary: true,
       },
       {
         id: "tasks",
         section: "tasks",
-        label: "Tâches ouvertes",
+        label: "À traiter",
         value: `${dashboardMetrics.tasks}`,
-        meta: dashboardMetrics.tasks ? "À reprendre" : "Aucune en attente",
+        meta: openTasks[0]?.title || "Aucune tâche urgente",
         icon: "check",
       },
       {
         id: "events",
         section: "events",
-        label: "Événements",
+        label: "Agenda",
         value: `${dashboardMetrics.events}`,
-        meta: dashboardMetrics.events ? "Planifiés" : "Aucun prévu",
+        meta: upcomingEvents[0] ? formatEventSlot(upcomingEvents[0].date, upcomingEvents[0].time) : "Aucun créneau",
         icon: "calendar",
       },
       {
@@ -1179,11 +1229,26 @@ export default function FlowApp() {
         section: "shopify",
         label: `Shopify · ${activeShopifyPeriodLabel}`,
         value: formatCurrency(shopifyOverview.revenueCurrent),
-        meta: `${shopifyOverview.ordersCurrent} commande(s) · ${shopifyOverview.pendingFulfillment} à traiter`,
+        meta: shopifyState.ready ? `${shopifyOverview.ordersCurrent} commande(s) · ${shopifyOverview.pendingFulfillment} à traiter` : "Aucune boutique connectée",
         icon: "bag",
       },
     ],
-    [activeShopifyPeriodLabel, dashboardMetrics, shopifyOverview],
+    [activeShopifyPeriodLabel, dashboardMetrics, openTasks, recentNotes, shopifyOverview, shopifyState.ready, upcomingEvents],
+  );
+
+  const settingsItems = useMemo(
+    () => [
+      { id: "account", label: "My Account" },
+      { id: "appearance", label: "Appearance" },
+      { id: "privacy", label: "Privacy & Safety" },
+      { id: "integrations", label: "Integrations" },
+      { id: "billing", label: "Billing" },
+      { id: "notifications", label: "Notifications" },
+      { id: "language", label: "Language" },
+      { id: "keys", label: "Key Bindings" },
+      { id: "advanced", label: "Advanced" },
+    ],
+    [],
   );
 
   const navSections = useMemo(
@@ -1808,7 +1873,7 @@ export default function FlowApp() {
   }
 
   async function saveAccountSettings(event) {
-    event.preventDefault();
+    event?.preventDefault?.();
     if (accountBusy) return;
     setAccountBusy(true);
     setError("");
@@ -1839,6 +1904,14 @@ export default function FlowApp() {
       setError(normalizeMessage(accountError, "Mise a jour du compte impossible."));
     } finally {
       setAccountBusy(false);
+    }
+  }
+
+  async function saveSettingsPatch(patch, message = "Paramètres mis à jour.") {
+    try {
+      await persistDb(nextDbWithSettings(patch), message);
+    } catch {
+      // handled by persistDb
     }
   }
 
@@ -2928,6 +3001,11 @@ export default function FlowApp() {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 14px;
         }
+        .dashboard-focus-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
         .mini-card {
           border-radius: 22px;
           border: 1px solid var(--line);
@@ -3386,6 +3464,10 @@ export default function FlowApp() {
           border-color: var(--line-strong);
           background: var(--surface-layer-strong);
         }
+        .setting-option.compact {
+          min-height: 88px;
+          padding: 14px 16px;
+        }
         .setting-option.disabled {
           opacity: 0.48;
           cursor: not-allowed;
@@ -3833,7 +3915,8 @@ export default function FlowApp() {
             display: none;
           }
           .metrics-grid,
-          .mini-grid {
+          .mini-grid,
+          .dashboard-focus-grid {
             grid-template-columns: 1fr;
           }
           .settings-field-grid,
@@ -4141,7 +4224,7 @@ export default function FlowApp() {
                   <div className="page-head">
                     <div>
                       <h1>Bienvenue, {firstName(user.name)}</h1>
-                      <p>Résumé direct de ton compte, de tes éléments actifs et de la période Shopify sélectionnée.</p>
+                      <p>Résumé direct de ton compte, de ce qui doit bouger maintenant et de la période active.</p>
                     </div>
                   </div>
 
@@ -4187,7 +4270,7 @@ export default function FlowApp() {
                           <div className="content-card-header">
                             <div>
                               <h2>Rythme du compte</h2>
-                              <p>Variation simple basée sur tes notes, tâches, événements, signets et alertes.</p>
+                              <p>Charge active sur les éléments qui demandent une action.</p>
                             </div>
                             <button type="button" className="release-chip" onClick={() => setReleaseOpen(true)}>
                               <Icon name="spark" size={15} />
@@ -4218,35 +4301,47 @@ export default function FlowApp() {
                         <div className="content-card">
                           <div className="content-card-header">
                             <div>
-                              <h2>Actions rapides</h2>
-                              <p>Raccourcis vers ce que tu utilises vraiment.</p>
+                              <h2>Vue du jour</h2>
+                              <p>Ce qui mérite ton attention en premier.</p>
                             </div>
                           </div>
-                          <div className="button-row">
-                            <button type="button" className="secondary" onClick={() => setCommandOpen(true)}>Rechercher</button>
-                            <button type="button" className="secondary" onClick={() => setNotificationOpen(true)}>Notifications</button>
-                            <button type="button" className="secondary" onClick={() => setActiveSection("shopify")}>Shopify</button>
-                            <button type="button" className="secondary" onClick={() => setActiveSection("profile")}>Profil</button>
+                          <div className="dashboard-focus-grid">
+                            <button type="button" className="mini-card interactive-card" onClick={() => upcomingEvents[0] ? setActiveSection("events") : setCommandOpen(true)}>
+                              <strong>{upcomingEvents[0]?.title || "Aucun événement proche"}</strong>
+                              <span>{upcomingEvents[0] ? formatEventSlot(upcomingEvents[0].date, upcomingEvents[0].time) : "Ajoute un créneau ou utilise la recherche."}</span>
+                            </button>
+                            <button type="button" className="mini-card interactive-card" onClick={() => openTasks[0] ? setActiveSection("tasks") : setCommandOpen(true)}>
+                              <strong>{openTasks[0]?.title || "Aucune tâche urgente"}</strong>
+                              <span>{openTasks[0]?.desc || "Tes prochaines tâches apparaîtront ici."}</span>
+                            </button>
+                            <button type="button" className="mini-card interactive-card" onClick={() => setNotificationOpen(true)}>
+                              <strong>{unreadNotifications ? `${unreadNotifications} notification(s) à lire` : "Centre de notifications propre"}</strong>
+                              <span>{notificationFeed[0]?.detail || "Le panneau reste prêt pour les retours modules et système."}</span>
+                            </button>
+                            <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("shopify")}>
+                              <strong>{shopifyState.ready ? `${shopifyState.storeDomain}` : "Shopify non connecté"}</strong>
+                              <span>{shopifyState.ready ? `${shopifyOverview.pendingFulfillment} commande(s) à traiter.` : "Connecte une boutique ou injecte une démo de travail."}</span>
+                            </button>
                           </div>
                         </div>
 
                         <div className="mini-grid">
-                          <div className="mini-card">
+                          <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("contacts")}>
                             <strong>Contacts suivis</strong>
                             <span>{dashboardMetrics.contacts} contact(s) reliés à tes événements et à ton compte.</span>
-                          </div>
-                          <div className="mini-card">
-                            <strong>Notifications</strong>
-                            <span>{dashboardMetrics.notifications} notification(s) non lue(s).</span>
-                          </div>
-                          <div className="mini-card">
-                            <strong>Shopify</strong>
-                            <span>{formatCurrency(shopifyOverview.revenueMonth)} sur le mois courant.</span>
-                          </div>
-                          <div className="mini-card">
+                          </button>
+                          <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("notes")}>
+                            <strong>Dernière note</strong>
+                            <span>{recentNotes[0]?.title || "Aucune note récente."}</span>
+                          </button>
+                          <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("shopify")}>
+                            <strong>CA du mois</strong>
+                            <span>{formatCurrency(shopifyOverview.revenueMonth)}</span>
+                          </button>
+                          <button type="button" className="mini-card interactive-card" onClick={() => setActiveSection("profile")}>
                             <strong>Fond actif</strong>
                             <span>{currentThemeBackground ? "Image personnalisée active." : "Fond de base actif."}</span>
-                          </div>
+                          </button>
                         </div>
                       </div>
 
@@ -4274,7 +4369,7 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Derniers éléments</h2>
-                              <p>Ce qui bouge le plus récemment dans ton compte.</p>
+                              <p>Notes, tâches, événements et activité du compte, triés sans bruit.</p>
                             </div>
                           </div>
                           <div className="overview-list">
@@ -4761,13 +4856,7 @@ export default function FlowApp() {
 
                   <div className="settings-layout">
                     <div className="settings-side">
-                      {[
-                        { id: "account", label: "My Account" },
-                        { id: "appearance", label: "Appearance" },
-                        { id: "integrations", label: "Integrations" },
-                        { id: "notifications", label: "Notifications" },
-                        { id: "advanced", label: "Advanced" },
-                      ].map((item) => (
+                      {settingsItems.map((item) => (
                         <button
                           key={item.id}
                           type="button"
@@ -4785,7 +4874,7 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>My Account</h2>
-                              <p>Informations reliees a ton compte et a ta connexion.</p>
+                              <p>Informations principales visibles sur ton compte.</p>
                             </div>
                           </div>
                           <div className="settings-field-grid">
@@ -4795,8 +4884,6 @@ export default function FlowApp() {
                             <Field label="Nom complet" value={accountForm.fullName} onChange={(value) => setAccountForm((current) => ({ ...current, fullName: value }))} placeholder="Nom complet" />
                             <Field label="Telephone" value={accountForm.phone} onChange={(value) => setAccountForm((current) => ({ ...current, phone: value }))} placeholder="+33..." />
                             <Field label="Photo" value={accountForm.photoUrl} onChange={(value) => setAccountForm((current) => ({ ...current, photoUrl: value }))} placeholder="URL ou image locale deja importee" />
-                            <Field label="Mot de passe actuel" type="password" value={accountForm.currentPassword} onChange={(value) => setAccountForm((current) => ({ ...current, currentPassword: value }))} placeholder="Mot de passe actuel" />
-                            <Field label="Nouveau mot de passe" type="password" value={accountForm.newPassword} onChange={(value) => setAccountForm((current) => ({ ...current, newPassword: value }))} placeholder="Nouveau mot de passe" />
                           </div>
                           <label className="toggle-field">
                             <input type="checkbox" checked={accountForm.phoneVisible} onChange={(event) => setAccountForm((current) => ({ ...current, phoneVisible: event.target.checked }))} />
@@ -4847,6 +4934,44 @@ export default function FlowApp() {
                         </div>
                       ) : null}
 
+                      {settingsTab === "privacy" ? (
+                        <div className="settings-form">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Privacy & Safety</h2>
+                              <p>Connexion, sécurité et exposition minimale des données.</p>
+                            </div>
+                          </div>
+                          <div className="settings-field-grid">
+                            <Field label="Mot de passe actuel" type="password" value={accountForm.currentPassword} onChange={(value) => setAccountForm((current) => ({ ...current, currentPassword: value }))} placeholder="Mot de passe actuel" />
+                            <Field label="Nouveau mot de passe" type="password" value={accountForm.newPassword} onChange={(value) => setAccountForm((current) => ({ ...current, newPassword: value }))} placeholder="Nouveau mot de passe" />
+                          </div>
+                          <div className="mini-grid">
+                            <div className="mini-card">
+                              <strong>Google</strong>
+                              <span>{providers.google ? "Connexion disponible." : "Configuration absente sur cet environnement."}</span>
+                            </div>
+                            <div className="mini-card">
+                              <strong>Email reset</strong>
+                              <span>{providers.email ? "Réinitialisation disponible." : "Réinitialisation email indisponible."}</span>
+                            </div>
+                            <div className="mini-card">
+                              <strong>Téléphone</strong>
+                              <span>{accountForm.phoneVisible ? "Visible sur le compte." : "Masqué sur le compte."}</span>
+                            </div>
+                            <div className="mini-card">
+                              <strong>Session</strong>
+                              <span>Compte relié au store distant et reconnectable sur plusieurs appareils.</span>
+                            </div>
+                          </div>
+                          <div className="button-row">
+                            <button type="button" className="primary" onClick={(event) => void saveAccountSettings({ preventDefault() {} })} disabled={accountBusy}>
+                              {accountBusy ? "Enregistrement..." : "Mettre à jour la sécurité"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
                       {settingsTab === "integrations" ? (
                         <div className="settings-form">
                           <div className="surface-head">
@@ -4869,7 +4994,24 @@ export default function FlowApp() {
                                 Deconnecter
                               </button>
                             </div>
-                            <p className="helper">{storedShopifyConfig.storeDomain ? `Boutique active : ${storedShopifyConfig.storeDomain}` : "Aucune boutique connectee."}</p>
+                            <p className="helper">{storedShopifyConfig.storeDomain ? `Boutique active : ${storedShopifyConfig.storeDomain}` : "Aucune boutique connectee. Colle la clé privée liée à read_orders."}</p>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {settingsTab === "billing" ? (
+                        <div className="settings-form">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Billing</h2>
+                              <p>Lecture directe de l’état d’abonnement du compte.</p>
+                            </div>
+                          </div>
+                          <div className="settings-field-grid">
+                            <Field label="Plan" value={db.subscription?.plan || "summit"} onChange={() => {}} disabled placeholder="" />
+                            <Field label="Statut" value={db.subscription?.status || "complimentary"} onChange={() => {}} disabled placeholder="" />
+                            <Field label="Cycle" value={db.subscription?.billingCycle || "lifetime"} onChange={() => {}} disabled placeholder="" />
+                            <Field label="Renouvellement" value={db.subscription?.renewsAt ? formatShopifyDate(db.subscription.renewsAt) : "Aucune date"} onChange={() => {}} disabled placeholder="" />
                           </div>
                         </div>
                       ) : null}
@@ -4879,8 +5021,13 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Notifications</h2>
-                              <p>Lecture rapide de ce que ton compte a recu.</p>
+                              <p>Centre de lecture rapide, avec état lu / non lu.</p>
                             </div>
+                          </div>
+                          <div className="button-row">
+                            <button type="button" className="secondary" onClick={() => void markNotificationsAsRead([])} disabled={!notificationFeed.length}>
+                              Tout marquer lu
+                            </button>
                           </div>
                           <div className="overview-list">
                             {notificationFeed.map((item) => (
@@ -4900,6 +5047,47 @@ export default function FlowApp() {
                                 </div>
                               </div>
                             ) : null}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {settingsTab === "language" ? (
+                        <div className="settings-form">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Language</h2>
+                              <p>Réglages simples de langue et de semaine.</p>
+                            </div>
+                          </div>
+                          <div className="setting-options">
+                            <SettingQuickButton active={(db.settings?.locale || "fr") === "fr"} onClick={() => void saveSettingsPatch({ locale: "fr" }, "Langue mise à jour.")}>
+                              <strong>Français</strong>
+                            </SettingQuickButton>
+                            <SettingQuickButton active={(db.settings?.locale || "fr") === "en"} onClick={() => void saveSettingsPatch({ locale: "en" }, "Langue mise à jour.")}>
+                              <strong>English</strong>
+                            </SettingQuickButton>
+                            <SettingQuickButton active={(db.settings?.weekStart || 1) === 1} onClick={() => void saveSettingsPatch({ weekStart: 1 }, "Début de semaine mis à jour.")}>
+                              <strong>Lundi</strong>
+                            </SettingQuickButton>
+                            <SettingQuickButton active={(db.settings?.weekStart || 1) === 0} onClick={() => void saveSettingsPatch({ weekStart: 0 }, "Début de semaine mis à jour.")}>
+                              <strong>Dimanche</strong>
+                            </SettingQuickButton>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {settingsTab === "keys" ? (
+                        <div className="settings-form">
+                          <div className="surface-head">
+                            <div>
+                              <h2>Key Bindings</h2>
+                              <p>Raccourcis utiles déjà actifs dans le shell.</p>
+                            </div>
+                          </div>
+                          <div className="overview-list">
+                            <div className="overview-list-item"><div><strong>⌘K / Ctrl+K</strong><span>Ouvrir la palette de recherche globale.</span></div></div>
+                            <div className="overview-list-item"><div><strong>Échap</strong><span>Fermer la palette ou un popup visible.</span></div></div>
+                            <div className="overview-list-item"><div><strong>Recherche du haut</strong><span>Filtrer notes, contacts, événements, tâches et signets sans doublon.</span></div></div>
                           </div>
                         </div>
                       ) : null}

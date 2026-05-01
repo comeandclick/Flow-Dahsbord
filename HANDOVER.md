@@ -61,7 +61,7 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.24.0`
+- Version actuelle: `v1.24.1`
 
 ## Priorités ouvertes - 30/04/2026
 
@@ -77,6 +77,30 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
   - fonds dark/light animés maison
   - Shopify mobile compact
   - drag and drop des blocs sans trous
+
+## Passe produit 28 - 01/05/2026 11:43
+
+### Fait dans cette passe
+
+- dashboard:
+  - cartes hautes recadrées autour des vraies données du compte
+  - panneaux du jour mieux hiérarchisés pour tâches, événements, notifications, notes et Shopify
+- paramètres:
+  - navigation latérale élargie
+  - sections `Privacy & Safety`, `Billing`, `Language`, `Key Bindings` ajoutées
+  - les réglages continuent à vivre sur le compte distant
+- QA locale:
+  - création de compte locale OK
+  - session persistante locale OK
+  - état Shopify local sans boutique connectée OK
+
+### Vérification réelle faite
+
+- `npm run build` OK
+- `GET /` local : `200`
+- `POST /api/auth/register` local OK
+- `GET /api/session` local OK
+- `GET /api/shopify?endpoint=__status` local OK
 
 ## Passe produit 27 - 01/05/2026 11:06
 

@@ -25,6 +25,7 @@
   - configuration Shopify par compte utilisateur
   - écran commandes Shopify dédié
   - bouton de remplissage de démo pendant le développement
+  - page Paramètres élargie en plusieurs sections métier
   - filtres Shopify par période globale
   - fond personnalisable par thème actif depuis le profil
   - continuité du store durcie en production:
@@ -35,7 +36,6 @@
   - `docs/design-theme-memory.md`
 - backlog produit prioritaire à suivre pas à pas:
   - `docs/flow-roadmap-and-spec.md`
-  - dashboard d'accueil recentré sur les données utilisateur
   - matière visuelle uniforme sur tous les blocs
   - fonds dark/light maison animés plus poussés
   - adaptation mobile bloc par bloc

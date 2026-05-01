@@ -56,14 +56,14 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.24.0
+### 1.24.1
 
-- **Date** : 01/05/2026 11:06
-- **Résumé** : Flow pousse maintenant un shell plus propre avec paramètres structurés, Shopify par compte et un mode de remplissage de démo pour accélérer le développement sans toucher aux vraies boutiques.
+- **Date** : 01/05/2026 11:43
+- **Résumé** : Flow rend maintenant le dashboard plus utile au compte connecté, densifie la page Paramètres et garde Shopify pilotable par utilisateur sans casser l’auth ni la persistance.
 
-- **Paramètres et shell structurés** : La page Paramètres est réorganisée en sections stables, les couches du shell restent devant et les parcours profil / apparence / intégrations sont regroupés proprement.
-- **Shopify par compte** : Chaque utilisateur peut maintenant brancher sa propre boutique, voir son état de connexion et utiliser un écran commandes séparé sans dépendre d'une configuration globale.
-- **Remplissage de démo contrôlé** : Un bouton de développement peut injecter des données cohérentes pour accélérer les tests visuels, sans écraser une vraie boutique Shopify déjà connectée.
+- **Dashboard recentré sur le compte** : Les cartes et panneaux parlent davantage des tâches, événements, notifications, notes et signaux réels du compte au lieu du produit Flow lui-même.
+- **Paramètres densifiés** : La page Paramètres couvre maintenant compte, apparence, sécurité, intégrations, billing, notifications, langue, raccourcis et options avancées dans une structure plus proche d’une vraie settings app.
+- **Shopify par compte gardé intact** : Le statut vide, la connexion boutique et le flux commandes restent cohérents par utilisateur, sans toucher aux boutiques déjà reliées ni aux données persistées.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

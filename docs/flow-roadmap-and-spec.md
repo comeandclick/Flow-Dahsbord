@@ -37,15 +37,16 @@
 - Dashboard d'accueil:
   - les cartes hautes sont cliquables
   - le contenu commence à se recentrer sur les données du compte
+  - la hiérarchie du dashboard avance vers un vrai résumé utilisateur
 
 ### En cours
 
 - Dashboard d'accueil:
-  - recentrer tout le contenu sur les vraies données utilisateur
   - rapprocher l'organisation des blocs du niveau de densité et d'alignement déjà atteint dans Shopify
+  - pousser encore le tri visuel et les résumés du jour
 - Paramètres:
   - pousser encore la page vers une vraie structure `settings app`
-  - finir les comportements liés à la sécurité, au profil et aux intégrations
+  - finir les comportements liés au billing, à la confidentialité et aux raccourcis
 - Matière visuelle globale:
   - pousser tous les blocs vers une même matière `gradient + opacité + blur + glow doux`
   - unifier encore les couleurs, bordures, profondeurs et effets entre dark et light
