@@ -20,6 +20,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ReleaseWidget } from "./flow/release-ui";
 import { RELEASE } from "../lib/release";
@@ -1080,6 +1081,7 @@ export default function FlowApp() {
   const [isMobile, setIsMobile] = useState(false);
   const [backgroundBusy, setBackgroundBusy] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
+  const [domReady, setDomReady] = useState(false);
   const [dashboardArrangement, setDashboardArrangement] = useState(() => normalizeDashboardArrangement());
   const [draggingCard, setDraggingCard] = useState(null);
   const [settingsTab, setSettingsTab] = useState("account");
@@ -1421,6 +1423,10 @@ export default function FlowApp() {
   }, []);
 
   useEffect(() => {
+    setDomReady(true);
+  }, []);
+
+  useEffect(() => {
     function updateViewport() {
       setIsMobile(window.innerWidth <= 980);
     }
@@ -1447,6 +1453,18 @@ export default function FlowApp() {
       documentElement.style.height = previousHtmlHeight;
     };
   }, []);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
+    if (!error) return undefined;
+    const timer = window.setTimeout(() => setError(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [error]);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -4319,7 +4337,7 @@ export default function FlowApp() {
         }
       `}</style>
 
-      {(error || notice || availableUpdate) && (
+      {domReady && (error || notice || availableUpdate) ? createPortal(
         <div className="toast-stack">
           {error ? (
             <div className="toast error">
@@ -4355,7 +4373,7 @@ export default function FlowApp() {
             </div>
           ) : null}
         </div>
-      )}
+      , document.body) : null}
 
       {booting ? (
         <div className="auth-stage">
