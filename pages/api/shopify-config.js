@@ -157,7 +157,7 @@ export default async function handler(req, res) {
 
     if (!storeDomain || !accessToken) {
       res.status(400).json({
-        error: "Colle la cle au format store.myshopify.com|shpat_xxx ou renseigne la boutique et le token.",
+        error: "Renseigne le domaine Shopify et le token séparément, ou colle store.myshopify.com|shpat_xxx.",
       });
       return;
     }

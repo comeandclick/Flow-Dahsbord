@@ -61,7 +61,7 @@ export default function RootLayout({ children }) {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             color: var(--text-primary);
-            border-radius: 16px;
+            border-radius: 17px;
             padding: 12px 20px;
             font-size: 14px;
             font-weight: 600;
@@ -82,7 +82,7 @@ export default function RootLayout({ children }) {
             border: 1px solid var(--glass-border);
             color: var(--text-primary);
             padding: 12px 16px;
-            border-radius: 16px;
+            border-radius: 17px;
             font-size: 14px;
             font-family: inherit;
             backdrop-filter: var(--glass-blur);
@@ -103,7 +103,7 @@ export default function RootLayout({ children }) {
           .card, .panel, [role="region"] {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
-            border-radius: 24px;
+            border-radius: 17px;
             padding: 24px;
             backdrop-filter: var(--glass-blur);
             box-shadow: 0 28px 90px rgba(0, 0, 0, 0.35);

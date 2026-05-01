@@ -273,6 +273,38 @@ export async function POST(request) {
         return Response.json({ ok: true, reportId, status: nextStatus });
       }
 
+      if (action === "toggle-fake-info") {
+        const enabled = !Boolean(store.fakeInfoMode);
+        store.fakeInfoMode = enabled;
+
+        if (enabled) {
+          const users = Array.isArray(store.users) ? store.users : [];
+          users.forEach((accountEntry) => {
+            appendAdminNotification(accountEntry, {
+              type: "fake-info",
+              title: "Mode fausse info activé",
+              detail: "Les messages de test sont activés. Cliquez à nouveau pour désactiver.",
+              href: "settings",
+              activityTitle: "Mode fausse info activé",
+              activityDetail: "Fausse info de test envoyée.",
+            });
+          });
+          addAdminAudit(account, "Mode fausse info activé", `Mode activé pour ${users.length} comptes`);
+        } else {
+          const users = Array.isArray(store.users) ? store.users : [];
+          users.forEach((accountEntry) => {
+            const db = normalizeDb(accountEntry.db, accountEntry);
+            db.notifications = (db.notifications || []).filter((item) => `${item?.type || ""}` !== "fake-info");
+            accountEntry.db = db;
+          });
+          addAdminAudit(account, "Mode fausse info désactivé", "Fausse info retirée de tous les comptes");
+        }
+
+        await writeStore(store);
+        await flushPendingPushes();
+        return Response.json({ ok: true, fakeInfoMode: store.fakeInfoMode });
+      }
+
       if (!target) {
         return Response.json({ error: "Utilisateur introuvable" }, { status: 404 });
       }

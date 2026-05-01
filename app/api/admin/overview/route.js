@@ -188,6 +188,7 @@ export async function GET() {
       },
       users: usersSummary,
       reports: reportEntries,
+      fakeInfoMode: Boolean(store.fakeInfoMode),
     });
   } catch (error) {
     return Response.json({ error: error.message || "Chargement admin impossible" }, { status: error.status || 500 });

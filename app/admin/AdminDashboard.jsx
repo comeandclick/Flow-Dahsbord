@@ -393,7 +393,7 @@ export default function AdminDashboard() {
             radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
             linear-gradient(180deg, #04050a 0%, #06070b 100%);
           background-size:26px 26px;
-          overflow:auto;
+          overflow:hidden;
         }
         :global(body)::before{
           content:"";
@@ -409,12 +409,15 @@ export default function AdminDashboard() {
         }
         .admin-shell{
           min-height:100vh;
+          height:100vh;
+          overflow:hidden;
           padding:14px;
           position:relative;
           z-index:1;
         }
         .admin-layout{
-          min-height:calc(100vh - 28px);
+          min-height:100%;
+          height:100%;
           display:grid;
           grid-template-columns:300px minmax(0,1fr);
           gap:14px;
@@ -422,7 +425,7 @@ export default function AdminDashboard() {
         }
         .flow-card{
           border:1px solid rgba(255,255,255,.08);
-          border-radius:30px;
+          border-radius:17px;
           background:rgba(10,12,16,0.78);
           box-shadow:0 32px 120px rgba(0,0,0,.28);
           overflow:hidden;
@@ -430,12 +433,15 @@ export default function AdminDashboard() {
           position:relative;
           z-index:1;
         }
+        .admin-shell :is(.flow-card, .user-row, .detail-box, .data-block, .section-toggle, .section-chevron, .notice, .error-box, .activity-item, .message-card, .support-message, .permission-toggle, .permission-pill, input, textarea, .search, .chip, .mini-stat, .btn) {
+          border-radius: 17px !important;
+        }
         .sidebar{
           padding:18px;
           display:flex;
           flex-direction:column;
           gap:16px;
-          min-height:calc(100vh - 28px);
+          height:calc(100vh - 28px);
           position:sticky;
           top:14px;
         }
@@ -449,7 +455,7 @@ export default function AdminDashboard() {
         .logo{
           width:48px;
           height:48px;
-          border-radius:16px;
+          border-radius:17px;
           display:flex;
           align-items:center;
           justify-content:center;
@@ -485,7 +491,7 @@ export default function AdminDashboard() {
           appearance:none;
           width:100%;
           padding:13px 14px;
-          border-radius:18px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.06);
           background:rgba(255,255,255,.03);
           color:#f6f7fb;
@@ -514,9 +520,11 @@ export default function AdminDashboard() {
         }
         .admin-main{
           min-width:0;
+          min-height:0;
           display:flex;
           flex-direction:column;
           gap:14px;
+          overflow:auto;
         }
         .hero{
           padding:22px;
@@ -541,6 +549,23 @@ export default function AdminDashboard() {
           flex-wrap:wrap;
           gap:10px;
         }
+        .hero-copy .soft,
+        .brand .soft,
+        .panel-sub{
+          display:none;
+        }
+        .status-pill{
+          display:inline-flex;
+          align-items:center;
+          gap:8px;
+          padding:10px 14px;
+          border-radius:17px;
+          border:1px solid rgba(255,255,255,.08);
+          background:rgba(255,255,255,.04);
+          color:rgba(242,243,248,.78);
+          font-size:13px;
+          max-width:max-content;
+        }
         .summary-box{
           display:grid;
           gap:10px;
@@ -548,7 +573,7 @@ export default function AdminDashboard() {
         }
         .mini-stat{
           padding:14px 16px;
-          border-radius:22px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:rgba(255,255,255,.04);
         }
@@ -560,7 +585,7 @@ export default function AdminDashboard() {
         .btn{
           appearance:none;
           border:1px solid rgba(255,255,255,.08);
-          border-radius:16px;
+          border-radius:17px;
           background:rgba(24,28,36,0.92);
           color:#eef1f8;
           padding:12px 16px;
@@ -620,7 +645,7 @@ export default function AdminDashboard() {
         .search{
           width:100%;
           padding:14px 16px;
-          border-radius:18px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#17191f;
           color:#f7f7fb;
@@ -633,7 +658,7 @@ export default function AdminDashboard() {
         }
         .chip{
           padding:9px 12px;
-          border-radius:14px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#17191f;
           color:rgba(242,243,248,.78);
@@ -651,7 +676,7 @@ export default function AdminDashboard() {
           gap:10px;
           padding-right:4px;
           overscroll-behavior:contain;
-          max-height:520px;
+          max-height:calc(100vh - 420px);
         }
         .section-stack{
           display:flex;
@@ -701,7 +726,7 @@ export default function AdminDashboard() {
         .section-chevron{
           width:40px;
           height:40px;
-          border-radius:14px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:rgba(255,255,255,.04);
           display:flex;
@@ -718,7 +743,7 @@ export default function AdminDashboard() {
           padding:0 18px 18px;
           display:grid;
           gap:14px;
-          max-height:min(68vh,880px);
+          max-height:calc(100vh - 320px);
           overflow:auto;
           overscroll-behavior:contain;
         }
@@ -728,7 +753,7 @@ export default function AdminDashboard() {
           gap:14px;
         }
         .user-row,.activity-item,.message-card,.detail-box,.permission-pill{
-          border-radius:20px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#17191f;
           overflow:hidden;
@@ -789,7 +814,7 @@ export default function AdminDashboard() {
         }
         .data-block{
           padding:16px;
-          border-radius:22px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#17191f;
           display:grid;
@@ -835,7 +860,7 @@ export default function AdminDashboard() {
         input,textarea{
           width:100%;
           padding:13px 14px;
-          border-radius:16px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#17191f;
           color:#f7f7fb;
@@ -845,7 +870,7 @@ export default function AdminDashboard() {
         textarea{min-height:126px}
         .notice{
           padding:13px 14px;
-          border-radius:18px;
+          border-radius:17px;
           border:1px solid rgba(255, 152, 113, .22);
           background:rgba(255, 142, 110, .08);
         }
@@ -857,7 +882,7 @@ export default function AdminDashboard() {
         }
         .danger-box{
           padding:12px 14px;
-          border-radius:18px;
+          border-radius:17px;
           border:1px solid rgba(255,133,133,.18);
           background:rgba(226,98,98,.08);
         }
@@ -887,7 +912,7 @@ export default function AdminDashboard() {
         }
         .presence-pill{
           padding:10px 12px;
-          border-radius:14px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#17191f;
           display:grid;
@@ -912,7 +937,7 @@ export default function AdminDashboard() {
         }
         .support-message{
           padding:12px 14px;
-          border-radius:18px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#17191f;
         }
@@ -935,7 +960,7 @@ export default function AdminDashboard() {
           align-items:center;
           gap:10px;
           padding:12px 14px;
-          border-radius:18px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#17191f;
           cursor:pointer;
@@ -943,7 +968,7 @@ export default function AdminDashboard() {
         .permission-toggle input{width:auto}
         .error-box,.empty{
           padding:18px;
-          border-radius:22px;
+          border-radius:17px;
           border:1px solid rgba(255,255,255,.08);
           background:#16181e;
           color:rgba(242,243,248,.72);
@@ -1017,7 +1042,7 @@ export default function AdminDashboard() {
             <div className="eyebrow">{t("Actions", "Actions")}</div>
             <div className="nav-actions">
               <a className="btn soft" href="/">{t("Ouvrir Flow", "Open Flow")}</a>
-              <a className="btn soft" href="/api/admin/export">{t("Export CSV", "Export CSV")}</a>
+              <button className="btn soft" type="button" onClick={() => runAction("toggle-fake-info")}>{data?.fakeInfoMode ? t("Désactiver fausse info", "Disable fake info") : t("Activer fausse info", "Enable fake info")}</button>
               <button className="btn soft" onClick={() => loadOverview()} disabled={loading || sending}>{t("Rafraichir", "Refresh")}</button>
               <button className="btn soft" onClick={async () => { await api("/api/admin/auth/logout", { method: "POST" }); window.location.href = "/admin/login"; }}>{t("Deconnexion", "Log out")}</button>
             </div>
@@ -1029,13 +1054,7 @@ export default function AdminDashboard() {
             <div className="hero-copy">
               <div className="eyebrow">{t("Dashboard admin Flow", "Flow Admin Dashboard")}</div>
               <h2>{t("Piloter Flow avec des sections nettes.", "Operate Flow with cleaner sections.")}</h2>
-              <div className="soft">{t("Un panneau par usage: vue globale, comptes, données live, support, signalements et administration. Moins de bruit, plus d’action utile.", "One panel per use: overview, accounts, live data, support, reports and administration. Less noise, more useful action.")}</div>
-              <div className="hero-actions">
-                <button className="btn primary" type="button" onClick={() => setOpenSection("users")}>{t("Ouvrir les comptes", "Open accounts")}</button>
-                <button className="btn soft" type="button" onClick={() => setOpenSection("data")}>{t("Ouvrir les données live", "Open live data")}</button>
-                <button className="btn soft" type="button" onClick={() => setOpenSection("support")}>{t("Ouvrir le support", "Open support")}</button>
-                <button className="btn soft" type="button" onClick={() => setOpenSection("reports")}>{t("Ouvrir les signalements", "Open reports")}</button>
-              </div>
+              {data?.fakeInfoMode ? <div className="status-pill">{t("Mode fausse info actif", "Fake info mode active")}</div> : null}
             </div>
             <div className="summary-box">
               <div className="mini-stat">

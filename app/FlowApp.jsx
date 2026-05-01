@@ -1098,7 +1098,8 @@ export default function FlowApp() {
   const [shopifyPeriod, setShopifyPeriod] = useState("30d");
   const [shopifyOrderSort, setShopifyOrderSort] = useState("recent");
   const [shopifyOrderQuery, setShopifyOrderQuery] = useState("");
-  const [shopifyConfigInput, setShopifyConfigInput] = useState("");
+  const [shopifyDomainInput, setShopifyDomainInput] = useState("");
+  const [shopifyTokenInput, setShopifyTokenInput] = useState("");
   const [shopifyConfigBusy, setShopifyConfigBusy] = useState(false);
   const [shopifyState, setShopifyState] = useState({
     loading: false,
@@ -1472,11 +1473,8 @@ export default function FlowApp() {
 
   useEffect(() => {
     const config = db.settings?.shopify || {};
-    setShopifyConfigInput(
-      config.storeDomain && config.accessToken
-        ? `${config.storeDomain}|${config.accessToken}`
-        : "",
-    );
+    setShopifyDomainInput(config.storeDomain || "");
+    setShopifyTokenInput(config.accessToken || "");
   }, [db.settings?.shopify?.storeDomain, db.settings?.shopify?.accessToken]);
 
   async function refreshShopifyData() {
@@ -2108,7 +2106,8 @@ export default function FlowApp() {
       const payload = await api("/api/shopify-config", {
         method: "POST",
         body: JSON.stringify({
-          credential: shopifyConfigInput,
+          storeDomain: shopifyDomainInput,
+          accessToken: shopifyTokenInput,
         }),
       });
       setDb(payload?.db || db);
@@ -2153,6 +2152,39 @@ export default function FlowApp() {
     setNotice("");
     try {
       const fixtures = createDemoFixtures(user);
+      const hasRealShopify = Boolean(storedShopifyConfig.storeDomain && storedShopifyConfig.accessToken);
+      const isDemoActive = !hasRealShopify && shopifyDemoOrders.length > 0;
+
+      const extractIds = (items) => (Array.isArray(items) ? items.map((item) => item?.id).filter(Boolean) : []);
+      const demoIds = new Set([
+        ...extractIds(fixtures.notes),
+        ...extractIds(fixtures.tasks),
+        ...extractIds(fixtures.events),
+        ...extractIds(fixtures.bookmarks),
+        ...extractIds(fixtures.notifications),
+        ...extractIds(fixtures.activity),
+      ]);
+
+      if (isDemoActive) {
+        const nextDb = {
+          ...db,
+          notes: (db.notes || []).filter((item) => !demoIds.has(item?.id)),
+          tasks: (db.tasks || []).filter((item) => !demoIds.has(item?.id)),
+          events: (db.events || []).filter((item) => !demoIds.has(item?.id)),
+          bookmarks: (db.bookmarks || []).filter((item) => !demoIds.has(item?.id)),
+          notifications: (db.notifications || []).filter((item) => !demoIds.has(item?.id)),
+          activity: (db.activity || []).filter((item) => !demoIds.has(item?.id)),
+          settings: {
+            ...(db.settings || {}),
+            demoFixtures: {},
+          },
+        };
+        await persistDb(nextDb, "Mode test desactive.");
+        await refreshShopifyData();
+        setNotice("Mode test désactivé. Aucune boutique n'est connectée.");
+        return;
+      }
+
       const uniqueById = (existing, incoming) => {
         const merged = new Map();
         [...incoming, ...existing].forEach((item) => {
@@ -2161,7 +2193,7 @@ export default function FlowApp() {
         });
         return [...merged.values()];
       };
-      const keepRealShopify = Boolean(storedShopifyConfig.storeDomain && storedShopifyConfig.accessToken);
+
       const nextDb = {
         ...db,
         notes: uniqueById(db.notes || [], fixtures.notes),
@@ -2174,12 +2206,13 @@ export default function FlowApp() {
           ...(db.settings || {}),
           demoFixtures: {
             seededAt: new Date().toISOString(),
-            shopifyOrders: keepRealShopify ? (db.settings?.demoFixtures?.shopifyOrders || []) : fixtures.shopifyOrders,
+            shopifyOrders: hasRealShopify ? (db.settings?.demoFixtures?.shopifyOrders || []) : fixtures.shopifyOrders,
           },
         },
       };
       await persistDb(nextDb, "Donnees de travail injectees.");
       await refreshShopifyData();
+      setNotice(hasRealShopify ? "Donnees de travail injectees." : "Mode test active: donnees Shopify factices et notifications ajoutees.");
     } catch (seedError) {
       setError(normalizeMessage(seedError, "Remplissage des donnees impossible."));
     } finally {
@@ -2208,10 +2241,12 @@ export default function FlowApp() {
           box-sizing: border-box;
         }
         :global(button),
-        :global(input) {
+        :global(input),
+        :global(textarea),
+        :global(select) {
           appearance: none;
           -webkit-appearance: none;
-          border-radius: 0;
+          border-radius: 17px;
           font: inherit;
         }
         :global(::-webkit-scrollbar) {
@@ -2383,7 +2418,7 @@ export default function FlowApp() {
           z-index: 50;
         }
         .toast {
-          border-radius: 20px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--notice);
           backdrop-filter: blur(20px);
@@ -2424,7 +2459,7 @@ export default function FlowApp() {
         }
         .auth-card {
           width: min(440px, 100%);
-          border-radius: 30px;
+          border-radius: 17px;
           border: 1px solid var(--shell-border);
           background:
             linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 34%),
@@ -2457,7 +2492,7 @@ export default function FlowApp() {
         .auth-brand-mark {
           width: 52px;
           height: 52px;
-          border-radius: 18px;
+          border-radius: 17px;
           display: grid;
           place-items: center;
           background: rgba(255, 255, 255, 0.05);
@@ -2484,7 +2519,7 @@ export default function FlowApp() {
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 8px;
           padding: 6px;
-          border-radius: 18px;
+          border-radius: 17px;
           background: rgba(255, 255, 255, 0.04);
           border: 1px solid var(--line);
           margin-bottom: 18px;
@@ -2493,7 +2528,7 @@ export default function FlowApp() {
           all: unset;
           box-sizing: border-box;
           border: 0;
-          border-radius: 14px;
+          border-radius: 17px;
           padding: 12px 10px;
           background: transparent;
           color: var(--text-soft);
@@ -2528,7 +2563,7 @@ export default function FlowApp() {
           border: 1px solid var(--line);
           background: rgba(255, 255, 255, 0.03);
           color: var(--text-main);
-          border-radius: 18px;
+          border-radius: 17px;
           padding: 14px 16px;
           outline: none;
           font-size: 14px;
@@ -2553,7 +2588,7 @@ export default function FlowApp() {
         .pill-button {
           all: unset;
           box-sizing: border-box;
-          border-radius: 18px;
+          border-radius: 17px;
           padding: 13px 16px;
           cursor: pointer;
           transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
@@ -2604,7 +2639,7 @@ export default function FlowApp() {
         .app-shell {
           min-height: calc(100dvh - 36px);
           height: calc(100dvh - 36px);
-          border-radius: 34px;
+          border-radius: 17px;
           border: 1px solid var(--shell-border);
           background: var(--shell-bg);
           backdrop-filter: blur(22px);
@@ -2655,7 +2690,7 @@ export default function FlowApp() {
         .brand-mark {
           width: 48px;
           height: 48px;
-          border-radius: 18px;
+          border-radius: 17px;
           display: grid;
           place-items: center;
           background: rgba(255, 255, 255, 0.06);
@@ -2708,7 +2743,7 @@ export default function FlowApp() {
           box-sizing: border-box;
           width: 40px;
           height: 40px;
-          border-radius: 14px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: rgba(255, 255, 255, 0.04);
           color: var(--text-main);
@@ -2737,7 +2772,7 @@ export default function FlowApp() {
           border: 1px solid transparent;
           background: transparent;
           color: var(--text-soft);
-          border-radius: 18px;
+          border-radius: 17px;
           padding: 13px 14px;
           display: flex;
           align-items: center;
@@ -2777,7 +2812,7 @@ export default function FlowApp() {
         .sidebar-footer {
           margin-top: auto;
           padding: 14px;
-          border-radius: 26px;
+          border-radius: 17px;
           background: var(--surface-layer-soft);
           border: 1px solid var(--line);
           min-height: 74px;
@@ -2793,7 +2828,7 @@ export default function FlowApp() {
         .sidebar-footer-mini {
           width: 46px;
           height: 46px;
-          border-radius: 16px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: rgba(255, 255, 255, 0.06);
           display: grid;
@@ -2841,7 +2876,7 @@ export default function FlowApp() {
           align-items: center;
           gap: 14px;
           padding: 14px 16px;
-          border-radius: 28px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
@@ -2861,7 +2896,7 @@ export default function FlowApp() {
           box-sizing: border-box;
           width: 46px;
           height: 46px;
-          border-radius: 16px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           color: var(--text-main);
@@ -2907,7 +2942,7 @@ export default function FlowApp() {
         .search-box {
           width: 100%;
           height: 54px;
-          border-radius: 22px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           display: flex;
@@ -2933,7 +2968,7 @@ export default function FlowApp() {
         }
         .search-shortcut {
           padding: 8px 10px;
-          border-radius: 12px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           color: var(--text-faint);
           font-size: 12px;
@@ -2955,13 +2990,16 @@ export default function FlowApp() {
         }
         .notification-panel {
           position: fixed;
-          top: 76px;
-          right: 20px;
-          width: min(420px, calc(100% - 40px));
-          max-height: min(68vh, 640px);
+          inset: 0;
+          width: 100vw;
+          height: 100vh;
           z-index: 190;
           overflow: auto;
-          border-radius: 24px;
+          border-radius: 0;
+          background: rgba(4,5,10,0.96);
+          padding: 18px 18px 24px;
+          max-width: none;
+          max-height: none;
         }
         .search-dropdown::before,
         .command-modal::before,
@@ -3000,7 +3038,7 @@ export default function FlowApp() {
           top: calc(100% + 10px);
           left: 0;
           right: 0;
-          border-radius: 24px;
+          border-radius: 17px;
           padding: 12px;
           z-index: 95;
           animation: riseIn 0.24s ease;
@@ -3012,7 +3050,7 @@ export default function FlowApp() {
           border: 0;
           background: transparent;
           color: var(--text-main);
-          border-radius: 18px;
+          border-radius: 17px;
           padding: 12px;
           display: grid;
           grid-template-columns: auto minmax(0, 1fr) auto;
@@ -3105,7 +3143,7 @@ export default function FlowApp() {
           box-sizing: border-box;
           min-height: 46px;
           padding: 0 16px;
-          border-radius: 18px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           color: var(--text-soft);
@@ -3132,7 +3170,7 @@ export default function FlowApp() {
           gap: 16px;
         }
         .metric-card {
-          border-radius: 30px;
+          border-radius: 17px;
           padding: 18px;
           animation: riseIn 0.32s ease;
         }
@@ -3199,7 +3237,7 @@ export default function FlowApp() {
         .surface-card,
         .spotlight-card,
         .floating-card {
-          border-radius: 30px;
+          border-radius: 17px;
           padding: 20px;
           animation: riseIn 0.32s ease;
           min-width: 0;
@@ -3226,7 +3264,7 @@ export default function FlowApp() {
           font-size: 13px;
         }
         .chart-wrap {
-          border-radius: 26px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           padding: 14px;
@@ -3256,7 +3294,7 @@ export default function FlowApp() {
           gap: 14px;
         }
         .mini-card {
-          border-radius: 22px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           padding: 16px;
@@ -3309,7 +3347,7 @@ export default function FlowApp() {
           gap: 12px;
         }
         .overview-list-item {
-          border-radius: 22px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           padding: 15px 16px;
@@ -3332,18 +3370,35 @@ export default function FlowApp() {
           overflow-wrap: anywhere;
         }
         .notification-panel {
-          position: absolute;
-          top: 72px;
-          right: 18px;
-          width: min(390px, calc(100vw - 36px));
-          border-radius: 30px;
-          padding: 16px;
-          z-index: 140;
-          background: var(--surface-layer-strong);
-          animation: riseIn 0.24s ease;
-          max-height: min(72dvh, 760px);
+          position: fixed;
+          inset: 0;
+          width: 100vw;
+          height: 100vh;
+          z-index: 2200;
           overflow: auto;
-          overscroll-behavior: contain;
+          border-radius: 0;
+          padding: 20px;
+          max-width: none;
+          max-height: none;
+          background: rgba(4,5,10,0.96);
+          animation: none;
+        }
+        .notification-panel,
+        .search-dropdown,
+        .search-result,
+        .module-chip,
+        .metric-card,
+        .mini-card,
+        .shopify-card,
+        .interactive-card,
+        .content-card,
+        .surface-card,
+        .floating-card,
+        .command-modal,
+        .spotlight-card,
+        .notification-card,
+        .notification-empty {
+          border-radius: 17px !important;
         }
         .notification-panel-header {
           display: flex;
@@ -3362,7 +3417,7 @@ export default function FlowApp() {
           gap: 12px;
         }
         .notification-card {
-          border-radius: 24px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background:
             linear-gradient(180deg, rgba(139, 92, 84, 0.16), rgba(255, 255, 255, 0.01) 46%, rgba(80, 45, 40, 0.12)),
@@ -3394,7 +3449,7 @@ export default function FlowApp() {
           margin-top: 10px;
         }
         .notification-empty {
-          border-radius: 24px;
+          border-radius: 17px;
           border: 1px dashed var(--line);
           padding: 22px;
           text-align: center;
@@ -3421,7 +3476,7 @@ export default function FlowApp() {
           z-index: 100000;
           width: min(760px, 100%);
           max-height: min(84vh, 860px);
-          border-radius: 30px;
+          border-radius: 17px;
           padding: 16px;
           animation: riseIn 0.26s ease;
           overflow: hidden;
@@ -3432,7 +3487,7 @@ export default function FlowApp() {
           align-items: center;
           gap: 12px;
           border: 1px solid var(--line);
-          border-radius: 22px;
+          border-radius: 17px;
           padding: 0 16px;
           min-height: 58px;
           background: rgba(255, 255, 255, 0.04);
@@ -3461,7 +3516,7 @@ export default function FlowApp() {
         .immersive-layout {
           min-height: 100%;
           height: 100%;
-          border-radius: 34px;
+          border-radius: 17px;
           position: relative;
           overflow: hidden;
           border: 1px solid var(--line);
@@ -3479,19 +3534,22 @@ export default function FlowApp() {
           position: absolute;
           inset: 0;
           background:
-            repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 16px),
-            linear-gradient(115deg, rgba(255, 255, 255, 0.04), transparent 28%);
-          opacity: 0.95;
+            radial-gradient(52% 30% at 8% 2%, rgba(255, 255, 255, 0.08), transparent 72%),
+            radial-gradient(34% 22% at 22% 18%, rgba(150, 184, 126, 0.08), transparent 64%),
+            linear-gradient(115deg, rgba(255, 255, 255, 0.035), transparent 32%);
+          opacity: 0.9;
+          filter: blur(0.25px);
         }
         .immersive-map::after {
           content: "";
           position: absolute;
           inset: 0;
           background:
-            linear-gradient(90deg, transparent 0 16%, rgba(255, 255, 255, 0.06) 16.4%, transparent 16.7% 51%, rgba(255, 255, 255, 0.06) 51.4%, transparent 51.7%),
-            linear-gradient(0deg, transparent 0 22%, rgba(255, 255, 255, 0.04) 22.2%, transparent 22.5% 64%, rgba(255, 255, 255, 0.04) 64.2%, transparent 64.6%);
+            radial-gradient(60% 24% at 12% 0%, rgba(255, 255, 255, 0.09), transparent 72%),
+            linear-gradient(120deg, rgba(255,255,255,0.03), transparent 38%);
           mix-blend-mode: screen;
-          opacity: 0.25;
+          opacity: 0.32;
+          filter: blur(20px);
         }
         .immersive-veil {
           position: absolute;
@@ -3522,7 +3580,7 @@ export default function FlowApp() {
           gap: 12px;
         }
         .floating-kpi {
-          border-radius: 22px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           padding: 14px;
           background: rgba(255, 255, 255, 0.03);
@@ -3586,7 +3644,7 @@ export default function FlowApp() {
         }
         .settings-side,
         .settings-panel {
-          border-radius: 30px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-strong);
           box-shadow: var(--shadow);
@@ -3604,7 +3662,7 @@ export default function FlowApp() {
           box-sizing: border-box;
           width: 100%;
           min-height: 54px;
-          border-radius: 18px;
+          border-radius: 17px;
           padding: 0 16px;
           display: inline-flex;
           align-items: center;
@@ -3648,7 +3706,7 @@ export default function FlowApp() {
           gap: 18px;
         }
         .setting-card {
-          border-radius: 28px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer);
           padding: 20px;
@@ -3676,7 +3734,7 @@ export default function FlowApp() {
         .profile-avatar {
           width: 58px;
           height: 58px;
-          border-radius: 20px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: rgba(255, 255, 255, 0.06);
           display: grid;
@@ -3702,7 +3760,7 @@ export default function FlowApp() {
           all: unset;
           box-sizing: border-box;
           width: 100%;
-          border-radius: 24px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           padding: 16px 18px;
@@ -3802,7 +3860,7 @@ export default function FlowApp() {
         }
         .shopify-mobile-kpi-item {
           min-width: 0;
-          border-radius: 22px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           padding: 14px;
@@ -3823,7 +3881,7 @@ export default function FlowApp() {
           text-overflow: ellipsis;
         }
         .shopify-card {
-          border-radius: 30px;
+          border-radius: 17px;
           padding: 18px;
           border: 1px solid var(--line);
           background: var(--surface-layer);
@@ -3871,7 +3929,7 @@ export default function FlowApp() {
         }
         .shopify-table-wrap {
           overflow: auto;
-          border-radius: 24px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
         }
@@ -3923,7 +3981,7 @@ export default function FlowApp() {
           margin-top: 14px;
         }
         .shopify-product-row {
-          border-radius: 22px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           padding: 14px 16px;
@@ -3958,14 +4016,17 @@ export default function FlowApp() {
           gap: 14px;
           margin-top: 18px;
         }
+        .shopify-connect-form input,
         .shopify-connect-form textarea {
           width: 100%;
-          min-height: 136px;
-          border-radius: 24px;
+          border-radius: 17px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
           color: var(--text-main);
           padding: 16px 18px;
+        }
+        .shopify-connect-form textarea {
+          min-height: 136px;
           resize: vertical;
         }
         .orders-shell {
@@ -4004,7 +4065,7 @@ export default function FlowApp() {
         }
         .skeleton-line,
         .skeleton-box {
-          border-radius: 16px;
+          border-radius: 17px;
           background: rgba(255, 255, 255, 0.06);
         }
         .skeleton-line {
@@ -4136,7 +4197,7 @@ export default function FlowApp() {
           .icon-button {
             width: 42px;
             height: 42px;
-            border-radius: 14px;
+            border-radius: 17px;
           }
           .topbar.mobile-topbar {
             padding-left: 12px;
@@ -4165,7 +4226,7 @@ export default function FlowApp() {
           .auth-card {
             width: calc(100vw - 28px);
             padding: 22px;
-            border-radius: 28px;
+            border-radius: 17px;
           }
           .app-main {
             padding: 14px;
@@ -4176,7 +4237,7 @@ export default function FlowApp() {
             gap: 14px;
           }
           .sidebar-footer {
-            border-radius: 22px;
+            border-radius: 17px;
           }
           .topbar {
             gap: 10px;
@@ -4186,7 +4247,7 @@ export default function FlowApp() {
           }
           .search-box {
             height: 50px;
-            border-radius: 18px;
+            border-radius: 17px;
             padding: 0 14px;
           }
           .search-shortcut {
@@ -4215,12 +4276,16 @@ export default function FlowApp() {
           }
           .notification-panel {
             position: fixed;
-            top: 76px;
-            right: 20px;
-            width: min(420px, calc(100% - 40px));
-            max-height: min(68dvh, 640px);
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
             z-index: 2200;
             overflow: auto;
+            border-radius: 0;
+            padding: 20px;
+            max-width: none;
+            max-height: none;
+            background: rgba(4,5,10,0.96);
           }
           .page-head p,
           .content-card-header p,
@@ -4241,7 +4306,7 @@ export default function FlowApp() {
           }
           .command-modal {
             margin-top: 0;
-            border-radius: 24px;
+            border-radius: 17px;
             width: min(100%, 96vw);
           }
           .command-footer {
@@ -4437,7 +4502,7 @@ export default function FlowApp() {
                   type="button"
                   className="icon-button"
                   onClick={() => void seedDemoData()}
-                  aria-label="Remplir le site avec des donnees de travail"
+                  aria-label={shopifyDemoOrders.length && !storedShopifyConfig.storeDomain ? "Reinitialiser le mode test" : "Remplir le site avec des donnees de travail"}
                   disabled={demoBusy}
                 >
                   <Icon name="spark" size={18} />
@@ -4873,14 +4938,21 @@ export default function FlowApp() {
                       <div className="surface-head">
                         <div>
                           <h2>Aucune boutique connectee</h2>
-                          <p>Colle une cle au format <code>store.myshopify.com|shpat_xxx</code>. Le token se recupere dans Shopify Admin avec la permission <code>read_orders</code>. <button type="button" onClick={() => setShopifyGuideOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Guide complet</button>.</p>
+                          <p>Renseigne le domaine Shopify et le token séparément. Le token se recupere dans Shopify Admin avec la permission <code>read_orders</code>. <button type="button" onClick={() => setShopifyGuideOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Guide complet</button>.</p>
                         </div>
                       </div>
                       <div className="shopify-connect-form">
-                        <textarea
-                          value={shopifyConfigInput}
-                          onChange={(event) => setShopifyConfigInput(event.target.value)}
-                          placeholder="sommeil-leste.myshopify.com|shpat_xxx"
+                        <input
+                          value={shopifyDomainInput}
+                          onChange={(event) => setShopifyDomainInput(event.target.value)}
+                          placeholder="store.myshopify.com"
+                          aria-label="Shop domain"
+                        />
+                        <input
+                          value={shopifyTokenInput}
+                          onChange={(event) => setShopifyTokenInput(event.target.value)}
+                          placeholder="shpat_xxx"
+                          aria-label="Shopify access token"
                         />
                         <div className="button-row">
                           <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
@@ -5286,10 +5358,17 @@ export default function FlowApp() {
                             </div>
                           </div>
                           <div className="shopify-connect-form">
-                            <textarea
-                              value={shopifyConfigInput}
-                              onChange={(event) => setShopifyConfigInput(event.target.value)}
-                              placeholder="store.myshopify.com|shpat_xxx"
+                            <input
+                              value={shopifyDomainInput}
+                              onChange={(event) => setShopifyDomainInput(event.target.value)}
+                              placeholder="store.myshopify.com"
+                              aria-label="Shop domain"
+                            />
+                            <input
+                              value={shopifyTokenInput}
+                              onChange={(event) => setShopifyTokenInput(event.target.value)}
+                              placeholder="shpat_xxx"
+                              aria-label="Shopify access token"
                             />
                             <div className="button-row">
                               <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
@@ -5660,8 +5739,8 @@ export default function FlowApp() {
                   Suivez ces étapes pour récupérer votre token Shopify et le connecter directement sans quitter la page.
                 </p>
               </div>
-              <button type="button" onClick={() => setShopifyGuideOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px', padding: '8px' }} aria-label="Fermer le guide Shopify">
-                ✕
+              <button type="button" onClick={() => setShopifyGuideOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '8px', fontWeight: 600 }} aria-label="Fermer le guide Shopify">
+                Fermer
               </button>
             </div>
             <div style={{ display: 'grid', gap: '16px' }}>

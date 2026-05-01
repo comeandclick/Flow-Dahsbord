@@ -56,16 +56,16 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.24.4
+### 1.25.1
 
-- **Date** : 01/05/2026 23:32
-- **Résumé** : Refinement UI des pages de login admin et page d'accueil principale, avec améliorations de la charte graphique sombre et cohérence visuelle cross-app.
+- **Date** : 02/05/2026 12:08
+- **Résumé** : Flow affine la passe glassmorphism, simplifie la connexion Shopify en deux champs, garde le mode démo réversible et lisse le halo lumineux immersif.
 
-- **Refinement page login admin** : Mise à jour de la charte graphique et de la cohérence visuelle sur /admin/login avec le reste de l'application.
-- **Refinement page d'accueil** : Amélioration de la présentation de la page principale avec alignement visual et matière premium sombre.
-- **Cohérence visuelle cross-app** : Unification des composants, gradients et effets visuels entre la page d'accueil, le login admin et le dashboard principal.
-- **Responsivité mobile améliorée** : Optimisation de la densité et de l'adaptation mobile sur toutes les pages publiques et authentifiées.
-- **Journal de version à jour** : Synchronisation du journal de version avec les changements réels et les modifications apportées.
+- **Refonte glassmorphism complète** : Tous les éléments du site adoptent maintenant le design glassmorphism : sidebar, dashboard, boutons, inputs, cartes, panneaux et topbar dans une cohérence visuelle totale.
+- **Nouvelle palette de couleurs** : Remplacement complet de l'ancienne palette par le système sombre premium avec surfaces homogènes, coins arrondis et meilleure tenue du thème clair.
+- **Unification des effets visuels** : Backdrop-filter, shadows, glow et animations sont appliqués uniformément, avec un halo immersif lissé pour éviter les traits et le rendu pixelisé.
+- **Design responsive glassmorphism** : La DA reste cohérente sur mobile, tablette et desktop, avec sidebar, blocs et Shopify ajustés pour mieux tenir dans le viewport.
+- **Shopify simplifié** : La connexion Shopify se fait maintenant en deux champs séparés et le module guide l’utilisateur pour récupérer son domaine et son token Admin API.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 
