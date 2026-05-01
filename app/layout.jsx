@@ -1,4 +1,5 @@
 import DevOverlays from "./DevOverlays";
+import "./globals.css";
 
 export const metadata = {
   title: "Flow",

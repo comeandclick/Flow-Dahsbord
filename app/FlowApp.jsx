@@ -2195,12 +2195,12 @@ export default function FlowApp() {
           min-height: 100%;
         }
         :global(body) {
-          background-color: #05060a;
+          background-color: #020107;
           background-image:
-            radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
-            linear-gradient(180deg, #05060a 0%, #090b11 100%);
-          background-size: 24px 24px;
-          color: #f4f5f8;
+            linear-gradient(135deg, rgba(139, 69, 19, 0.1) 0%, transparent 40%),
+            radial-gradient(ellipse at 60% 40%, rgba(139, 69, 19, 0.08), transparent 50%);
+          background-size: 100% 100%, 100% 100%;
+          color: #fff;
           font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
           background-attachment: fixed;
         }
@@ -2223,41 +2223,39 @@ export default function FlowApp() {
           border-radius: 999px;
         }
         .theme-dark {
-          --page-bg:
-            radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
-            linear-gradient(145deg, #07080c 0%, #090b10 32%, #0d1014 65%, #090a0e 100%);
+          --page-bg: #020107;
           background-size: 26px 26px;
-          --shell-bg: rgba(8, 10, 14, 0.78);
-          --shell-border: rgba(255, 255, 255, 0.08);
-          --panel-bg: rgba(18, 21, 27, 0.72);
-          --panel-soft: rgba(20, 24, 32, 0.78);
-          --panel-strong: rgba(12, 14, 18, 0.94);
-          --text-main: #f2f2f5;
-          --text-soft: rgba(230, 230, 240, 0.72);
-          --text-faint: rgba(190, 194, 203, 0.44);
-          --line: rgba(255, 255, 255, 0.08);
-          --line-strong: rgba(255, 255, 255, 0.16);
+          --shell-bg: rgba(18, 20, 28, 0.22);
+          --shell-border: rgba(255, 255, 255, 0.14);
+          --panel-bg: rgba(18, 20, 28, 0.22);
+          --panel-soft: rgba(18, 20, 28, 0.15);
+          --panel-strong: rgba(18, 20, 28, 0.35);
+          --text-main: #ffffff;
+          --text-soft: rgba(255, 255, 255, 0.75);
+          --text-faint: rgba(255, 255, 255, 0.62);
+          --line: rgba(255, 255, 255, 0.14);
+          --line-strong: rgba(255, 255, 255, 0.22);
           --accent: #ffffff;
           --accent-strong: #ffffff;
           --accent-glow: rgba(255, 255, 255, 0.08);
-          --danger: rgba(220, 98, 94, 0.82);
-          --orange: #ffffff;
-          --orange-d: rgba(255, 255, 255, 0.08);
-          --red: #ff6b5c;
+          --danger: rgba(255, 102, 92, 0.14);
+          --orange: rgba(255, 102, 64, 0.14);
+          --orange-d: rgba(255, 102, 64, 0.08);
+          --red: rgba(255, 102, 92, 0.6);
           --red-d: rgba(255, 102, 92, 0.14);
-          --notice: rgba(24, 18, 16, 0.96);
-          --shadow: 0 30px 90px rgba(0, 0, 0, 0.44);
-          --map-veil: linear-gradient(180deg, rgba(8, 10, 14, 0.1), rgba(8, 10, 14, 0.88));
+          --notice: rgba(18, 20, 28, 0.9);
+          --shadow: 0 28px 90px rgba(0, 0, 0, 0.35);
+          --map-veil: linear-gradient(180deg, rgba(2, 1, 7, 0.1), rgba(2, 1, 7, 0.88));
           --topbar-glow: rgba(255, 255, 255, 0.08);
           --surface-layer:
             linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02) 46%, rgba(255, 255, 255, 0.03)),
-            rgba(18, 22, 30, 0.78);
+            rgba(18, 20, 28, 0.22);
           --surface-layer-strong:
             linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.016) 48%, rgba(255, 255, 255, 0.04)),
-            rgba(14, 16, 20, 0.88);
+            rgba(18, 20, 28, 0.35);
           --surface-layer-soft:
             linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.028)),
-            rgba(20, 24, 34, 0.58);
+            rgba(18, 20, 28, 0.15);
         }
         .theme-light {
           --page-bg:

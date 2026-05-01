@@ -58,7 +58,7 @@ Le projet regroupe :
 
 ### 1.24.4
 
-- **Date** : 02/05/2026 01:30
+- **Date** : 01/05/2026 23:32
 - **Résumé** : Refinement UI des pages de login admin et page d'accueil principale, avec améliorations de la charte graphique sombre et cohérence visuelle cross-app.
 
 - **Refinement page login admin** : Mise à jour de la charte graphique et de la cohérence visuelle sur /admin/login avec le reste de l'application.

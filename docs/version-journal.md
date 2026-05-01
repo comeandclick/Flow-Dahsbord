@@ -5,7 +5,7 @@ Ce fichier est mis à jour à chaque push significatif et chaque mise en ligne.
 ## Version actuelle
 
 - **Version** : 1.24.4
-- **Date** : 02/05/2026 01:30
+- **Date** : 01/05/2026 23:32
 - **Site** : [https://flow-core-public-04291307.vercel.app](https://flow-core-public-04291307.vercel.app)
 - **Résumé** : Refinement UI des pages de login admin et page d'accueil principale, avec améliorations de la charte graphique sombre et cohérence visuelle cross-app.
 
