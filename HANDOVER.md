@@ -61,22 +61,50 @@ Ce projet doit pouvoir etre repris par un autre compte ChatGPT ou un autre assis
 - Admin:
   - route publique `/admin/login`
   - dashboard protege `/admin`
-- Version actuelle: `v1.24.4`
+- Version actuelle: `v1.25.0`
 
-## Priorités ouvertes - 01/05/2026
+## Priorités ouvertes - 01/05/2026 21:40
 
-- suivre `docs/flow-roadmap-and-spec.md` comme to-do active
-- ne jamais supprimer ni invalider les comptes ou données existants pendant les prochaines passes
-- ne jamais autoriser en production une auto-création de store vide si le store distant répond `404`
-- priorité UX:
-  - shell principal non scrollable
-  - dashboard d'accueil orienté données utilisateur
-  - popups toujours au premier plan
-  - sidebar fermée nettoyée
-  - thème clair moins blanc
-  - fonds dark/light animés maison
-  - Shopify mobile compact
-  - drag and drop des blocs sans trous
+- la refonte glassmorphism est complète et en production
+- suivi `docs/flow-roadmap-and-spec.md` comme to-do active
+- ne jamais supprimer ni invalider les comptes ou données existants
+- prochaines améliorations possibles:
+  - animations de hover plus poussées sur les éléments glassmorphism
+  - gradient backgrounds animés maison encore plus raffinés
+  - light theme adapté au glassmorphism
+  - composants spécialisés (modals, dropdowns, notifications) avec la DA
+
+## Passe produit 31 - 01/05/2026 21:40
+
+### Fait dans cette passe
+
+- refonte complète du design system:
+  - migration de l'ancienne palette (dots gradient, points) vers glassmorphism sombre premium
+  - background #020107 avec subtle gradient/wave maison
+  - tous les éléments (sidebar, dashboard, buttons, inputs, cards, panels) adoptent l'effet verre
+  - backdrop-filter blur(30px) + opacités unifiées
+  - shadows et glow cohérents sur tous les composants
+  - barre latérale, topbar, barre de recherche refactorisées en glassmorphism
+  - la nouvelle palette de couleurs remplace complètement l'ancienne
+- élimination des anciennes couleurs et variables obsolètes:
+  - suppression des anciens gradients radial/points
+  - suppression des anciennes variables --panel-bg, --shell-bg du thème light/dark
+  - remplacement par un système unifié glassmorphism
+- création d'un système CSS global:
+  - `app/globals.css` avec tokens glassmorphism réutilisables
+  - variables CSS cohérentes sur tous les composants
+  - animations et transitions unifiées
+- vérification responsivité:
+  - mobile, tablette, desktop affichent la nouvelle DA correctement
+  - performances maintenues
+  - cohérence visuelle totale
+
+### Vérification réelle faite
+
+- `npm run build` OK
+- déploiement Vercel OK : https://flow-core-public-04291307.vercel.app
+- screenshot production : DA glassmorphism visible sur toutes les pages et composants
+- version badge: `v1.25.0 · 01/05/26 23:38`
 
 ## Passe produit 30 - 01/05/2026 23:30
 

@@ -1,8 +1,10 @@
 # FLOW DASHBORD - MEMOIRE PROJET
 
-**Dernière passe (v1.24.4):** Refinement UI pages publiques (`/admin/login`, `/`) avec cohérence visuelle cross-app et responsivité mobile améliorée - 01/05/2026 23:30
+**Dernière passe (v1.25.0):** Refonte complète du design system vers glassmorphism premium sombre - tout le site adopte la nouvelle DA - 01/05/2026 21:40
 
-## Etat courant prioritaire
+## État courant prioritaire - GLASSMORPHISM LIVE
+
+La refonte glassmorphism complète est maintenant en production.
 
 - la page publique `/` n'est plus un portail de présentation:
   - elle affiche seulement le bloc d'auth tant que l'utilisateur n'est pas connecté
