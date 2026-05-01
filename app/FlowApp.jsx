@@ -2224,7 +2224,9 @@ export default function FlowApp() {
         }
         .theme-dark {
           --page-bg:
+            radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
             linear-gradient(145deg, #07080c 0%, #090b10 32%, #0d1014 65%, #090a0e 100%);
+          background-size: 26px 26px;
           --shell-bg: rgba(8, 10, 14, 0.78);
           --shell-border: rgba(255, 255, 255, 0.08);
           --panel-bg: rgba(18, 21, 27, 0.72);
@@ -2259,7 +2261,9 @@ export default function FlowApp() {
         }
         .theme-light {
           --page-bg:
+            radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px),
             linear-gradient(145deg, #acb3bc 0%, #959da7 34%, #838b95 62%, #7a828c 100%);
+          background-size: 26px 26px;
           --shell-bg: rgba(182, 190, 199, 0.44);
           --shell-border: rgba(17, 20, 26, 0.1);
           --panel-bg: rgba(214, 220, 227, 0.5);
@@ -2321,10 +2325,10 @@ export default function FlowApp() {
         }
         .flow-shell::before {
           background:
-            radial-gradient(55% 32% at 20% 18%, rgba(128, 152, 108, 0.14), transparent 60%),
+            radial-gradient(55% 32% at 20% 18%, rgba(255, 255, 255, 0.06), transparent 60%),
             radial-gradient(44% 28% at 82% 22%, rgba(255, 255, 255, 0.06), transparent 62%),
-            radial-gradient(60% 30% at 58% 86%, rgba(110, 129, 94, 0.12), transparent 64%),
-            linear-gradient(115deg, transparent 24%, rgba(255,255,255,0.03) 31%, transparent 39% 61%, rgba(122,146,98,0.08) 69%, transparent 78%),
+            radial-gradient(60% 30% at 58% 86%, rgba(255, 255, 255, 0.04), transparent 64%),
+            linear-gradient(115deg, transparent 24%, rgba(255,255,255,0.03) 31%, transparent 39% 61%, rgba(255,255,255,0.04) 69%, transparent 78%),
             radial-gradient(60% 18% at 50% 52%, rgba(255,255,255,0.04), transparent 72%);
           filter: blur(26px);
           animation: ambientFloat 22s ease-in-out infinite alternate;
@@ -2334,7 +2338,7 @@ export default function FlowApp() {
         .flow-shell::after {
           background:
             linear-gradient(115deg, transparent 10%, rgba(255,255,255,0.05) 28%, transparent 46%),
-            linear-gradient(295deg, transparent 34%, rgba(131, 151, 111, 0.08) 52%, transparent 70%),
+            linear-gradient(295deg, transparent 34%, rgba(255, 255, 255, 0.04) 52%, transparent 70%),
             radial-gradient(36% 12% at 68% 36%, rgba(255,255,255,0.035), transparent 76%);
           opacity: 0.62;
           animation: ambientShift 30s ease-in-out infinite;
@@ -3465,23 +3469,18 @@ export default function FlowApp() {
           border: 1px solid var(--line);
           background:
             linear-gradient(180deg, rgba(10, 12, 14, 0.18), rgba(10, 12, 14, 0.78)),
-            radial-gradient(circle at 16% 18%, rgba(116, 141, 95, 0.18), transparent 24%),
-            radial-gradient(circle at 74% 20%, rgba(255, 255, 255, 0.06), transparent 18%),
             linear-gradient(145deg, #090b0d 0%, #0d1013 44%, #12161a 100%);
         }
         .theme-light .immersive-layout {
           background:
             linear-gradient(180deg, rgba(220, 226, 233, 0.34), rgba(176, 184, 193, 0.82)),
             linear-gradient(135deg, rgba(255,255,255,0.18), transparent 42%),
-            radial-gradient(circle at 18% 20%, rgba(123, 139, 106, 0.16), transparent 26%),
             linear-gradient(145deg, #bfc5cc 0%, #9da5ae 44%, #8f98a1 100%);
         }
         .immersive-map {
           position: absolute;
           inset: 0;
           background:
-            radial-gradient(circle at 18% 24%, rgba(116, 141, 95, 0.22), transparent 18%),
-            radial-gradient(circle at 72% 48%, rgba(119, 141, 101, 0.16), transparent 14%),
             repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 16px),
             linear-gradient(115deg, rgba(255, 255, 255, 0.04), transparent 28%);
           opacity: 0.95;

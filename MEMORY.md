@@ -1547,6 +1547,17 @@ Ta première réponse doit :
   - deployment id: `dpl_Az85vt9tdR48TgjNkCMheexsD6mu`
   - version prod verifiee: `v1.10.4`
 
+## Convention - Pages Ouvertes Permanentes pour Next IA
+
+### Règle
+**Sur VS Code, TOUJOURS laisser ouvertes les pages pour que la prochaine IA les voit dans "Pages du navigateur" (attachement):**
+- ✅ Preview du site Flow mis à jour (local): `http://localhost:3000`
+- ✅ Preview du site Flow production: `https://flow-core-public-04291307.vercel.app`
+- ✅ Preview admin production: `https://flow-core-public-04291307.vercel.app/admin`
+- ✅ Preview design/components si crée
+
+Les pages restent ouvertes jusqu'à fermeture manuelle. Les prochaines IA les verront directement dans l'attachement.
+
 ## Convention - Fichiers RESSOURCE
 
 ### Objectif

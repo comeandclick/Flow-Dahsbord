@@ -50,12 +50,12 @@ async function api(path, options = {}) {
 
 function ChoiceRow({ options, value, onChange }) {
   return (
-    <div className="chip-row">
+    <div className="choice-buttons">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
-          className={`chip ${value === option.value ? "on" : ""}`}
+          className={`choice-button ${value === option.value ? "active" : ""}`}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -402,7 +402,6 @@ export default function AdminDashboard() {
           pointer-events:none;
           background:
             radial-gradient(circle at 18% 20%, rgba(255,255,255,.12), transparent 24%),
-            radial-gradient(circle at 82% 18%, rgba(255,138,102,.10), transparent 16%),
             linear-gradient(180deg, rgba(255,255,255,.03), transparent 40%);
           opacity:.72;
           filter:blur(22px);
