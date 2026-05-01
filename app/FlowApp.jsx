@@ -2408,14 +2408,15 @@ export default function FlowApp() {
           to { opacity: 1; transform: scale(1); }
         }
         .toast-stack {
-          position: fixed;
+          position: fixed !important;
           top: 18px;
           left: 50%;
           transform: translateX(-50%);
           display: grid;
           gap: 10px;
           width: min(560px, calc(100vw - 32px));
-          z-index: 50;
+          z-index: 100050;
+          pointer-events: none;
         }
         .toast {
           border-radius: 17px;
@@ -2428,6 +2429,7 @@ export default function FlowApp() {
           align-items: flex-start;
           justify-content: space-between;
           gap: 12px;
+          pointer-events: auto;
         }
         .toast.error {
           background: rgba(104, 38, 44, 0.9);
