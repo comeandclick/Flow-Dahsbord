@@ -378,7 +378,7 @@ export default function AdminDashboard() {
   ];
 
   function toggleSection(key) {
-    setOpenSection((prev) => (prev === key ? "" : key));
+    setOpenSection(key);
   }
 
   return (
@@ -687,6 +687,9 @@ export default function AdminDashboard() {
           padding:0;
           overflow:hidden;
         }
+        .section-card:not(.open){
+          display:none;
+        }
         .section-toggle{
           appearance:none;
           width:100%;
@@ -746,6 +749,35 @@ export default function AdminDashboard() {
           max-height:calc(100vh - 320px);
           overflow:auto;
           overscroll-behavior:contain;
+        }
+        .admin-home-grid{
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+          gap:12px;
+        }
+        .admin-home-tile{
+          text-align:left;
+          display:grid;
+          gap:8px;
+          padding:16px;
+          border-radius:17px;
+          border:1px solid rgba(255,255,255,.08);
+          background:rgba(15,18,25,.88);
+          color:#eef1f8;
+          cursor:pointer;
+          transition:transform .18s ease,border-color .18s ease,background .18s ease;
+        }
+        .admin-home-tile:hover{
+          transform:translateY(-1px);
+          border-color:rgba(255,255,255,.14);
+          background:rgba(18,21,29,.96);
+        }
+        .admin-home-tile strong{
+          font-size:16px;
+        }
+        .admin-home-tile span{
+          color:rgba(242,243,248,.62);
+          font-size:12px;
         }
         .split-grid{
           display:grid;
@@ -1068,6 +1100,15 @@ export default function AdminDashboard() {
                 <div className="soft">{data?.health?.latencyMs ? `${data.health.latencyMs} ms` : t("Latence indisponible", "Latency unavailable")}</div>
               </div>
             </div>
+          </section>
+
+          <section className="admin-home-grid">
+            {topModules.map((item) => (
+              <button key={item.key} type="button" className="admin-home-tile" onClick={() => setOpenSection(item.key)}>
+                <strong>{item.label}</strong>
+                <span>{item.value}</span>
+              </button>
+            ))}
           </section>
 
           {error ? <div className="error-box">{error}</div> : null}

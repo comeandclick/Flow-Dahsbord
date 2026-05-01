@@ -2670,6 +2670,10 @@ export default function FlowApp() {
         .theme-light .sidebar {
           background: var(--surface-layer-strong);
         }
+        .theme-light .search-dropdown,
+        .theme-light .notification-panel {
+          background: #d6dbe2;
+        }
         .sidebar.collapsed {
           width: 94px;
           padding-left: 14px;
@@ -2989,17 +2993,17 @@ export default function FlowApp() {
           overflow: hidden;
         }
         .notification-panel {
-          position: fixed;
-          inset: 0;
-          width: 100vw;
-          height: 100vh;
+          position: absolute;
+          top: calc(100% + 12px);
+          right: 0;
           z-index: 190;
           overflow: auto;
-          border-radius: 0;
-          background: rgba(4,5,10,0.96);
-          padding: 18px 18px 24px;
-          max-width: none;
-          max-height: none;
+          width: min(420px, calc(100vw - 28px));
+          max-height: min(72vh, 640px);
+          border-radius: 17px;
+          background: #12151c;
+          padding: 16px;
+          animation: riseIn 0.24s ease;
         }
         .search-dropdown::before,
         .command-modal::before,
@@ -3042,6 +3046,7 @@ export default function FlowApp() {
           padding: 12px;
           z-index: 95;
           animation: riseIn 0.24s ease;
+          background: #12151c;
         }
         .search-result {
           all: unset;
@@ -3370,18 +3375,16 @@ export default function FlowApp() {
           overflow-wrap: anywhere;
         }
         .notification-panel {
-          position: fixed;
-          inset: 0;
-          width: 100vw;
-          height: 100vh;
+          position: absolute;
+          top: calc(100% + 12px);
+          right: 0;
+          width: min(420px, calc(100vw - 28px));
+          max-height: min(72vh, 640px);
           z-index: 2200;
           overflow: auto;
-          border-radius: 0;
-          padding: 20px;
-          max-width: none;
-          max-height: none;
-          background: rgba(4,5,10,0.96);
-          animation: none;
+          padding: 16px;
+          background: #12151c;
+          animation: riseIn 0.24s ease;
         }
         .notification-panel,
         .search-dropdown,
@@ -4275,17 +4278,16 @@ export default function FlowApp() {
             display: grid;
           }
           .notification-panel {
-            position: fixed;
-            inset: 0;
-            width: 100vw;
-            height: 100vh;
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            left: auto;
+            width: min(360px, calc(100vw - 24px));
+            max-height: min(68vh, 560px);
             z-index: 2200;
             overflow: auto;
-            border-radius: 0;
-            padding: 20px;
-            max-width: none;
-            max-height: none;
-            background: rgba(4,5,10,0.96);
+            padding: 14px;
+            background: #12151c;
           }
           .page-head p,
           .content-card-header p,
