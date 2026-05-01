@@ -56,16 +56,17 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.25.1
+### 1.25.2
 
-- **Date** : 02/05/2026 12:08
-- **Résumé** : Flow affine la passe glassmorphism, simplifie la connexion Shopify en deux champs, garde le mode démo réversible et lisse le halo lumineux immersif.
+- **Date** : 02/05/2026 12:24
+- **Résumé** : Flow débloque les comptes utilisateurs existants et sépare enfin le blocage Flow du blocage admin, pour qu’un compte admin garde son accès même si son compte Flow est bloqué.
 
 - **Refonte glassmorphism complète** : Tous les éléments du site adoptent maintenant le design glassmorphism : sidebar, dashboard, boutons, inputs, cartes, panneaux et topbar dans une cohérence visuelle totale.
 - **Nouvelle palette de couleurs** : Remplacement complet de l'ancienne palette par le système sombre premium avec surfaces homogènes, coins arrondis et meilleure tenue du thème clair.
 - **Unification des effets visuels** : Backdrop-filter, shadows, glow et animations sont appliqués uniformément, avec un halo immersif lissé pour éviter les traits et le rendu pixelisé.
 - **Design responsive glassmorphism** : La DA reste cohérente sur mobile, tablette et desktop, avec sidebar, blocs et Shopify ajustés pour mieux tenir dans le viewport.
 - **Shopify simplifié** : La connexion Shopify se fait maintenant en deux champs séparés et le module guide l’utilisateur pour récupérer son domaine et son token Admin API.
+- **Blocage Flow séparé de l’admin** : Bloquer un compte Flow n’empêche plus la connexion admin du même compte, et les comptes existants ont été débloqués côté Flow.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
 

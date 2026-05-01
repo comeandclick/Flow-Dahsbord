@@ -4,7 +4,7 @@ import {
   sessionCookieOptions,
   verifyPassword,
 } from "../../../../../lib/auth";
-import { ADMIN_SESSION_COOKIE_NAME, isAccountBlocked, isAdminAccount } from "../../../../../lib/admin";
+import { ADMIN_SESSION_COOKIE_NAME, isAdminAccessBlocked, isAdminAccount } from "../../../../../lib/admin";
 import { readStore, writeStore } from "../../../../../lib/remote-store";
 
 export const runtime = "nodejs";
@@ -29,8 +29,8 @@ export async function POST(request) {
       return Response.json({ error: "Ce compte n'a pas d'accès admin" }, { status: 403 });
     }
 
-    if (isAccountBlocked(account)) {
-      return Response.json({ error: "Compte bloqué" }, { status: 423 });
+    if (isAdminAccessBlocked(account)) {
+      return Response.json({ error: "Accès admin bloqué" }, { status: 423 });
     }
 
     const version = account.passwordVersion || 1;

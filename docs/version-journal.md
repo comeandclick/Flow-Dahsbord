@@ -4,10 +4,10 @@ Ce fichier est mis à jour à chaque push significatif et chaque mise en ligne.
 
 ## Version actuelle
 
-- **Version** : 1.25.1
-- **Date** : 02/05/2026 12:08
+- **Version** : 1.25.2
+- **Date** : 02/05/2026 12:24
 - **Site** : [https://flow-core-public-04291307.vercel.app](https://flow-core-public-04291307.vercel.app)
-- **Résumé** : Flow affine la passe glassmorphism, simplifie la connexion Shopify en deux champs, garde le mode démo réversible et lisse le halo lumineux immersif.
+- **Résumé** : Flow débloque les comptes utilisateurs existants et sépare enfin le blocage Flow du blocage admin, pour qu’un compte admin garde son accès même si son compte Flow est bloqué.
 
 ## État de la passe
 
@@ -16,6 +16,7 @@ Ce fichier est mis à jour à chaque push significatif et chaque mise en ligne.
 - **Terminé** · Unification des effets visuels : Backdrop-filter, shadows, glow et animations sont appliqués uniformément, avec un halo immersif lissé pour éviter les traits et le rendu pixelisé.
 - **Terminé** · Design responsive glassmorphism : La DA reste cohérente sur mobile, tablette et desktop, avec sidebar, blocs et Shopify ajustés pour mieux tenir dans le viewport.
 - **Terminé** · Shopify simplifié : La connexion Shopify se fait maintenant en deux champs séparés et le module guide l’utilisateur pour récupérer son domaine et son token Admin API.
+- **Terminé** · Blocage Flow séparé de l’admin : Bloquer un compte Flow n’empêche plus la connexion admin du même compte, et les comptes existants ont été débloqués côté Flow.
 
 ## Règles
 
