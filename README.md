@@ -56,16 +56,21 @@ Le projet regroupe :
 
 ## Journal de version
 
-### 1.24.1
+### 1.24.3
 
-- **Date** : 01/05/2026 11:43
-- **Résumé** : Flow rend maintenant le dashboard plus utile au compte connecté, densifie la page Paramètres et garde Shopify pilotable par utilisateur sans casser l’auth ni la persistance.
+- **Date** : 01/05/2026 15:41
+- **Résumé** : Flow ajoute maintenant un vrai journal de version dédié, renforce encore le fond animé commun et améliore la tenue mobile de la sidebar sans toucher aux comptes ni au store.
 
-- **Dashboard recentré sur le compte** : Les cartes et panneaux parlent davantage des tâches, événements, notifications, notes et signaux réels du compte au lieu du produit Flow lui-même.
-- **Paramètres densifiés** : La page Paramètres couvre maintenant compte, apparence, sécurité, intégrations, billing, notifications, langue, raccourcis et options avancées dans une structure plus proche d’une vraie settings app.
-- **Shopify par compte gardé intact** : Le statut vide, la connexion boutique et le flux commandes restent cohérents par utilisateur, sans toucher aux boutiques déjà reliées ni aux données persistées.
+- **Réorganisation du dashboard** : Les cartes principales, les blocs de focus et les mini-blocs du dashboard peuvent maintenant être déplacés sans trous, avec persistance sur le compte.
+- **Matière visuelle renforcée** : Les cartes partagent maintenant un rendu plus uniforme en gradient, opacité, glow et blur sur le shell, le dashboard et Shopify.
+- **Thème clair assombri** : Le mode clair reste lumineux mais ne bascule plus vers un blanc trop froid, avec une base plus minérale et plus cohérente avec le dark.
+- **Mobile bloc par bloc** : La sidebar mobile et la densité générale tiennent mieux dans le viewport, mais il reste encore des ajustements fins à faire sur certains panneaux, tables et hauteurs de contenu.
+- **Journal de version dédié** : Chaque push important laisse maintenant aussi une trace lisible dans un fichier dédié, en plus du popup et du README.
+- **Nettoyage final et mémoire IA** : Quand la todo produit sera vraiment finie, il faudra trier les fichiers inutiles et finaliser une mémoire compacte pour la prochaine IA.
 
 Ce bloc est régénéré automatiquement depuis `/Users/aymen/Documents/Flow Dashbord/lib/release.js` via `/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs`.
+
+Journal détaillé : [/Users/aymen/Documents/Flow Dashbord/docs/version-journal.md](/Users/aymen/Documents/Flow Dashbord/docs/version-journal.md)
 
 ## Déploiement
 

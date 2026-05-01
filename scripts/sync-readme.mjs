@@ -7,6 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const repoRoot = join(__dirname, "..");
 const readmePath = join(repoRoot, "README.md");
+const versionJournalPath = join(repoRoot, "docs", "version-journal.md");
+const SITE_URL = "https://flow-core-public-04291307.vercel.app";
 
 function formatDate(value) {
   try {
@@ -27,9 +29,16 @@ const latestChanges = (Array.isArray(RELEASE.changes) ? RELEASE.changes : [])
   .map((change) => `- **${change.title}** : ${change.subtitle}`)
   .join("\n");
 
+const statusLines = (Array.isArray(RELEASE.changes) ? RELEASE.changes : [])
+  .map((change) => {
+    const label = change.status === "done" ? "Terminé" : change.status === "wip" ? "En cours" : "À faire";
+    return `- **${label}** · ${change.title} : ${change.subtitle}`;
+  })
+  .join("\n");
+
 const readme = `# Flow Dashbord
 
-Site principal : [https://flow-online-aymen.vercel.app](https://flow-online-aymen.vercel.app)
+Site principal : [${SITE_URL}](${SITE_URL})
 
 ## But du projet
 
@@ -94,16 +103,41 @@ ${latestChanges}
 
 Ce bloc est régénéré automatiquement depuis \`/Users/aymen/Documents/Flow Dashbord/lib/release.js\` via \`/Users/aymen/Documents/Flow Dashbord/scripts/sync-readme.mjs\`.
 
+Journal détaillé : [/Users/aymen/Documents/Flow Dashbord/docs/version-journal.md](/Users/aymen/Documents/Flow Dashbord/docs/version-journal.md)
+
 ## Déploiement
 
-- Production : [https://flow-online-aymen.vercel.app](https://flow-online-aymen.vercel.app)
+- Production : [${SITE_URL}](${SITE_URL})
 - Build local : \`npm run build\`
 - Publication release : \`npm run publish:release\`
 
 ## Lien admin
 
-[https://flow-online-aymen.vercel.app/admin/login](https://flow-online-aymen.vercel.app/admin/login)
+[${SITE_URL}/admin/login](${SITE_URL}/admin/login)
+`;
+
+const versionJournal = `# Journal de version
+
+Ce fichier est mis à jour à chaque push significatif et chaque mise en ligne.
+
+## Version actuelle
+
+- **Version** : ${RELEASE.version}
+- **Date** : ${formatDate(RELEASE.deployedAt)}
+- **Site** : [${SITE_URL}](${SITE_URL})
+- **Résumé** : ${RELEASE.summary}
+
+## État de la passe
+
+${statusLines}
+
+## Règles
+
+- Toujours mettre à jour ce fichier avant un push important.
+- Toujours garder cohérents \`lib/release.js\`, \`README.md\`, \`HANDOVER.md\`, \`MEMORY.md\` et la roadmap.
+- Ne jamais perdre les comptes ni les données utilisateurs pendant une mise à jour.
 `;
 
 writeFileSync(readmePath, readme, "utf8");
-console.log("README.md synchronisé.");
+writeFileSync(versionJournalPath, versionJournal, "utf8");
+console.log("README.md et version-journal.md synchronisés.");

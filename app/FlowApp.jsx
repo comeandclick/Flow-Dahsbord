@@ -2287,8 +2287,9 @@ export default function FlowApp() {
             radial-gradient(55% 32% at 20% 18%, rgba(128, 152, 108, 0.14), transparent 60%),
             radial-gradient(44% 28% at 82% 22%, rgba(255, 255, 255, 0.06), transparent 62%),
             radial-gradient(60% 30% at 58% 86%, rgba(110, 129, 94, 0.12), transparent 64%),
-            linear-gradient(115deg, transparent 24%, rgba(255,255,255,0.03) 31%, transparent 39% 61%, rgba(122,146,98,0.08) 69%, transparent 78%);
-          filter: blur(24px);
+            linear-gradient(115deg, transparent 24%, rgba(255,255,255,0.03) 31%, transparent 39% 61%, rgba(122,146,98,0.08) 69%, transparent 78%),
+            radial-gradient(60% 18% at 50% 52%, rgba(255,255,255,0.04), transparent 72%);
+          filter: blur(26px);
           animation: ambientFloat 22s ease-in-out infinite alternate;
           opacity: 0.92;
           z-index: 0;
@@ -2296,8 +2297,9 @@ export default function FlowApp() {
         .flow-shell::after {
           background:
             linear-gradient(115deg, transparent 10%, rgba(255,255,255,0.05) 28%, transparent 46%),
-            linear-gradient(295deg, transparent 34%, rgba(131, 151, 111, 0.08) 52%, transparent 70%);
-          opacity: 0.56;
+            linear-gradient(295deg, transparent 34%, rgba(131, 151, 111, 0.08) 52%, transparent 70%),
+            radial-gradient(36% 12% at 68% 36%, rgba(255,255,255,0.035), transparent 76%);
+          opacity: 0.62;
           animation: ambientShift 30s ease-in-out infinite;
           z-index: 0;
         }
@@ -2584,6 +2586,7 @@ export default function FlowApp() {
           position: relative;
           z-index: 20;
           overflow: hidden;
+          min-height: 0;
         }
         .theme-light .sidebar {
           background: var(--surface-layer-strong);
@@ -2673,6 +2676,9 @@ export default function FlowApp() {
         .sidebar-nav {
           display: grid;
           gap: 8px;
+          min-height: 0;
+          overflow: auto;
+          padding-right: 4px;
         }
         .sidebar-group-label {
           color: var(--text-faint);
@@ -4105,6 +4111,14 @@ export default function FlowApp() {
           }
           .app-main {
             padding: 14px;
+          }
+          .sidebar {
+            height: 100dvh;
+            max-height: 100dvh;
+            gap: 14px;
+          }
+          .sidebar-footer {
+            border-radius: 22px;
           }
           .topbar {
             gap: 10px;
