@@ -35,12 +35,12 @@ const AUTO_RELOAD_SECONDS = 12;
 const CUSTOM_BACKGROUND_MAX_DIMENSION = 1800;
 const CUSTOM_BACKGROUND_QUALITY = 0.84;
 const SHOPIFY_PERIODS = [
-  { id: "today", label: "Aujourd'hui" },
-  { id: "yesterday", label: "Hier" },
-  { id: "7d", label: "7 jours" },
-  { id: "30d", label: "1 mois" },
-  { id: "365d", label: "1 an" },
-  { id: "all", label: "Depuis toujours" },
+  { id: "today", label: "Today" },
+  { id: "yesterday", label: "Yesterday" },
+  { id: "7d", label: "7 days" },
+  { id: "30d", label: "1 month" },
+  { id: "365d", label: "1 year" },
+  { id: "all", label: "All time" },
 ];
 const DEFAULT_DASHBOARD_ARRANGEMENT = {
   metrics: ["notes", "tasks", "events", "shopify"],
@@ -538,8 +538,8 @@ function createDemoFixtures(user) {
     tasks: [
       {
         id: "demo-task-1",
-        title: "Verifier les commandes premium",
-        desc: "Controler les commandes du jour et preparer les priorites de fulfillment.",
+        title: "Check premium orders",
+        desc: "Review today's orders and prepare fulfillment priorities.",
         prio: "high",
         due: isoNow.slice(0, 10),
         status: "in_progress",
@@ -2542,9 +2542,9 @@ export default function FlowApp() {
             },
           },
         };
-        await persistDb(nextDb, "Mode test desactive.");
+        await persistDb(nextDb, hasRealShopify ? "Demo mode disabled. Restoring real Shopify data." : "Demo mode disabled. No store is connected.");
         await refreshShopifyData();
-        setNotice("Demo mode disabled. No store is connected.");
+        setNotice(hasRealShopify ? "Demo mode disabled. Restoring real Shopify data." : "Demo mode disabled. No store is connected.");
         return;
       }
 
@@ -2611,6 +2611,19 @@ export default function FlowApp() {
           -webkit-appearance: none;
           border-radius: 17px;
           font: inherit;
+        }
+        .surface-card,
+        .shopify-card,
+        .shopify-connect-card,
+        .shopify-mobile-kpi-card,
+        .page-head,
+        .surface-head,
+        .command-modal,
+        .profile-menu,
+        .sidebar-footer,
+        .orders-toolbar,
+        .toast {
+          border-radius: 17px;
         }
         :global(::-webkit-scrollbar) {
           width: 10px;
