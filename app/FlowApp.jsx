@@ -746,6 +746,77 @@ function summarizeShopifyData({ orders }) {
   };
 }
 
+function stripHtml(value) {
+  return `${value || ""}`
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(div|p|li|h1|h2|h3|h4|h5|h6)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function escapeHtml(value) {
+  return `${value || ""}`
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function noteHtmlFromText(value) {
+  const lines = `${value || ""}`.split(/\n/);
+  return lines.map((line) => `<div>${escapeHtml(line) || "<br>"}</div>`).join("");
+}
+
+function getStoredNoteCategories(db) {
+  const fromSettings = Array.isArray(db?.settings?.noteCategories) ? db.settings.noteCategories : [];
+  const fromNotes = (db?.notes || []).map((item) => item.cat).filter(Boolean);
+  return ["Toutes les notes", ...new Set([...fromSettings, ...fromNotes].map((item) => `${item}`.trim()).filter(Boolean))];
+}
+
+function createNoteRecord(category) {
+  const now = new Date().toISOString();
+  return {
+    id: `note-${Math.random().toString(36).slice(2, 10)}`,
+    title: "Nouvelle note",
+    content: "<div><br></div>",
+    cat: category || "Notes",
+    color: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function notePreview(note) {
+  return stripHtml(note?.content || "").slice(0, 180) || "Note vide";
+}
+
+function noteDateBucket(note) {
+  const updated = toTimestamp(note?.updatedAt || note?.createdAt);
+  const now = Date.now();
+  const diff = now - updated;
+  if (diff < 24 * 60 * 60 * 1000) return "Aujourd'hui";
+  if (diff < 48 * 60 * 60 * 1000) return "Hier";
+  if (diff < 7 * 24 * 60 * 60 * 1000) return "7 jours précédents";
+  return "Plus ancien";
+}
+
+function groupNotesByBucket(notes) {
+  const order = ["Aujourd'hui", "Hier", "7 jours précédents", "Plus ancien"];
+  const map = new Map(order.map((label) => [label, []]));
+  (notes || []).forEach((note) => {
+    map.get(noteDateBucket(note))?.push(note);
+  });
+  return order
+    .map((label) => ({ label, notes: map.get(label) || [] }))
+    .filter((entry) => entry.notes.length);
+}
+
 function normalizeStatusTone(status) {
   const value = `${status || ""}`.toLowerCase();
   if (["paid", "fulfilled", "success"].includes(value)) return "success";
@@ -781,7 +852,7 @@ function buildSearchEntries(db, user) {
       id: note.id,
       title: note.title || "Note sans titre",
       subtitle: note.cat || "Note",
-      body: note.content || "",
+      body: stripHtml(note.content || ""),
       section: "notes",
     }),
   );
@@ -957,6 +1028,12 @@ function Icon({ name, size = 18, stroke = 1.8 }) {
           <path d="M17 8h4v-4" />
         </svg>
       );
+    case "plus":
+      return (
+        <svg {...common}>
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      );
     case "bag":
       return (
         <svg {...common}>
@@ -1100,6 +1177,14 @@ export default function FlowApp() {
   const [shopifyPeriod, setShopifyPeriod] = useState("30d");
   const [shopifyOrderSort, setShopifyOrderSort] = useState("recent");
   const [shopifyOrderQuery, setShopifyOrderQuery] = useState("");
+  const [noteCategoryDraft, setNoteCategoryDraft] = useState("");
+  const [selectedNoteCategory, setSelectedNoteCategory] = useState("");
+  const [selectedNoteId, setSelectedNoteId] = useState("");
+  const [noteTitleDraft, setNoteTitleDraft] = useState("");
+  const [noteBodyDraft, setNoteBodyDraft] = useState("");
+  const [noteFontFamily, setNoteFontFamily] = useState("inherit");
+  const [noteTextColor, setNoteTextColor] = useState("#f4f5f7");
+  const [noteFontSize, setNoteFontSize] = useState("18");
   const [shopifyDomainInput, setShopifyDomainInput] = useState("");
   const [shopifyTokenInput, setShopifyTokenInput] = useState("");
   const [shopifyConfigBusy, setShopifyConfigBusy] = useState(false);
@@ -1113,10 +1198,12 @@ export default function FlowApp() {
   });
   const intervalRef = useRef(null);
   const reloadTimerRef = useRef(null);
+  const noteSaveTimerRef = useRef(null);
   const searchWrapRef = useRef(null);
   const notifRef = useRef(null);
   const commandInputRef = useRef(null);
   const backgroundInputRef = useRef(null);
+  const noteEditorRef = useRef(null);
 
   const releaseMeta = useMemo(() => formatReleaseLabel(remoteRelease || RELEASE), [remoteRelease]);
   const searchEntries = useMemo(() => buildSearchEntries(db, user), [db, user]);
@@ -1241,6 +1328,25 @@ export default function FlowApp() {
       revenueMonth: buildShopifyKpis(monthOrders).revenue,
     };
   }, [filteredShopifyOrders, shopifyState.data]);
+
+  const noteCategories = useMemo(() => {
+    const categories = getStoredNoteCategories(db);
+    return categories.length ? categories : ["Notes"];
+  }, [db]);
+
+  const notesInSelectedCategory = useMemo(() => {
+    const currentCategory = selectedNoteCategory || noteCategories[0] || "Notes";
+    return [...(db.notes || [])]
+      .filter((note) => currentCategory === "Toutes les notes" || (note.cat || "Notes") === currentCategory)
+      .sort((left, right) => toTimestamp(right.updatedAt || right.createdAt) - toTimestamp(left.updatedAt || left.createdAt));
+  }, [db.notes, noteCategories, selectedNoteCategory]);
+
+  const noteSections = useMemo(() => groupNotesByBucket(notesInSelectedCategory), [notesInSelectedCategory]);
+
+  const selectedNote = useMemo(
+    () => notesInSelectedCategory.find((note) => note.id === selectedNoteId) || notesInSelectedCategory[0] || null,
+    [notesInSelectedCategory, selectedNoteId],
+  );
 
   const searchResults = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
@@ -1470,6 +1576,31 @@ export default function FlowApp() {
     if (!isMobile) return;
     setMobileNavOpen(false);
   }, [isMobile]);
+
+  useEffect(() => {
+    if (!noteCategories.length) return;
+    if (!selectedNoteCategory || !noteCategories.includes(selectedNoteCategory)) {
+      setSelectedNoteCategory(noteCategories[0]);
+    }
+  }, [noteCategories, selectedNoteCategory]);
+
+  useEffect(() => {
+    if (!notesInSelectedCategory.length) {
+      setSelectedNoteId("");
+      setNoteTitleDraft("");
+      setNoteBodyDraft("");
+      return;
+    }
+    if (!selectedNoteId || !notesInSelectedCategory.some((note) => note.id === selectedNoteId)) {
+      setSelectedNoteId(notesInSelectedCategory[0].id);
+    }
+  }, [notesInSelectedCategory, selectedNoteId]);
+
+  useEffect(() => {
+    if (!selectedNote) return;
+    setNoteTitleDraft(selectedNote.title || "");
+    setNoteBodyDraft(selectedNote.content || "<div><br></div>");
+  }, [selectedNote?.id]);
 
   useEffect(() => {
     setAccountForm({
@@ -1886,6 +2017,124 @@ export default function FlowApp() {
     await persistDb(nextDb);
   }
 
+  function scheduleNotePersist(nextDb) {
+    setDb(nextDb);
+    if (noteSaveTimerRef.current) window.clearTimeout(noteSaveTimerRef.current);
+    noteSaveTimerRef.current = window.setTimeout(async () => {
+      try {
+        const payload = await api("/api/db", {
+          method: "PUT",
+          body: JSON.stringify({ db: nextDb }),
+        });
+        setDb(payload?.db || nextDb);
+      } catch (persistError) {
+        setError(normalizeMessage(persistError, "Sauvegarde de la note impossible."));
+      }
+    }, 420);
+  }
+
+  function updateSelectedNote(fields) {
+    if (!selectedNote) return;
+    const nextDb = {
+      ...db,
+      notes: (db.notes || []).map((note) =>
+        note.id === selectedNote.id
+          ? {
+              ...note,
+              ...fields,
+              updatedAt: new Date().toISOString(),
+            }
+          : note,
+      ),
+    };
+    scheduleNotePersist(nextDb);
+  }
+
+  async function createNoteCategory() {
+    const name = noteCategoryDraft.trim();
+    if (!name) return;
+    if (noteCategories.includes(name)) {
+      setSelectedNoteCategory(name);
+      setNoteCategoryDraft("");
+      return;
+    }
+    const nextDb = nextDbWithSettings({
+      noteCategories: [...noteCategories, name],
+    });
+    setSelectedNoteCategory(name);
+    setNoteCategoryDraft("");
+    await persistDb(nextDb, "Catégorie créée.");
+  }
+
+  async function createNoteInCategory(category = selectedNoteCategory || noteCategories[0] || "Notes") {
+    const targetCategory = category === "Toutes les notes" ? (noteCategories.find((item) => item !== "Toutes les notes") || "Notes") : category;
+    const note = createNoteRecord(targetCategory);
+    const nextDb = {
+      ...db,
+      notes: [note, ...(db.notes || [])],
+      settings: {
+        ...(db.settings || {}),
+        noteCategories: noteCategories.includes(targetCategory) ? noteCategories.filter((item) => item !== "Toutes les notes") : [...noteCategories.filter((item) => item !== "Toutes les notes"), targetCategory],
+      },
+    };
+    setSelectedNoteCategory(targetCategory);
+    setSelectedNoteId(note.id);
+    setNoteTitleDraft(note.title);
+    setNoteBodyDraft(note.content);
+    await persistDb(nextDb, "Note créée.");
+  }
+
+  function applyNoteCommand(command, value = null) {
+    noteEditorRef.current?.focus();
+    document.execCommand(command, false, value);
+    const html = noteEditorRef.current?.innerHTML || "<div><br></div>";
+    setNoteBodyDraft(html);
+    updateSelectedNote({ content: html });
+  }
+
+  function applyNoteFontSize(size) {
+    setNoteFontSize(size);
+    noteEditorRef.current?.focus();
+    document.execCommand("fontSize", false, "7");
+    noteEditorRef.current?.querySelectorAll('font[size="7"]').forEach((node) => {
+      const span = document.createElement("span");
+      span.style.fontSize = `${size}px`;
+      span.innerHTML = node.innerHTML;
+      node.replaceWith(span);
+    });
+    const html = noteEditorRef.current?.innerHTML || "<div><br></div>";
+    setNoteBodyDraft(html);
+    updateSelectedNote({ content: html });
+  }
+
+  function insertChecklistLine() {
+    noteEditorRef.current?.focus();
+    document.execCommand(
+      "insertHTML",
+      false,
+      '<div class="note-check-row"><span class="note-check" data-checked="false" contenteditable="false"></span><span>&nbsp;</span></div>',
+    );
+    const html = noteEditorRef.current?.innerHTML || "<div><br></div>";
+    setNoteBodyDraft(html);
+    updateSelectedNote({ content: html });
+  }
+
+  function onNoteEditorInput(event) {
+    const html = event.currentTarget.innerHTML || "<div><br></div>";
+    setNoteBodyDraft(html);
+    updateSelectedNote({ content: html });
+  }
+
+  function onNoteEditorClick(event) {
+    const toggle = event.target.closest?.(".note-check");
+    if (!toggle) return;
+    const checked = toggle.getAttribute("data-checked") === "true";
+    toggle.setAttribute("data-checked", checked ? "false" : "true");
+    const html = noteEditorRef.current?.innerHTML || "<div><br></div>";
+    setNoteBodyDraft(html);
+    updateSelectedNote({ content: html });
+  }
+
   async function submitLogin(event) {
     event.preventDefault();
     if (busy) return;
@@ -2032,6 +2281,13 @@ export default function FlowApp() {
   function selectSearchResult(result) {
     setSelectedResult(result);
     setActiveSection(result.section || "dashboard");
+    if (result.section === "notes") {
+      const matchingNote = (db.notes || []).find((item) => item.id === result.id);
+      if (matchingNote) {
+        setSelectedNoteCategory(matchingNote.cat || "Notes");
+        setSelectedNoteId(matchingNote.id);
+      }
+    }
     setSearchOpen(false);
     setCommandOpen(false);
     setNotificationOpen(false);
@@ -3856,6 +4112,197 @@ export default function FlowApp() {
         .theme-light .scale-fill {
           background: linear-gradient(90deg, rgba(255, 156, 112, 0.32), rgba(44, 34, 30, 0.92));
         }
+        .notes-layout {
+          display: grid;
+          grid-template-columns: 280px 360px minmax(0, 1fr);
+          gap: 18px;
+          min-height: 0;
+        }
+        .notes-categories,
+        .notes-list-pane,
+        .notes-editor-pane {
+          border-radius: 17px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-strong);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(20px);
+          min-width: 0;
+          min-height: 0;
+        }
+        .notes-categories {
+          padding: 16px;
+          display: grid;
+          grid-template-rows: auto auto minmax(0, 1fr);
+          gap: 12px;
+        }
+        .notes-categories-top,
+        .notes-list-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .notes-categories-top h2,
+        .notes-list-head h1 {
+          margin: 0;
+          font-size: 28px;
+          letter-spacing: -0.05em;
+        }
+        .notes-list-head span,
+        .notes-categories-top span {
+          color: var(--text-soft);
+          font-size: 13px;
+        }
+        .notes-category-create input,
+        .note-title-input,
+        .notes-editor-toolbar select {
+          width: 100%;
+          border-radius: 17px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-soft);
+          color: var(--text-main);
+          padding: 14px 16px;
+          outline: none;
+        }
+        .notes-category-list,
+        .notes-list-scroll {
+          min-height: 0;
+          overflow: auto;
+          display: grid;
+          align-content: start;
+          gap: 10px;
+          padding-right: 4px;
+        }
+        .notes-category-item {
+          all: unset;
+          box-sizing: border-box;
+          border-radius: 17px;
+          border: 1px solid transparent;
+          background: rgba(255,255,255,0.03);
+          padding: 14px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          cursor: pointer;
+          color: var(--text-soft);
+        }
+        .notes-category-item.active {
+          background: var(--surface-layer-soft);
+          border-color: var(--line);
+          color: var(--text-main);
+        }
+        .notes-list-pane {
+          padding: 16px;
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          gap: 14px;
+        }
+        .notes-group {
+          display: grid;
+          gap: 12px;
+        }
+        .notes-group h3 {
+          margin: 0;
+          font-size: 26px;
+          letter-spacing: -0.04em;
+        }
+        .notes-card-grid {
+          display: grid;
+          gap: 12px;
+        }
+        .note-card {
+          all: unset;
+          box-sizing: border-box;
+          border-radius: 17px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer);
+          padding: 16px;
+          display: grid;
+          gap: 8px;
+          cursor: pointer;
+          min-width: 0;
+        }
+        .note-card.active {
+          border-color: var(--line-strong);
+          background: var(--surface-layer-soft);
+        }
+        .note-card strong,
+        .note-card span,
+        .note-card small {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .note-card span,
+        .note-card small {
+          color: var(--text-soft);
+        }
+        .notes-editor-pane {
+          padding: 16px;
+          display: grid;
+          grid-template-rows: auto auto minmax(0, 1fr);
+          gap: 14px;
+        }
+        .notes-editor-toolbar {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .notes-editor-toolbar input[type="color"] {
+          width: 46px;
+          height: 42px;
+          padding: 0;
+          border-radius: 14px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-soft);
+        }
+        .note-title-input {
+          font-size: 38px;
+          font-weight: 700;
+          letter-spacing: -0.06em;
+          background: transparent;
+          border: 0;
+          padding: 0;
+        }
+        .note-editor {
+          min-height: 0;
+          overflow: auto;
+          padding-right: 4px;
+          font-size: 18px;
+          line-height: 1.7;
+          outline: none;
+          white-space: normal;
+          color: var(--text-main);
+        }
+        .note-editor > div,
+        .note-editor > p {
+          margin: 0 0 12px;
+        }
+        .note-check-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .note-check {
+          width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          border: 1px solid var(--line-strong);
+          background: transparent;
+          display: inline-block;
+          cursor: pointer;
+          flex: none;
+          position: relative;
+        }
+        .note-check[data-checked="true"]::after {
+          content: "";
+          position: absolute;
+          inset: 4px;
+          border-radius: 999px;
+          background: currentColor;
+        }
         .shopify-layout {
           display: grid;
           gap: 18px;
@@ -4177,6 +4624,13 @@ export default function FlowApp() {
             min-height: calc(100dvh - 24px);
             height: calc(100dvh - 24px);
             grid-template-columns: 1fr;
+          }
+          .notes-layout {
+            grid-template-columns: 1fr;
+          }
+          .notes-categories,
+          .notes-list-pane {
+            max-height: 32dvh;
           }
           .sidebar {
             position: absolute;
@@ -4605,7 +5059,6 @@ export default function FlowApp() {
                   <div className="page-head">
                     <div>
                       <h1>Bienvenue, {firstName(user.name)}</h1>
-                      <p>Résumé direct de ton compte, de ce qui doit bouger maintenant et de la période active.</p>
                     </div>
                   </div>
 
@@ -4658,7 +5111,6 @@ export default function FlowApp() {
                           <div className="content-card-header">
                             <div>
                               <h2>Rythme du compte</h2>
-                              <p>Charge active sur les éléments qui demandent une action.</p>
                             </div>
                             <button type="button" className="release-chip" onClick={() => setReleaseOpen(true)}>
                               <Icon name="spark" size={15} />
@@ -4761,7 +5213,6 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Derniers éléments</h2>
-                              <p>Notes, tâches, événements et activité du compte, triés sans bruit.</p>
                             </div>
                           </div>
                           <div className="overview-list">
@@ -5095,7 +5546,6 @@ export default function FlowApp() {
                             <div className="surface-head">
                               <div>
                                 <h2>Dernières commandes</h2>
-                                <p>Les plus récentes en haut. Les commandes traitées de plus de 3 jours sont masquées.</p>
                               </div>
                             </div>
                             {shopifyState.loading && !shopifyState.data ? (
@@ -5137,7 +5587,6 @@ export default function FlowApp() {
                             <div className="surface-head">
                               <div>
                                 <h2>Top 5 produits du mois</h2>
-                                <p>Produits les plus vendus du mois courant.</p>
                               </div>
                               {storedShopifyConfig.storeDomain ? (
                                 <button type="button" className="ghost" onClick={() => void clearShopifyConfig()} disabled={shopifyConfigBusy}>
@@ -5243,6 +5692,136 @@ export default function FlowApp() {
                         {!shopifyOrdersPageRows.length ? <div className="notification-empty">Aucune commande ne correspond à cette recherche.</div> : null}
                       </div>
                     </div>
+                  </div>
+                </section>
+              ) : activeSection === "notes" ? (
+                <section className="notes-layout">
+                  <aside className="notes-categories">
+                    <div className="notes-categories-top">
+                      <div>
+                        <h2>Notes</h2>
+                      </div>
+                      <button type="button" className="icon-button" onClick={() => void createNoteCategory()} aria-label="Créer une catégorie">
+                        <Icon name="plus" size={16} />
+                      </button>
+                    </div>
+                    <div className="notes-category-create">
+                      <input
+                        value={noteCategoryDraft}
+                        onChange={(event) => setNoteCategoryDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void createNoteCategory();
+                          }
+                        }}
+                        placeholder="Nouvelle catégorie"
+                        aria-label="Nouvelle catégorie de note"
+                      />
+                    </div>
+                    <div className="notes-category-list">
+                      {noteCategories.map((category) => {
+                        const count = category === "Toutes les notes"
+                          ? (db.notes || []).length
+                          : (db.notes || []).filter((note) => (note.cat || "Notes") === category).length;
+                        return (
+                          <button
+                            key={category}
+                            type="button"
+                            className={`notes-category-item ${selectedNoteCategory === category ? "active" : ""}`}
+                            onClick={() => {
+                              setSelectedNoteCategory(category);
+                              setSelectedNoteId("");
+                            }}
+                          >
+                            <span>{category}</span>
+                            <strong>{count}</strong>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </aside>
+
+                  <div className="notes-list-pane">
+                    <div className="notes-list-head">
+                      <div>
+                        <h1>{selectedNoteCategory || "Notes"}</h1>
+                        <span>{notesInSelectedCategory.length} note(s)</span>
+                      </div>
+                      <button type="button" className="primary notes-add-button" onClick={() => void createNoteInCategory()}>
+                        Ajouter une note
+                      </button>
+                    </div>
+                    <div className="notes-list-scroll">
+                      {noteSections.map((group) => (
+                        <div key={group.label} className="notes-group">
+                          <h3>{group.label}</h3>
+                          <div className="notes-card-grid">
+                            {group.notes.map((note) => (
+                              <button
+                                key={note.id}
+                                type="button"
+                                className={`note-card ${selectedNote?.id === note.id ? "active" : ""}`}
+                                onClick={() => setSelectedNoteId(note.id)}
+                              >
+                                <strong>{note.title || "Note sans titre"}</strong>
+                                <span>{notePreview(note)}</span>
+                                <small>{formatRelative(note.updatedAt || note.createdAt)}</small>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      {!notesInSelectedCategory.length ? <div className="notification-empty">Aucune note dans cette catégorie.</div> : null}
+                    </div>
+                  </div>
+
+                  <div className="notes-editor-pane">
+                    {selectedNote ? (
+                      <>
+                        <div className="notes-editor-toolbar">
+                          <select value={noteFontFamily} onChange={(event) => { setNoteFontFamily(event.target.value); applyNoteCommand("fontName", event.target.value); }}>
+                            <option value="inherit">System</option>
+                            <option value="Georgia">Serif</option>
+                            <option value="Helvetica">Helvetica</option>
+                            <option value="Courier New">Mono</option>
+                          </select>
+                          <select value={noteFontSize} onChange={(event) => applyNoteFontSize(event.target.value)}>
+                            <option value="16">16</option>
+                            <option value="18">18</option>
+                            <option value="22">22</option>
+                            <option value="28">28</option>
+                          </select>
+                          <button type="button" className="ghost" onClick={() => applyNoteCommand("bold")}>Gras</button>
+                          <input type="color" value={noteTextColor} onChange={(event) => { setNoteTextColor(event.target.value); applyNoteCommand("foreColor", event.target.value); }} aria-label="Couleur du texte" />
+                          <button type="button" className="ghost" onClick={insertChecklistLine}>Checklist</button>
+                        </div>
+                        <input
+                          className="note-title-input"
+                          value={noteTitleDraft}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setNoteTitleDraft(value);
+                            updateSelectedNote({ title: value || "Note sans titre" });
+                          }}
+                          placeholder="Titre"
+                          aria-label="Titre de la note"
+                        />
+                        <div
+                          ref={noteEditorRef}
+                          className="note-editor"
+                          contentEditable
+                          suppressContentEditableWarning
+                          dangerouslySetInnerHTML={{ __html: noteBodyDraft || "<div><br></div>" }}
+                          onInput={onNoteEditorInput}
+                          onClick={onNoteEditorClick}
+                        />
+                      </>
+                    ) : (
+                      <div className="section-placeholder">
+                        <h3>Note vide</h3>
+                      </div>
+                    )}
                   </div>
                 </section>
               ) : activeSection === "profile" ? (
