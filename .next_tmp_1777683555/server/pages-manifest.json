@@ -1,0 +1,9 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/api/shopify-callback": "pages/api/shopify-callback.js",
+  "/api/shopify": "pages/api/shopify.js",
+  "/api/shopify-config": "pages/api/shopify-config.js",
+  "/_document": "pages/_document.js",
+  "/404": "pages/404.html"
+}

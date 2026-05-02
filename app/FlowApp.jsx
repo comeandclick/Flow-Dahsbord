@@ -774,8 +774,8 @@ function noteHtmlFromText(value) {
 }
 
 function getStoredNoteCategories(db) {
-  const fromSettings = Array.isArray(db?.settings?.noteCategories) ? db.settings.noteCategories : [];
-  const fromNotes = (db?.notes || []).map((item) => item.cat).filter(Boolean);
+  const fromSettings = Array.isArray(db?.settings?.noteCategories) ? db.settings.noteCategories.filter((item) => `${item}`.trim() !== "Toutes les notes") : [];
+  const fromNotes = (db?.notes || []).map((item) => item.cat).filter((item) => item && `${item}`.trim() !== "Toutes les notes");
   return ["Toutes les notes", ...new Set([...fromSettings, ...fromNotes].map((item) => `${item}`.trim()).filter(Boolean))];
 }
 
@@ -783,7 +783,7 @@ function createNoteRecord(category) {
   const now = new Date().toISOString();
   return {
     id: `note-${Math.random().toString(36).slice(2, 10)}`,
-    title: "Nouvelle note",
+    title: "",
     content: "<div><br></div>",
     cat: category || "Notes",
     color: "",
@@ -1156,6 +1156,7 @@ export default function FlowApp() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
   const [selectedResult, setSelectedResult] = useState(null);
@@ -1184,17 +1185,20 @@ export default function FlowApp() {
   const [shopifyPeriod, setShopifyPeriod] = useState("30d");
   const [shopifyOrderSort, setShopifyOrderSort] = useState("recent");
   const [shopifyOrderQuery, setShopifyOrderQuery] = useState("");
-  const [noteCategoryDraft, setNoteCategoryDraft] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
   const [selectedNoteCategory, setSelectedNoteCategory] = useState("");
   const [selectedNoteId, setSelectedNoteId] = useState("");
+  const [noteToolsOpen, setNoteToolsOpen] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [noteCategoryDraft, setNoteCategoryDraft] = useState("");
   const [noteTitleDraft, setNoteTitleDraft] = useState("");
-  const [noteBodyDraft, setNoteBodyDraft] = useState("");
   const [noteFontFamily, setNoteFontFamily] = useState("inherit");
   const [noteTextColor, setNoteTextColor] = useState("#f4f5f7");
   const [noteFontSize, setNoteFontSize] = useState("18");
   const [shopifyDomainInput, setShopifyDomainInput] = useState("");
   const [shopifyTokenInput, setShopifyTokenInput] = useState("");
+  const [showShopifyDomain, setShowShopifyDomain] = useState(false);
+  const [showShopifyToken, setShowShopifyToken] = useState(false);
   const [shopifyConfigBusy, setShopifyConfigBusy] = useState(false);
   const [shopifyState, setShopifyState] = useState({
     loading: false,
@@ -1208,10 +1212,14 @@ export default function FlowApp() {
   const reloadTimerRef = useRef(null);
   const noteSaveTimerRef = useRef(null);
   const searchWrapRef = useRef(null);
+  const profileMenuRef = useRef(null);
   const notifRef = useRef(null);
+  const noteToolsRef = useRef(null);
   const commandInputRef = useRef(null);
   const backgroundInputRef = useRef(null);
   const noteEditorRef = useRef(null);
+  const noteCategoryInputRef = useRef(null);
+  const noteSelectionRef = useRef(null);
 
   const releaseMeta = useMemo(() => formatReleaseLabel(remoteRelease || RELEASE), [remoteRelease]);
   const searchEntries = useMemo(() => buildSearchEntries(db, user), [db, user]);
@@ -1358,8 +1366,6 @@ export default function FlowApp() {
         .some((value) => `${value}`.toLowerCase().includes(query)),
     );
   }, [noteQuery, notesInSelectedCategory]);
-
-  const noteSections = useMemo(() => groupNotesByBucket(filteredNotesInSelectedCategory), [filteredNotesInSelectedCategory]);
 
   const selectedNote = useMemo(
     () => (db.notes || []).find((note) => note.id === selectedNoteId) || null,
@@ -1606,7 +1612,6 @@ export default function FlowApp() {
     if (!notesInSelectedCategory.length) {
       setSelectedNoteId("");
       setNoteTitleDraft("");
-      setNoteBodyDraft("");
       return;
     }
     if (selectedNoteId && !notesInSelectedCategory.some((note) => note.id === selectedNoteId)) {
@@ -1617,8 +1622,15 @@ export default function FlowApp() {
   useEffect(() => {
     if (!selectedNote) return;
     setNoteTitleDraft(selectedNote.title || "");
-    setNoteBodyDraft(selectedNote.content || "<div><br></div>");
+    if (noteEditorRef.current) {
+      noteEditorRef.current.innerHTML = selectedNote.content || "";
+    }
   }, [selectedNote?.id]);
+
+  useEffect(() => {
+    if (!creatingCategory) return;
+    window.setTimeout(() => noteCategoryInputRef.current?.focus(), 20);
+  }, [creatingCategory]);
 
   useEffect(() => {
     setAccountForm({
@@ -1652,6 +1664,19 @@ export default function FlowApp() {
     }));
 
     try {
+      if (db.settings?.demoFixtures?.overrideShopify && shopifyDemoOrders.length) {
+        const data = summarizeShopifyData({ orders: shopifyDemoOrders });
+        setShopifyState({
+          loading: false,
+          error: "",
+          data,
+          refreshedAt: db.settings?.demoFixtures?.seededAt || new Date().toISOString(),
+          ready: Boolean(storedShopifyConfig.storeDomain && storedShopifyConfig.accessToken),
+          storeDomain: storedShopifyConfig.storeDomain || "",
+        });
+        return;
+      }
+
       const statusPayload = await fetchShopifyProxy("__status");
       if (statusPayload?.ready === false) {
         if (shopifyDemoOrders.length) {
@@ -1904,7 +1929,9 @@ export default function FlowApp() {
     function onPointerDown(event) {
       const target = event.target;
       if (searchWrapRef.current && !searchWrapRef.current.contains(target)) setSearchOpen(false);
+      if (profileMenuRef.current && !profileMenuRef.current.contains(target)) setProfileMenuOpen(false);
       if (notifRef.current && !notifRef.current.contains(target)) setNotificationOpen(false);
+      if (noteToolsRef.current && !noteToolsRef.current.contains(target)) setNoteToolsOpen(false);
     }
 
     document.addEventListener("pointerdown", onPointerDown);
@@ -2068,20 +2095,32 @@ export default function FlowApp() {
     scheduleNotePersist(nextDb);
   }
 
-  async function createNoteCategory() {
+  async function commitNoteCategory() {
     const name = noteCategoryDraft.trim();
-    if (!name) return;
-    if (noteCategories.includes(name)) {
-      setSelectedNoteCategory(name);
+    if (!name) {
+      setCreatingCategory(false);
       setNoteCategoryDraft("");
       return;
     }
+    if (noteCategories.includes(name)) {
+      setSelectedNoteCategory(name);
+      setNoteCategoryDraft("");
+      setCreatingCategory(false);
+      return;
+    }
     const nextDb = nextDbWithSettings({
-      noteCategories: [...noteCategories, name],
+      noteCategories: [...noteCategories.filter((item) => item !== "Toutes les notes"), name],
     });
     setSelectedNoteCategory(name);
     setNoteCategoryDraft("");
+    setCreatingCategory(false);
     await persistDb(nextDb, "Catégorie créée.");
+  }
+
+  function createNoteCategory() {
+    setCreatingCategory(true);
+    setNoteCategoryDraft("");
+    setSelectedNoteId("");
   }
 
   async function createNoteInCategory(category = selectedNoteCategory || noteCategories[0] || "Notes") {
@@ -2097,21 +2136,45 @@ export default function FlowApp() {
     };
     setSelectedNoteCategory(targetCategory);
     setSelectedNoteId(note.id);
-    setNoteTitleDraft(note.title);
-    setNoteBodyDraft(note.content);
+    setNoteTitleDraft(note.title || "");
     await persistDb(nextDb, "Note créée.");
   }
 
+  function persistEditorHtml() {
+    const html = noteEditorRef.current?.innerHTML || "";
+    updateSelectedNote({ content: html });
+  }
+
+  function rememberNoteSelection() {
+    const selection = window.getSelection?.();
+    if (!selection || !selection.rangeCount || !noteEditorRef.current) return;
+    const range = selection.getRangeAt(0);
+    if (!noteEditorRef.current.contains(range.commonAncestorContainer)) return;
+    noteSelectionRef.current = range.cloneRange();
+  }
+
+  function restoreNoteSelection() {
+    const selection = window.getSelection?.();
+    if (!selection || !noteSelectionRef.current) return;
+    selection.removeAllRanges();
+    selection.addRange(noteSelectionRef.current);
+  }
+
+  function preserveNoteSelection(event) {
+    event.preventDefault();
+  }
+
   function applyNoteCommand(command, value = null) {
+    restoreNoteSelection();
     noteEditorRef.current?.focus();
     document.execCommand(command, false, value);
-    const html = noteEditorRef.current?.innerHTML || "<div><br></div>";
-    setNoteBodyDraft(html);
-    updateSelectedNote({ content: html });
+    rememberNoteSelection();
+    persistEditorHtml();
   }
 
   function applyNoteFontSize(size) {
     setNoteFontSize(size);
+    restoreNoteSelection();
     noteEditorRef.current?.focus();
     document.execCommand("fontSize", false, "7");
     noteEditorRef.current?.querySelectorAll('font[size="7"]').forEach((node) => {
@@ -2120,27 +2183,50 @@ export default function FlowApp() {
       span.innerHTML = node.innerHTML;
       node.replaceWith(span);
     });
-    const html = noteEditorRef.current?.innerHTML || "<div><br></div>";
-    setNoteBodyDraft(html);
-    updateSelectedNote({ content: html });
+    rememberNoteSelection();
+    persistEditorHtml();
   }
 
   function insertChecklistLine() {
+    restoreNoteSelection();
     noteEditorRef.current?.focus();
     document.execCommand(
       "insertHTML",
       false,
       '<div class="note-check-row"><span class="note-check" data-checked="false" contenteditable="false"></span><span>&nbsp;</span></div>',
     );
-    const html = noteEditorRef.current?.innerHTML || "<div><br></div>";
-    setNoteBodyDraft(html);
-    updateSelectedNote({ content: html });
+    rememberNoteSelection();
+    persistEditorHtml();
+  }
+
+  function applyNoteBlock(type) {
+    restoreNoteSelection();
+    noteEditorRef.current?.focus();
+    if (type === "body") {
+      document.execCommand("formatBlock", false, "div");
+    } else if (type === "title") {
+      document.execCommand("formatBlock", false, "h1");
+    } else if (type === "subtitle") {
+      document.execCommand("formatBlock", false, "h2");
+    } else if (type === "secondary") {
+      document.execCommand("formatBlock", false, "h3");
+    } else if (type === "mono") {
+      document.execCommand("fontName", false, "Courier New");
+    } else if (type === "bullets") {
+      document.execCommand("insertUnorderedList");
+    } else if (type === "numbers") {
+      document.execCommand("insertOrderedList");
+    } else if (type === "quote") {
+      document.execCommand("formatBlock", false, "blockquote");
+    }
+    rememberNoteSelection();
+    persistEditorHtml();
+    setNoteToolsOpen(false);
   }
 
   function onNoteEditorInput(event) {
-    const html = event.currentTarget.innerHTML || "<div><br></div>";
-    setNoteBodyDraft(html);
-    updateSelectedNote({ content: html });
+    updateSelectedNote({ content: event.currentTarget.innerHTML || "" });
+    rememberNoteSelection();
   }
 
   function onNoteEditorClick(event) {
@@ -2148,9 +2234,7 @@ export default function FlowApp() {
     if (!toggle) return;
     const checked = toggle.getAttribute("data-checked") === "true";
     toggle.setAttribute("data-checked", checked ? "false" : "true");
-    const html = noteEditorRef.current?.innerHTML || "<div><br></div>";
-    setNoteBodyDraft(html);
-    updateSelectedNote({ content: html });
+    persistEditorHtml();
   }
 
   async function submitLogin(event) {
@@ -2445,7 +2529,7 @@ export default function FlowApp() {
     try {
       const fixtures = createDemoFixtures(user);
       const hasRealShopify = Boolean(storedShopifyConfig.storeDomain && storedShopifyConfig.accessToken);
-      const isDemoActive = !hasRealShopify && shopifyDemoOrders.length > 0;
+      const isDemoActive = Boolean(db.settings?.demoFixtures?.overrideShopify);
 
       const extractIds = (items) => (Array.isArray(items) ? items.map((item) => item?.id).filter(Boolean) : []);
       const demoIds = new Set([
@@ -2468,7 +2552,11 @@ export default function FlowApp() {
           activity: (db.activity || []).filter((item) => !demoIds.has(item?.id)),
           settings: {
             ...(db.settings || {}),
-            demoFixtures: {},
+            demoFixtures: {
+              seededAt: "",
+              shopifyOrders: [],
+              overrideShopify: false,
+            },
           },
         };
         await persistDb(nextDb, "Mode test desactive.");
@@ -2498,13 +2586,14 @@ export default function FlowApp() {
           ...(db.settings || {}),
           demoFixtures: {
             seededAt: new Date().toISOString(),
-            shopifyOrders: hasRealShopify ? (db.settings?.demoFixtures?.shopifyOrders || []) : fixtures.shopifyOrders,
+            shopifyOrders: fixtures.shopifyOrders,
+            overrideShopify: true,
           },
         },
       };
       await persistDb(nextDb, "Donnees de travail injectees.");
       await refreshShopifyData();
-      setNotice(hasRealShopify ? "Donnees de travail injectees." : "Mode test active: donnees Shopify factices et notifications ajoutees.");
+      setNotice("Mode test actif.");
     } catch (seedError) {
       setError(normalizeMessage(seedError, "Remplissage des donnees impossible."));
     } finally {
@@ -3176,7 +3265,7 @@ export default function FlowApp() {
           padding: 14px 16px;
           border-radius: 17px;
           border: 1px solid var(--line);
-          background: var(--surface-layer);
+          background: transparent;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
           backdrop-filter: blur(18px);
           position: relative;
@@ -3196,7 +3285,7 @@ export default function FlowApp() {
           height: 46px;
           border-radius: 17px;
           border: 1px solid var(--line);
-          background: var(--surface-layer-soft);
+          background: transparent;
           color: var(--text-main);
           display: grid;
           place-items: center;
@@ -3242,7 +3331,7 @@ export default function FlowApp() {
           height: 54px;
           border-radius: 17px;
           border: 1px solid var(--line);
-          background: var(--surface-layer-soft);
+          background: transparent;
           display: flex;
           align-items: center;
           gap: 12px;
@@ -3298,6 +3387,43 @@ export default function FlowApp() {
           background: #12151c;
           padding: 16px;
           animation: riseIn 0.24s ease;
+        }
+        .profile-menu {
+          position: absolute;
+          bottom: calc(100% + 10px);
+          left: 0;
+          z-index: 190;
+          border-radius: 17px;
+          background: var(--surface-layer-strong);
+          border: 1px solid var(--line);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(20px);
+          animation: riseIn 0.24s ease;
+          min-width: 200px;
+          overflow: hidden;
+        }
+        .profile-menu-item {
+          all: unset;
+          box-sizing: border-box;
+          width: 100%;
+          padding: 14px 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          cursor: pointer;
+          border: none;
+          background: transparent;
+          color: var(--text-main);
+          font-size: 14px;
+          text-align: left;
+          transition: background 0.2s ease;
+          border-bottom: 1px solid var(--line);
+        }
+        .profile-menu-item:last-child {
+          border-bottom: none;
+        }
+        .profile-menu-item:hover {
+          background: rgba(255, 255, 255, 0.04);
         }
         .search-dropdown::before,
         .command-modal::before,
@@ -4171,6 +4297,10 @@ export default function FlowApp() {
           color: var(--text-soft);
           font-size: 13px;
         }
+        .notes-category-create {
+          display: grid;
+          gap: 10px;
+        }
         .notes-category-create input,
         .note-title-input,
         .notes-editor-toolbar select {
@@ -4216,18 +4346,11 @@ export default function FlowApp() {
           grid-template-rows: auto minmax(0, 1fr);
           gap: 14px;
         }
-        .notes-group {
-          display: grid;
-          gap: 12px;
-        }
-        .notes-group h3 {
-          margin: 0;
-          font-size: 26px;
-          letter-spacing: -0.04em;
-        }
         .notes-card-grid {
           display: grid;
           gap: 12px;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          align-content: start;
         }
         .note-card {
           all: unset;
@@ -4266,16 +4389,76 @@ export default function FlowApp() {
         .notes-editor-toolbar {
           display: flex;
           align-items: center;
-          gap: 10px;
-          flex-wrap: wrap;
+          justify-content: space-between;
+          gap: 12px;
         }
-        .notes-editor-toolbar input[type="color"] {
-          width: 46px;
+        .notes-editor-actions {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .notes-tools-button {
+          min-width: 42px;
           height: 42px;
-          padding: 0;
           border-radius: 14px;
           border: 1px solid var(--line);
           background: var(--surface-layer-soft);
+          color: var(--text-main);
+          font-size: 18px;
+          font-weight: 700;
+        }
+        .notes-tools-popup {
+          position: absolute;
+          top: calc(100% + 10px);
+          right: 0;
+          width: min(320px, calc(100vw - 48px));
+          border-radius: 17px;
+          border: 1px solid var(--line);
+          background: rgba(18, 20, 27, 0.98);
+          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+          backdrop-filter: blur(24px);
+          padding: 14px;
+          display: grid;
+          gap: 14px;
+          z-index: 40;
+        }
+        .theme-light .notes-tools-popup {
+          background: rgba(241, 243, 247, 0.98);
+        }
+        .notes-tools-inline {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .notes-tools-inline button,
+        .notes-tools-inline select,
+        .notes-tools-inline input[type="color"] {
+          min-height: 40px;
+          border-radius: 14px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-soft);
+          color: var(--text-main);
+          padding: 0 12px;
+        }
+        .notes-tools-inline input[type="color"] {
+          width: 44px;
+          padding: 4px;
+        }
+        .notes-tools-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .notes-tools-grid button {
+          border-radius: 14px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-soft);
+          color: var(--text-main);
+          min-height: 42px;
+          padding: 0 12px;
+          text-align: left;
         }
         .note-title-input {
           font-size: 38px;
@@ -4284,6 +4467,9 @@ export default function FlowApp() {
           background: transparent;
           border: 0;
           padding: 0;
+        }
+        .note-title-input::placeholder {
+          color: var(--text-soft);
         }
         .note-editor {
           min-height: 0;
@@ -4294,6 +4480,10 @@ export default function FlowApp() {
           outline: none;
           white-space: normal;
           color: var(--text-main);
+        }
+        .note-editor:empty::before {
+          content: attr(data-placeholder);
+          color: var(--text-soft);
         }
         .note-editor > div,
         .note-editor > p {
@@ -4517,6 +4707,29 @@ export default function FlowApp() {
         .shopify-connect-form textarea {
           min-height: 136px;
           resize: vertical;
+        }
+        .input-with-toggle {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        .input-with-toggle input {
+          flex: 1;
+          padding-right: 48px;
+        }
+        .input-toggle-button {
+          position: absolute;
+          right: 14px;
+          all: unset;
+          cursor: pointer;
+          padding: 8px;
+          display: grid;
+          place-items: center;
+          color: var(--text-soft);
+          transition: color 0.2s ease;
+        }
+        .input-toggle-button:hover {
+          color: var(--text-main);
         }
         .orders-shell {
           display: grid;
@@ -4914,26 +5127,68 @@ export default function FlowApp() {
                 ))}
               </div>
 
-              <div className={`sidebar-footer ${sidebarShowsDetails ? "" : "collapsed"}`}>
+              <div className={`sidebar-footer ${sidebarShowsDetails ? "" : "collapsed"}`} ref={profileMenuRef}>
                 {sidebarShowsDetails ? (
                   <>
-                    <div className="sidebar-footer-copy">
-                      <strong>{user.name || "Compte Flow"}</strong>
-                      <span>{user.email}</span>
-                    </div>
-                    <div className="button-row" style={{ marginTop: 14 }}>
-                      <button type="button" className="secondary" onClick={() => setActiveSection("profile")} style={{ width: "100%" }}>
-                        Profil
-                      </button>
-                      <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"} style={{ width: "100%" }}>
-                        {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
-                      </button>
-                    </div>
+                    <button type="button" style={{ all: 'unset', cursor: 'pointer', width: '100%', textAlign: 'left' }} onClick={() => setProfileMenuOpen(!profileMenuOpen)}>
+                      <div className="sidebar-footer-copy">
+                        <strong>{user.name || "Compte Flow"}</strong>
+                        <span>{user.email}</span>
+                      </div>
+                    </button>
+                    {profileMenuOpen ? (
+                      <div className="profile-menu">
+                        <button type="button" className="profile-menu-item" onClick={() => {
+                          setActiveSection("profile");
+                          setProfileMenuOpen(false);
+                        }}>
+                          <Icon name="user" size={16} />
+                          <span>Profil</span>
+                        </button>
+                        <button type="button" className="profile-menu-item" onClick={() => {
+                          setActiveSection("settings");
+                          setSettingsTab("account");
+                          setProfileMenuOpen(false);
+                        }}>
+                          <Icon name="settings" size={16} />
+                          <span>Paramètres</span>
+                        </button>
+                        <button type="button" className="profile-menu-item" onClick={submitLogout} disabled={busy === "logout"}>
+                          <Icon name="log-out" size={16} />
+                          <span>{busy === "logout" ? "Déconnexion..." : "Se déconnecter"}</span>
+                        </button>
+                      </div>
+                    ) : null}
                   </>
                 ) : (
-                  <div className="sidebar-footer-mini" aria-label={user.name || "Profil"}>
-                    {profilePhotoUrl ? <img src={profilePhotoUrl} alt={user.name || "Profil"} /> : initialsFromName(user.name).slice(0, 1)}
-                  </div>
+                  <button type="button" style={{ all: 'unset', cursor: 'pointer' }} onClick={() => setProfileMenuOpen(!profileMenuOpen)} aria-label={user.name || "Profil"}>
+                    <div className="sidebar-footer-mini">
+                      {profilePhotoUrl ? <img src={profilePhotoUrl} alt={user.name || "Profil"} /> : initialsFromName(user.name).slice(0, 1)}
+                    </div>
+                    {profileMenuOpen ? (
+                      <div className="profile-menu">
+                        <button type="button" className="profile-menu-item" onClick={() => {
+                          setActiveSection("profile");
+                          setProfileMenuOpen(false);
+                        }}>
+                          <Icon name="user" size={16} />
+                          <span>Profil</span>
+                        </button>
+                        <button type="button" className="profile-menu-item" onClick={() => {
+                          setActiveSection("settings");
+                          setSettingsTab("account");
+                          setProfileMenuOpen(false);
+                        }}>
+                          <Icon name="settings" size={16} />
+                          <span>Paramètres</span>
+                        </button>
+                        <button type="button" className="profile-menu-item" onClick={submitLogout} disabled={busy === "logout"}>
+                          <Icon name="log-out" size={16} />
+                          <span>{busy === "logout" ? "Déconnexion..." : "Se déconnecter"}</span>
+                        </button>
+                      </div>
+                    ) : null}
+                  </button>
                 )}
               </div>
             </aside>
@@ -5435,18 +5690,34 @@ export default function FlowApp() {
                         </div>
                       </div>
                       <div className="shopify-connect-form">
-                        <input
-                          value={shopifyDomainInput}
-                          onChange={(event) => setShopifyDomainInput(event.target.value)}
-                          placeholder="store.myshopify.com"
-                          aria-label="Shop domain"
-                        />
-                        <input
-                          value={shopifyTokenInput}
-                          onChange={(event) => setShopifyTokenInput(event.target.value)}
-                          placeholder="shpat_xxx"
-                          aria-label="Shopify access token"
-                        />
+                        <div className="input-with-toggle">
+                          <input
+                            type={showShopifyDomain ? "text" : "password"}
+                            value={shopifyDomainInput}
+                            onChange={(event) => setShopifyDomainInput(event.target.value)}
+                            placeholder="store.myshopify.com"
+                            aria-label="Shop domain"
+                          />
+                          {shopifyDomainInput && (
+                            <button type="button" className="input-toggle-button" onClick={() => setShowShopifyDomain(!showShopifyDomain)} aria-label={showShopifyDomain ? "Masquer" : "Afficher"}>
+                              <Icon name={showShopifyDomain ? "eye-off" : "eye"} size={18} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="input-with-toggle">
+                          <input
+                            type={showShopifyToken ? "text" : "password"}
+                            value={shopifyTokenInput}
+                            onChange={(event) => setShopifyTokenInput(event.target.value)}
+                            placeholder="shpat_xxx"
+                            aria-label="Shopify access token"
+                          />
+                          {shopifyTokenInput && (
+                            <button type="button" className="input-toggle-button" onClick={() => setShowShopifyToken(!showShopifyToken)} aria-label={showShopifyToken ? "Masquer" : "Afficher"}>
+                              <Icon name={showShopifyToken ? "eye-off" : "eye"} size={18} />
+                            </button>
+                          )}
+                        </div>
                         <div className="button-row">
                           <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
                             {shopifyConfigBusy ? "Connexion..." : "Connecter la boutique"}
@@ -5736,21 +6007,29 @@ export default function FlowApp() {
                         />
                       </div>
                     </div>
-                    <div className="notes-category-create">
-                      <input
-                        value={noteCategoryDraft}
-                        onChange={(event) => setNoteCategoryDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            void createNoteCategory();
-                          }
-                        }}
-                        placeholder="Nouvelle catégorie"
-                        aria-label="Nouvelle catégorie de note"
-                      />
-                    </div>
                     <div className="notes-category-list">
+                      {creatingCategory ? (
+                        <div className="notes-category-create">
+                          <input
+                            ref={noteCategoryInputRef}
+                            value={noteCategoryDraft}
+                            onChange={(event) => setNoteCategoryDraft(event.target.value)}
+                            onBlur={() => void commitNoteCategory()}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void commitNoteCategory();
+                              }
+                              if (event.key === "Escape") {
+                                setCreatingCategory(false);
+                                setNoteCategoryDraft("");
+                              }
+                            }}
+                            placeholder="Nom de la catégorie"
+                            aria-label="Nom de la catégorie"
+                          />
+                        </div>
+                      ) : null}
                       {noteCategories.map((category) => {
                         const count = category === "Toutes les notes"
                           ? (db.notes || []).length
@@ -5780,21 +6059,59 @@ export default function FlowApp() {
                           <button type="button" className="ghost" onClick={() => setSelectedNoteId("")} aria-label="Retour aux notes">
                             <Icon name="arrow-left" size={16} />
                           </button>
-                          <select value={noteFontFamily} onChange={(event) => { setNoteFontFamily(event.target.value); applyNoteCommand("fontName", event.target.value); }}>
-                            <option value="inherit">System</option>
-                            <option value="Georgia">Serif</option>
-                            <option value="Helvetica">Helvetica</option>
-                            <option value="Courier New">Mono</option>
-                          </select>
-                          <select value={noteFontSize} onChange={(event) => applyNoteFontSize(event.target.value)}>
-                            <option value="16">16</option>
-                            <option value="18">18</option>
-                            <option value="22">22</option>
-                            <option value="28">28</option>
-                          </select>
-                          <button type="button" className="ghost" onClick={() => applyNoteCommand("bold")}>Gras</button>
-                          <input type="color" value={noteTextColor} onChange={(event) => { setNoteTextColor(event.target.value); applyNoteCommand("foreColor", event.target.value); }} aria-label="Couleur du texte" />
-                          <button type="button" className="ghost" onClick={insertChecklistLine}>Checklist</button>
+                          <div className="notes-editor-actions" ref={noteToolsRef}>
+                            <button
+                              type="button"
+                              className="notes-tools-button"
+                              onClick={() => setNoteToolsOpen((current) => !current)}
+                              aria-label="Ouvrir les options de texte"
+                            >
+                              T
+                            </button>
+                            {noteToolsOpen ? (
+                              <div className="notes-tools-popup">
+                                <div className="notes-tools-inline">
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteCommand("bold")}><strong>B</strong></button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteCommand("italic")}><em>I</em></button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteCommand("underline")}><u>U</u></button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteCommand("strikeThrough")}><s>S</s></button>
+                                  <select value={noteFontFamily} onChange={(event) => { setNoteFontFamily(event.target.value); applyNoteCommand("fontName", event.target.value); }}>
+                                    <option value="inherit">System</option>
+                                    <option value="Georgia">Serif</option>
+                                    <option value="Helvetica">Helvetica</option>
+                                    <option value="Courier New">Mono</option>
+                                  </select>
+                                  <select value={noteFontSize} onChange={(event) => applyNoteFontSize(event.target.value)}>
+                                    <option value="16">16</option>
+                                    <option value="18">18</option>
+                                    <option value="22">22</option>
+                                    <option value="28">28</option>
+                                  </select>
+                                  <input
+                                    type="color"
+                                    value={noteTextColor}
+                                    onChange={(event) => {
+                                      setNoteTextColor(event.target.value);
+                                      applyNoteCommand("foreColor", event.target.value);
+                                    }}
+                                    aria-label="Couleur du texte"
+                                  />
+                                </div>
+                                <div className="notes-tools-grid">
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("title")}>Titre</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("subtitle")}>Sous-titre</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("secondary")}>Titre secondaire</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("body")}>Corps</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("mono")}>Monostyle</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={insertChecklistLine}>Checklist</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("bullets")}>Liste à puces</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteCommand("insertHTML", "— ")}>Liste à tirets</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("numbers")}>Liste numérotée</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("quote")}>Bloc de citation</button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                         <input
                           className="note-title-input"
@@ -5802,9 +6119,9 @@ export default function FlowApp() {
                           onChange={(event) => {
                             const value = event.target.value;
                             setNoteTitleDraft(value);
-                            updateSelectedNote({ title: value || "Note sans titre" });
+                            updateSelectedNote({ title: value });
                           }}
-                          placeholder="Titre"
+                          placeholder="Nouvelle note"
                           aria-label="Titre de la note"
                         />
                         <div
@@ -5812,9 +6129,12 @@ export default function FlowApp() {
                           className="note-editor"
                           contentEditable
                           suppressContentEditableWarning
-                          dangerouslySetInnerHTML={{ __html: noteBodyDraft || "<div><br></div>" }}
+                          data-placeholder="Écris ta note ici..."
                           onInput={onNoteEditorInput}
                           onClick={onNoteEditorClick}
+                          onKeyUp={rememberNoteSelection}
+                          onMouseUp={rememberNoteSelection}
+                          onFocus={rememberNoteSelection}
                         />
                       </>
                     </div>
@@ -5823,32 +6143,26 @@ export default function FlowApp() {
                       <div className="notes-list-head">
                         <div>
                           <h1>{selectedNoteCategory || "Notes"}</h1>
-                          <span>{filteredNotesInSelectedCategory.length} note(s)</span>
                         </div>
                         <button type="button" className="primary notes-add-button" onClick={() => void createNoteInCategory()}>
                           Ajouter une note
                         </button>
                       </div>
                       <div className="notes-list-scroll">
-                        {noteSections.map((group) => (
-                          <div key={group.label} className="notes-group">
-                            <h3>{group.label}</h3>
-                            <div className="notes-card-grid">
-                              {group.notes.map((note) => (
-                                <button
-                                  key={note.id}
-                                  type="button"
-                                  className="note-card"
-                                  onClick={() => setSelectedNoteId(note.id)}
-                                >
-                                  <strong>{note.title || "Note sans titre"}</strong>
-                                  <span>{notePreview(note)}</span>
-                                  <small>{formatRelative(note.updatedAt || note.createdAt)}</small>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                        <div className="notes-card-grid">
+                          {filteredNotesInSelectedCategory.map((note) => (
+                            <button
+                              key={note.id}
+                              type="button"
+                              className="note-card"
+                              onClick={() => setSelectedNoteId(note.id)}
+                            >
+                              <strong>{note.title || "Nouvelle note"}</strong>
+                              <span>{notePreview(note)}</span>
+                              <small>{formatRelative(note.updatedAt || note.createdAt)}</small>
+                            </button>
+                          ))}
+                        </div>
                         {!filteredNotesInSelectedCategory.length ? <div className="notification-empty">Aucune note dans cette catégorie.</div> : null}
                       </div>
                     </div>
