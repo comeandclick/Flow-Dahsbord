@@ -1054,6 +1054,13 @@ function Icon({ name, size = 18, stroke = 1.8 }) {
           <path d="m13 6 6 6-6 6" />
         </svg>
       );
+    case "arrow-left":
+      return (
+        <svg {...common}>
+          <path d="M19 12H5" />
+          <path d="m11 6-6 6 6 6" />
+        </svg>
+      );
     case "close":
       return (
         <svg {...common}>
@@ -1178,6 +1185,7 @@ export default function FlowApp() {
   const [shopifyOrderSort, setShopifyOrderSort] = useState("recent");
   const [shopifyOrderQuery, setShopifyOrderQuery] = useState("");
   const [noteCategoryDraft, setNoteCategoryDraft] = useState("");
+  const [noteQuery, setNoteQuery] = useState("");
   const [selectedNoteCategory, setSelectedNoteCategory] = useState("");
   const [selectedNoteId, setSelectedNoteId] = useState("");
   const [noteTitleDraft, setNoteTitleDraft] = useState("");
@@ -1341,11 +1349,21 @@ export default function FlowApp() {
       .sort((left, right) => toTimestamp(right.updatedAt || right.createdAt) - toTimestamp(left.updatedAt || left.createdAt));
   }, [db.notes, noteCategories, selectedNoteCategory]);
 
-  const noteSections = useMemo(() => groupNotesByBucket(notesInSelectedCategory), [notesInSelectedCategory]);
+  const filteredNotesInSelectedCategory = useMemo(() => {
+    const query = noteQuery.trim().toLowerCase();
+    if (!query) return notesInSelectedCategory;
+    return notesInSelectedCategory.filter((note) =>
+      [note.title, note.cat, stripHtml(note.content)]
+        .filter(Boolean)
+        .some((value) => `${value}`.toLowerCase().includes(query)),
+    );
+  }, [noteQuery, notesInSelectedCategory]);
+
+  const noteSections = useMemo(() => groupNotesByBucket(filteredNotesInSelectedCategory), [filteredNotesInSelectedCategory]);
 
   const selectedNote = useMemo(
-    () => notesInSelectedCategory.find((note) => note.id === selectedNoteId) || notesInSelectedCategory[0] || null,
-    [notesInSelectedCategory, selectedNoteId],
+    () => (db.notes || []).find((note) => note.id === selectedNoteId) || null,
+    [db.notes, selectedNoteId],
   );
 
   const searchResults = useMemo(() => {
@@ -1591,8 +1609,8 @@ export default function FlowApp() {
       setNoteBodyDraft("");
       return;
     }
-    if (!selectedNoteId || !notesInSelectedCategory.some((note) => note.id === selectedNoteId)) {
-      setSelectedNoteId(notesInSelectedCategory[0].id);
+    if (selectedNoteId && !notesInSelectedCategory.some((note) => note.id === selectedNoteId)) {
+      setSelectedNoteId("");
     }
   }, [notesInSelectedCategory, selectedNoteId]);
 
@@ -4114,12 +4132,12 @@ export default function FlowApp() {
         }
         .notes-layout {
           display: grid;
-          grid-template-columns: 280px 360px minmax(0, 1fr);
+          grid-template-columns: 280px minmax(0, 1fr);
           gap: 18px;
           min-height: 0;
         }
         .notes-categories,
-        .notes-list-pane,
+        .notes-content-pane,
         .notes-editor-pane {
           border-radius: 17px;
           border: 1px solid var(--line);
@@ -4192,7 +4210,7 @@ export default function FlowApp() {
           border-color: var(--line);
           color: var(--text-main);
         }
-        .notes-list-pane {
+        .notes-content-pane {
           padding: 16px;
           display: grid;
           grid-template-rows: auto minmax(0, 1fr);
@@ -4243,6 +4261,7 @@ export default function FlowApp() {
           display: grid;
           grid-template-rows: auto auto minmax(0, 1fr);
           gap: 14px;
+          min-height: calc(100dvh - 170px);
         }
         .notes-editor-toolbar {
           display: flex;
@@ -4629,7 +4648,8 @@ export default function FlowApp() {
             grid-template-columns: 1fr;
           }
           .notes-categories,
-          .notes-list-pane {
+          .notes-content-pane,
+          .notes-editor-pane {
             max-height: 32dvh;
           }
           .sidebar {
@@ -5706,6 +5726,17 @@ export default function FlowApp() {
                       </button>
                     </div>
                     <div className="notes-category-create">
+                      <div className="search-box inline-search">
+                        <Icon name="search" size={18} />
+                        <input
+                          value={noteQuery}
+                          onChange={(event) => setNoteQuery(event.target.value)}
+                          placeholder="Rechercher"
+                          aria-label="Rechercher dans les notes"
+                        />
+                      </div>
+                    </div>
+                    <div className="notes-category-create">
                       <input
                         value={noteCategoryDraft}
                         onChange={(event) => setNoteCategoryDraft(event.target.value)}
@@ -5742,44 +5773,13 @@ export default function FlowApp() {
                     </div>
                   </aside>
 
-                  <div className="notes-list-pane">
-                    <div className="notes-list-head">
-                      <div>
-                        <h1>{selectedNoteCategory || "Notes"}</h1>
-                        <span>{notesInSelectedCategory.length} note(s)</span>
-                      </div>
-                      <button type="button" className="primary notes-add-button" onClick={() => void createNoteInCategory()}>
-                        Ajouter une note
-                      </button>
-                    </div>
-                    <div className="notes-list-scroll">
-                      {noteSections.map((group) => (
-                        <div key={group.label} className="notes-group">
-                          <h3>{group.label}</h3>
-                          <div className="notes-card-grid">
-                            {group.notes.map((note) => (
-                              <button
-                                key={note.id}
-                                type="button"
-                                className={`note-card ${selectedNote?.id === note.id ? "active" : ""}`}
-                                onClick={() => setSelectedNoteId(note.id)}
-                              >
-                                <strong>{note.title || "Note sans titre"}</strong>
-                                <span>{notePreview(note)}</span>
-                                <small>{formatRelative(note.updatedAt || note.createdAt)}</small>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                      {!notesInSelectedCategory.length ? <div className="notification-empty">Aucune note dans cette catégorie.</div> : null}
-                    </div>
-                  </div>
-
-                  <div className="notes-editor-pane">
-                    {selectedNote ? (
+                  {selectedNote ? (
+                    <div className="notes-editor-pane">
                       <>
                         <div className="notes-editor-toolbar">
+                          <button type="button" className="ghost" onClick={() => setSelectedNoteId("")} aria-label="Retour aux notes">
+                            <Icon name="arrow-left" size={16} />
+                          </button>
                           <select value={noteFontFamily} onChange={(event) => { setNoteFontFamily(event.target.value); applyNoteCommand("fontName", event.target.value); }}>
                             <option value="inherit">System</option>
                             <option value="Georgia">Serif</option>
@@ -5817,12 +5817,42 @@ export default function FlowApp() {
                           onClick={onNoteEditorClick}
                         />
                       </>
-                    ) : (
-                      <div className="section-placeholder">
-                        <h3>Note vide</h3>
+                    </div>
+                  ) : (
+                    <div className="notes-content-pane">
+                      <div className="notes-list-head">
+                        <div>
+                          <h1>{selectedNoteCategory || "Notes"}</h1>
+                          <span>{filteredNotesInSelectedCategory.length} note(s)</span>
+                        </div>
+                        <button type="button" className="primary notes-add-button" onClick={() => void createNoteInCategory()}>
+                          Ajouter une note
+                        </button>
                       </div>
-                    )}
-                  </div>
+                      <div className="notes-list-scroll">
+                        {noteSections.map((group) => (
+                          <div key={group.label} className="notes-group">
+                            <h3>{group.label}</h3>
+                            <div className="notes-card-grid">
+                              {group.notes.map((note) => (
+                                <button
+                                  key={note.id}
+                                  type="button"
+                                  className="note-card"
+                                  onClick={() => setSelectedNoteId(note.id)}
+                                >
+                                  <strong>{note.title || "Note sans titre"}</strong>
+                                  <span>{notePreview(note)}</span>
+                                  <small>{formatRelative(note.updatedAt || note.createdAt)}</small>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        {!filteredNotesInSelectedCategory.length ? <div className="notification-empty">Aucune note dans cette catégorie.</div> : null}
+                      </div>
+                    </div>
+                  )}
                 </section>
               ) : activeSection === "profile" ? (
                 <section className="overview-layout">
