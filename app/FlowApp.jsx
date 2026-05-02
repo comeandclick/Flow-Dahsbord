@@ -1090,6 +1090,33 @@ function Field({ label, type = "text", value, onChange, placeholder, autoComplet
   );
 }
 
+function PasswordField({ label, value, onChange, placeholder, autoComplete, name, visible, onToggleVisible, disabled = false }) {
+  return (
+    <label className="field password-field">
+      <span>{label}</span>
+      <div className="password-input-wrap">
+        <input
+          type={visible ? "text" : "password"}
+          value={value}
+          name={name}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          className="secret-toggle"
+          onClick={onToggleVisible}
+          aria-label={visible ? "Hide password" : "Show password"}
+        >
+          <Icon name={visible ? "eye-off" : "eye"} size={16} />
+        </button>
+      </div>
+    </label>
+  );
+}
+
 function SettingQuickButton({ active, onClick, children }) {
   return (
     <button type="button" className={`setting-option compact ${active ? "active" : ""}`} onClick={onClick}>
@@ -1182,6 +1209,8 @@ export default function FlowApp() {
   const [shopifyTokenInput, setShopifyTokenInput] = useState("");
   const [shopifyConfigBusy, setShopifyConfigBusy] = useState(false);
   const [showShopifySecrets, setShowShopifySecrets] = useState(false);
+  const [showAuthPasswords, setShowAuthPasswords] = useState(false);
+  const [showAccountPasswords, setShowAccountPasswords] = useState(false);
   const [shopifyState, setShopifyState] = useState({
     loading: false,
     error: "",
@@ -1644,7 +1673,7 @@ export default function FlowApp() {
           error: "",
           data,
           refreshedAt: db.settings?.demoFixtures?.seededAt || new Date().toISOString(),
-          ready: Boolean(storedShopifyConfig.storeDomain && storedShopifyConfig.accessToken),
+          ready: true,
           storeDomain: storedShopifyConfig.storeDomain || "",
         });
         return;
@@ -1659,7 +1688,7 @@ export default function FlowApp() {
             error: "",
             data,
             refreshedAt: db.settings?.demoFixtures?.seededAt || new Date().toISOString(),
-            ready: false,
+            ready: true,
             storeDomain: "",
           });
           return;
@@ -3280,7 +3309,7 @@ export default function FlowApp() {
           height: 46px;
           border-radius: 17px;
           border: 1px solid var(--line);
-          background: transparent;
+          background: rgba(18, 20, 28, 0.24);
           color: var(--text-main);
           display: grid;
           place-items: center;
@@ -3326,7 +3355,7 @@ export default function FlowApp() {
           height: 54px;
           border-radius: 17px;
           border: 1px solid var(--line);
-          background: transparent;
+          background: rgba(18, 20, 28, 0.72);
           display: flex;
           align-items: center;
           gap: 12px;
@@ -4193,15 +4222,28 @@ export default function FlowApp() {
           display: grid;
           gap: 12px;
         }
-        .shopify-secret-row {
+        .shopify-secret-row,
+        .password-field .password-input-wrap {
           display: grid;
           grid-template-columns: 1fr auto;
           gap: 10px;
           align-items: center;
         }
-        .shopify-secret-row input {
+        .shopify-secret-row input,
+        .password-field input {
           min-width: 0;
           width: 100%;
+        }
+        .show-secret-row {
+          display: flex;
+          justify-content: flex-end;
+          padding: 0 4px;
+        }
+        .show-secret-row .ghost {
+          background: transparent;
+          border: none;
+          color: var(--text-faint);
+          padding: 8px 10px;
         }
         .secret-toggle {
           all: unset;
@@ -5751,7 +5793,7 @@ export default function FlowApp() {
                   <div className="page-head">
                     <div>
                       <h1>Shopify</h1>
-                      <p>{shopifyState.ready ? `Store connected · ${shopifyState.storeDomain}` : "Connect your store or load demo work data."}</p>
+                      <p>{shopifyState.ready ? (db.settings?.demoFixtures?.overrideShopify ? "Demo store loaded" : `Store connected · ${shopifyState.storeDomain}`) : "Connect your store or load demo work data."}</p>
                     </div>
                   </div>
 
@@ -5771,13 +5813,18 @@ export default function FlowApp() {
                           placeholder="store.myshopify.com"
                           aria-label="Shop domain"
                         />
-                        <input
-                          type="text"
-                          value={shopifyTokenInput}
-                          onChange={(event) => setShopifyTokenInput(event.target.value)}
-                          placeholder="shpat_xxx"
-                          aria-label="Shopify access token"
-                        />
+                        <div className="shopify-secret-row">
+                          <input
+                            type={showShopifySecrets ? "text" : "password"}
+                            value={shopifyTokenInput}
+                            onChange={(event) => setShopifyTokenInput(event.target.value)}
+                            placeholder="shpat_xxx"
+                            aria-label="Shopify access token"
+                          />
+                          <button type="button" className="secret-toggle" onClick={() => setShowShopifySecrets((current) => !current)} aria-label={showShopifySecrets ? "Hide Shopify token" : "Show Shopify token"}>
+                            <Icon name={showShopifySecrets ? "eye-off" : "eye"} size={16} />
+                          </button>
+                        </div>
                         <div className="button-row">
                           <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
                             {shopifyConfigBusy ? "Connecting..." : "Connect store"}
@@ -6341,8 +6388,27 @@ export default function FlowApp() {
                             </div>
                           </div>
                           <div className="settings-field-grid">
-                            <Field label="Current password" type="password" value={accountForm.currentPassword} onChange={(value) => setAccountForm((current) => ({ ...current, currentPassword: value }))} placeholder="Current password" />
-                            <Field label="New password" type="password" value={accountForm.newPassword} onChange={(value) => setAccountForm((current) => ({ ...current, newPassword: value }))} placeholder="New password" />
+                            <PasswordField
+                              label="Current password"
+                              value={accountForm.currentPassword}
+                              onChange={(value) => setAccountForm((current) => ({ ...current, currentPassword: value }))}
+                              placeholder="Current password"
+                              visible={showAccountPasswords}
+                              onToggleVisible={() => setShowAccountPasswords((current) => !current)}
+                            />
+                            <PasswordField
+                              label="New password"
+                              value={accountForm.newPassword}
+                              onChange={(value) => setAccountForm((current) => ({ ...current, newPassword: value }))}
+                              placeholder="New password"
+                              visible={showAccountPasswords}
+                              onToggleVisible={() => setShowAccountPasswords((current) => !current)}
+                            />
+                          </div>
+                          <div className="show-secret-row">
+                            <button type="button" className="ghost" onClick={() => setShowAccountPasswords((current) => !current)}>
+                              {showAccountPasswords ? "Hide passwords" : "Show passwords"}
+                            </button>
                           </div>
                           <div className="mini-grid">
                             <div className="mini-card">
@@ -6558,16 +6624,22 @@ export default function FlowApp() {
                   name="email"
                   disabled={Boolean(busy)}
                 />
-                <Field
+                <PasswordField
                   label="Password"
-                  type="password"
                   value={login.password}
                   onChange={(value) => setLogin((current) => ({ ...current, password: value }))}
                   placeholder="Password"
                   autoComplete="current-password"
                   name="password"
+                  visible={showAuthPasswords}
+                  onToggleVisible={() => setShowAuthPasswords((current) => !current)}
                   disabled={Boolean(busy)}
                 />
+                <div className="show-secret-row">
+                  <button type="button" className="ghost" onClick={() => setShowAuthPasswords((current) => !current)}>
+                    {showAuthPasswords ? "Hide password" : "Show password"}
+                  </button>
+                </div>
                 <div className="button-row">
                   <button type="submit" className="primary" disabled={busy === "login"}>
                     {busy === "login" ? "Logging in..." : "Sign in"}
@@ -6600,26 +6672,33 @@ export default function FlowApp() {
                   name="email"
                   disabled={Boolean(busy)}
                 />
-                <Field
+                <PasswordField
                   label="Password"
-                  type="password"
                   value={register.password}
                   onChange={(value) => setRegister((current) => ({ ...current, password: value }))}
                   placeholder="At least 8 characters"
                   autoComplete="new-password"
                   name="password"
+                  visible={showAuthPasswords}
+                  onToggleVisible={() => setShowAuthPasswords((current) => !current)}
                   disabled={Boolean(busy)}
                 />
-                <Field
+                <PasswordField
                   label="Confirm"
-                  type="password"
                   value={register.confirmPassword}
                   onChange={(value) => setRegister((current) => ({ ...current, confirmPassword: value }))}
                   placeholder="Repeat password"
                   autoComplete="new-password"
                   name="confirmPassword"
+                  visible={showAuthPasswords}
+                  onToggleVisible={() => setShowAuthPasswords((current) => !current)}
                   disabled={Boolean(busy)}
                 />
+                <div className="show-secret-row">
+                  <button type="button" className="ghost" onClick={() => setShowAuthPasswords((current) => !current)}>
+                    {showAuthPasswords ? "Hide passwords" : "Show passwords"}
+                  </button>
+                </div>
                 <div className="button-row">
                   <button type="submit" className="primary" disabled={busy === "register"}>
                     {busy === "register" ? "Creating..." : "Create account"}
@@ -6661,16 +6740,22 @@ export default function FlowApp() {
                     name="code"
                     disabled={Boolean(busy)}
                   />
-                  <Field
+                  <PasswordField
                     label="New password"
-                    type="password"
                     value={reset.password}
                     onChange={(value) => setReset((current) => ({ ...current, password: value }))}
                     placeholder="New password"
                     autoComplete="new-password"
                     name="newPassword"
+                    visible={showAuthPasswords}
+                    onToggleVisible={() => setShowAuthPasswords((current) => !current)}
                     disabled={Boolean(busy)}
                   />
+                  <div className="show-secret-row">
+                    <button type="button" className="ghost" onClick={() => setShowAuthPasswords((current) => !current)}>
+                      {showAuthPasswords ? "Hide password" : "Show password"}
+                    </button>
+                  </div>
                   <div className="button-row">
                     <button type="submit" className="primary" disabled={busy === "reset"}>
                       {busy === "reset" ? "Resetting..." : "Update password"}

@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export async function GET() {
   return Response.json({
     version: RELEASE.version,
-    deployedAt: RELEASE.deployedAt,
+    deployedAt: new Date().toISOString(),
     summary: RELEASE.summary,
     changes: RELEASE.changes,
   }, {
