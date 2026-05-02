@@ -1,22 +1,22 @@
 "use client";
 
 /**
- * FlowApp.jsx - Application principale Flow
+ * FlowApp.jsx - Flow main application
  *
- * Ce fichier contient le composant principal de l'application Flow.
- * Il gère l'authentification, le dashboard, et tous les modules (notes, contacts, événements, tâches, Shopify).
+ * This file contains the main Flow application component.
+ * It handles authentication, the dashboard, and all modules (notes, contacts, events, tasks, Shopify).
  *
- * Structure :
- * - États et constantes
- * - Fonctions utilitaires (formatage, API, etc.)
- * - Hooks et effets
- * - Gestionnaires d'événements (submit functions)
- * - Composant principal FlowApp
- * - Rendu conditionnel selon l'état d'authentification
- * - Dashboard avec sections (métriques, focus, mini-widgets)
- * - Sections spécialisées (notes, contacts, événements, tâches, Shopify)
- * - Sidebar et navigation
- * - Modales et overlays
+ * Structure:
+ * - State and constants
+ * - Utility functions (formatting, API, etc.)
+ * - Hooks and effects
+ * - Event handlers (submit functions)
+ * - Main FlowApp component
+ * - Conditional rendering based on auth state
+ * - Dashboard with sections (metrics, focus, mini-widgets)
+ * - Specialized sections (notes, contacts, events, tasks, Shopify)
+ * - Sidebar and navigation
+ * - Modals and overlays
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -44,7 +44,7 @@ const SHOPIFY_PERIODS = [
 ];
 const DEFAULT_DASHBOARD_ARRANGEMENT = {
   metrics: ["notes", "tasks", "events", "shopify"],
-  focus: ["upcoming", "tasks", "notifications", "shopify"],
+  focus: ["upcoming", "tasks", "shopify"],
   mini: ["contacts", "latest-note", "month-revenue", "background"],
 };
 
@@ -150,9 +150,9 @@ function firstName(name) {
 }
 
 function formatShortDate(value) {
-  if (!value) return "Sans date";
+  if (!value) return "No date";
   try {
-    return new Intl.DateTimeFormat("fr-FR", {
+    return new Intl.DateTimeFormat("en-US", {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
@@ -164,16 +164,16 @@ function formatShortDate(value) {
 }
 
 function formatRelative(value) {
-  if (!value) return "Maintenant";
+  if (!value) return "Now";
   const delta = Date.now() - new Date(value).getTime();
   const abs = Math.abs(delta);
   const minute = 60_000;
   const hour = 60 * minute;
   const day = 24 * hour;
-  if (abs < minute) return "À l’instant";
+  if (abs < minute) return "Just now";
   if (abs < hour) return `${Math.round(abs / minute)} min`;
   if (abs < day) return `${Math.round(abs / hour)} h`;
-  return `${Math.round(abs / day)} j`;
+  return `${Math.round(abs / day)} d`;
 }
 
 function createChartPoints(values, width = 520, height = 180) {
@@ -223,7 +223,7 @@ function formatShopifyDate(value) {
 }
 
 function formatEventSlot(value, time) {
-  if (!value) return "Aucun créneau";
+  if (!value) return "No available slot";
   try {
     const date = new Date(value);
     const day = new Intl.DateTimeFormat("fr-FR", {
@@ -261,7 +261,7 @@ function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(`${reader.result || ""}`);
-    reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+    reader.onerror = () => reject(new Error("Failed to read file."));
     reader.readAsDataURL(file);
   });
 }
@@ -270,7 +270,7 @@ function loadImageFromDataUrl(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Image invalide."));
+    image.onerror = () => reject(new Error("Invalid image."));
     image.src = src;
   });
 }
@@ -289,7 +289,7 @@ async function compressBackgroundFile(file) {
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) {
-    throw new Error("Préparation du fond impossible.");
+    throw new Error("Background preparation failed.");
   }
   context.drawImage(image, 0, 0, width, height);
   return canvas.toDataURL("image/jpeg", CUSTOM_BACKGROUND_QUALITY);
@@ -518,17 +518,17 @@ function createDemoFixtures(user) {
     notes: [
       {
         id: "demo-note-1",
-        title: "Synthese de la semaine",
-        content: "Verifier la progression Shopify, confirmer les relances clients et preparer le prochain sprint Flow.",
-        cat: "Pilotage",
+        title: "Weekly summary",
+        content: "Check Shopify progress, confirm customer follow-ups, and prepare the next Flow sprint.",
+        cat: "Control",
         color: "#c8cfbf",
         createdAt: isoNow,
         updatedAt: isoNow,
       },
       {
         id: "demo-note-2",
-        title: "Points de contact prioritaires",
-        content: "Central Station, Laura Martin, Samuel Costa, suivi commande premium et preparation support.",
+        title: "Priority touchpoints",
+        content: "Central Station, Laura Martin, Samuel Costa, premium order tracking and support preparation.",
         cat: "Contacts",
         color: "#aeb8a2",
         createdAt: isoNow,
@@ -548,8 +548,8 @@ function createDemoFixtures(user) {
       },
       {
         id: "demo-task-2",
-        title: "Appeler Laura Martin",
-        desc: "Valider la date de livraison et le besoin de SAV.",
+        title: "Call Laura Martin",
+        desc: "Confirm delivery date and support needs.",
         prio: "med",
         due: addDays(now, 1).toISOString().slice(0, 10),
         status: "todo",
@@ -560,8 +560,8 @@ function createDemoFixtures(user) {
     events: [
       {
         id: "demo-event-1",
-        title: "Revue commerciale",
-        desc: "Lecture du CA, alertes, et arbitrage commandes en attente.",
+        title: "Business Review",
+        desc: "Revenue review, alerts, and pending orders arbitration.",
         date: isoNow,
         time: "10:30",
         endTime: "11:15",
@@ -575,36 +575,18 @@ function createDemoFixtures(user) {
     bookmarks: [
       {
         id: "demo-bookmark-1",
-        title: "Suivi priorites",
+        title: "Priority tracking",
         type: "text",
-        text: "Point d'ancrage pour relire les sujets essentiels du compte.",
-        note: "Acces rapide au tableau de bord et aux alertes.",
-      },
-    ],
-    notifications: [
-      {
-        id: "demo-notif-1",
-        type: "shopify",
-        title: "Commande premium a traiter",
-        detail: "Laura Martin attend une confirmation d'expedition aujourd'hui.",
-        createdAt: isoNow,
-        readAt: "",
-      },
-      {
-        id: "demo-notif-2",
-        type: "agenda",
-        title: "Revue commerciale planifiee",
-        detail: "Le point de 10:30 est pret avec les contacts relies.",
-        createdAt: addDays(now, -1).toISOString(),
-        readAt: "",
+        text: "Anchor point to review essential account topics.",
+        note: "Quick access to dashboard and alerts.",
       },
     ],
     activity: [
       {
         id: "demo-activity-1",
         type: "seed",
-        title: "Jeu de donnees de travail active",
-        detail: `Compte ${user?.email || "Flow"} rempli pour accelerer le developpement.`,
+        title: "Active working dataset",
+        detail: `Account ${user?.email || "Flow"} filled to accelerate development.`,
         createdAt: isoNow,
       },
     ],
@@ -648,8 +630,8 @@ function buildDashboardFeed(db) {
   if (activity.length) {
     return activity.map((item) => ({
       id: item.id,
-      title: item.title || "Activité",
-      subtitle: item.detail || item.type || "Mise à jour",
+          title: item.title || "Activity",
+      subtitle: item.detail || item.type || "Update",
       meta: formatRelative(item.createdAt),
     }));
   }
@@ -657,20 +639,20 @@ function buildDashboardFeed(db) {
   const fallback = [
     ...(source.tasks || []).slice(0, 2).map((item) => ({
       id: `task:${item.id}`,
-      title: item.title || "Tâche",
-      subtitle: item.status || "En cours",
-      meta: item.dueDate ? formatShortDate(item.dueDate) : "Sans date",
+      title: item.title || "Task",
+      subtitle: item.status || "In progress",
+      meta: item.dueDate ? formatShortDate(item.dueDate) : "No date",
     })),
     ...(source.events || []).slice(0, 2).map((item) => ({
       id: `event:${item.id}`,
-      title: item.title || "Événement",
-      subtitle: item.desc || "Planifié",
-      meta: item.date ? formatShortDate(item.date) : "À venir",
+      title: item.title || "Event",
+      subtitle: item.desc || "Scheduled",
+      meta: item.date ? formatShortDate(item.date) : "Coming up",
     })),
     ...(source.notes || []).slice(0, 1).map((item) => ({
       id: `note:${item.id}`,
       title: item.title || "Note",
-      subtitle: item.cat || "Brouillon",
+      subtitle: item.cat || "Draft",
       meta: "Note",
     })),
   ];
@@ -696,7 +678,7 @@ async function fetchShopifyProxy(endpoint, params = {}) {
     throw new Error(payload?.error || "Shopify inaccessible");
   }
   if (payload && payload.ready === false) {
-    throw new Error(payload?.error || "Shopify non configuré");
+    throw new Error(payload?.error || "Shopify not configured");
   }
   return payload;
 }
@@ -793,21 +775,21 @@ function createNoteRecord(category) {
 }
 
 function notePreview(note) {
-  return stripHtml(note?.content || "").slice(0, 180) || "Note vide";
+  return stripHtml(note?.content || "").slice(0, 180) || "Empty note";
 }
 
 function noteDateBucket(note) {
   const updated = toTimestamp(note?.updatedAt || note?.createdAt);
   const now = Date.now();
   const diff = now - updated;
-  if (diff < 24 * 60 * 60 * 1000) return "Aujourd'hui";
-  if (diff < 48 * 60 * 60 * 1000) return "Hier";
-  if (diff < 7 * 24 * 60 * 60 * 1000) return "7 jours précédents";
-  return "Plus ancien";
+  if (diff < 24 * 60 * 60 * 1000) return "Today";
+  if (diff < 48 * 60 * 60 * 1000) return "Yesterday";
+  if (diff < 7 * 24 * 60 * 60 * 1000) return "Last 7 days";
+  return "Older";
 }
 
 function groupNotesByBucket(notes) {
-  const order = ["Aujourd'hui", "Hier", "7 jours précédents", "Plus ancien"];
+  const order = ["Today", "Yesterday", "Last 7 days", "Older"];
   const map = new Map(order.map((label) => [label, []]));
   (notes || []).forEach((note) => {
     map.get(noteDateBucket(note))?.push(note);
@@ -850,7 +832,7 @@ function buildSearchEntries(db, user) {
     push({
       kind: "note",
       id: note.id,
-      title: note.title || "Note sans titre",
+      title: note.title || "Untitled note",
       subtitle: note.cat || "Note",
       body: stripHtml(note.content || ""),
       section: "notes",
@@ -861,8 +843,8 @@ function buildSearchEntries(db, user) {
     push({
       kind: "task",
       id: task.id,
-      title: task.title || "Tâche sans titre",
-      subtitle: task.status || "Tâche",
+      title: task.title || "Untitled task",
+      subtitle: task.status || "Task",
       body: task.desc || "",
       section: "tasks",
     }),
@@ -872,8 +854,8 @@ function buildSearchEntries(db, user) {
     push({
       kind: "event",
       id: event.id,
-      title: event.title || "Événement sans titre",
-      subtitle: event.date || "Événement",
+      title: event.title || "Untitled event",
+      subtitle: event.date || "Event",
       body: event.desc || "",
       section: "events",
     });
@@ -1154,8 +1136,9 @@ export default function FlowApp() {
   const [reset, setReset] = useState({ email: "", code: "", password: "" });
   const [searchValue, setSearchValue] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [commandOpen, setCommandOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
@@ -1197,9 +1180,8 @@ export default function FlowApp() {
   const [noteFontSize, setNoteFontSize] = useState("18");
   const [shopifyDomainInput, setShopifyDomainInput] = useState("");
   const [shopifyTokenInput, setShopifyTokenInput] = useState("");
-  const [showShopifyDomain, setShowShopifyDomain] = useState(false);
-  const [showShopifyToken, setShowShopifyToken] = useState(false);
   const [shopifyConfigBusy, setShopifyConfigBusy] = useState(false);
+  const [showShopifySecrets, setShowShopifySecrets] = useState(false);
   const [shopifyState, setShopifyState] = useState({
     loading: false,
     error: "",
@@ -1212,8 +1194,8 @@ export default function FlowApp() {
   const reloadTimerRef = useRef(null);
   const noteSaveTimerRef = useRef(null);
   const searchWrapRef = useRef(null);
-  const profileMenuRef = useRef(null);
   const notifRef = useRef(null);
+  const profileMenuRef = useRef(null);
   const noteToolsRef = useRef(null);
   const commandInputRef = useRef(null);
   const backgroundInputRef = useRef(null);
@@ -1223,8 +1205,12 @@ export default function FlowApp() {
 
   const releaseMeta = useMemo(() => formatReleaseLabel(remoteRelease || RELEASE), [remoteRelease]);
   const searchEntries = useMemo(() => buildSearchEntries(db, user), [db, user]);
+  const notificationFeed = useMemo(
+    () => [...(db.notifications || [])].sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt)).slice(0, 8),
+    [db.notifications],
+  );
   const unreadNotifications = useMemo(
-    () => (db.notifications || []).filter((item) => !item.readAt).length,
+    () => (Array.isArray(db.notifications) ? db.notifications.filter((item) => !item.readAt).length : 0),
     [db.notifications],
   );
 
@@ -1242,18 +1228,12 @@ export default function FlowApp() {
       tasks: db.tasks.filter((item) => item.status !== "done").length,
       events: db.events.length,
       contacts: uniqueContacts.size + 1,
-      notifications: unreadNotifications,
       activity: db.activity.length,
       bookmarks: db.bookmarks.length,
     };
-  }, [db, unreadNotifications]);
+  }, [db]);
 
   const dashboardFeed = useMemo(() => buildDashboardFeed(db), [db]);
-  const notificationFeed = useMemo(() => {
-    return [...(db.notifications || [])]
-      .sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))
-      .slice(0, 8);
-  }, [db.notifications]);
   const upcomingEvents = useMemo(
     () =>
       [...(db.events || [])]
@@ -1391,7 +1371,6 @@ export default function FlowApp() {
         Math.max(dashboardMetrics.tasks + 1, 1),
         Math.max(dashboardMetrics.events + 1, 1),
         Math.max(dashboardMetrics.contacts, 1),
-        Math.max(dashboardMetrics.notifications + 1, 1),
         Math.max(dashboardMetrics.bookmarks + 1, 1),
       ]),
     [dashboardMetrics],
@@ -1402,26 +1381,26 @@ export default function FlowApp() {
       {
         id: "notes",
         section: "notes",
-        label: "Notes actives",
+        label: "Active notes",
         value: `${dashboardMetrics.notes}`,
-        meta: recentNotes[0]?.title || `${dashboardMetrics.bookmarks} signet(s)`,
+        meta: recentNotes[0]?.title || `${dashboardMetrics.bookmarks} bookmarks`,
         icon: "note",
         primary: true,
       },
       {
         id: "tasks",
         section: "tasks",
-        label: "À traiter",
+        label: "To-do",
         value: `${dashboardMetrics.tasks}`,
-        meta: openTasks[0]?.title || "Aucune tâche urgente",
+        meta: openTasks[0]?.title || "No urgent task",
         icon: "check",
       },
       {
         id: "events",
         section: "events",
-        label: "Agenda",
+        label: "Calendar",
         value: `${dashboardMetrics.events}`,
-        meta: upcomingEvents[0] ? formatEventSlot(upcomingEvents[0].date, upcomingEvents[0].time) : "Aucun créneau",
+        meta: upcomingEvents[0] ? formatEventSlot(upcomingEvents[0].date, upcomingEvents[0].time) : "No upcoming slot",
         icon: "calendar",
       },
       {
@@ -1429,7 +1408,7 @@ export default function FlowApp() {
         section: "shopify",
         label: `Shopify · ${activeShopifyPeriodLabel}`,
         value: formatCurrency(shopifyOverview.revenueCurrent),
-        meta: shopifyState.ready ? `${shopifyOverview.ordersCurrent} commande(s) · ${shopifyOverview.pendingFulfillment} à traiter` : "Aucune boutique connectée",
+        meta: shopifyState.ready ? `${shopifyOverview.ordersCurrent} order(s) · ${shopifyOverview.pendingFulfillment} to process` : "No store connected",
         icon: "bag",
       },
     ],
@@ -1440,56 +1419,50 @@ export default function FlowApp() {
     () => [
       {
         id: "upcoming",
-        title: upcomingEvents[0]?.title || "Aucun événement proche",
-        body: upcomingEvents[0] ? formatEventSlot(upcomingEvents[0].date, upcomingEvents[0].time) : "Ajoute un créneau ou utilise la recherche.",
+        title: upcomingEvents[0]?.title || "No upcoming events",
+        body: upcomingEvents[0] ? formatEventSlot(upcomingEvents[0].date, upcomingEvents[0].time) : "Add a slot or use search.",
         onClick: () => (upcomingEvents[0] ? setActiveSection("events") : setCommandOpen(true)),
       },
       {
         id: "tasks",
-        title: openTasks[0]?.title || "Aucune tâche urgente",
-        body: openTasks[0]?.desc || "Tes prochaines tâches apparaîtront ici.",
+        title: openTasks[0]?.title || "No urgent task",
+        body: openTasks[0]?.desc || "Your next tasks will appear here.",
         onClick: () => (openTasks[0] ? setActiveSection("tasks") : setCommandOpen(true)),
       },
       {
-        id: "notifications",
-        title: unreadNotifications ? `${unreadNotifications} notification(s) à lire` : "Centre de notifications propre",
-        body: notificationFeed[0]?.detail || "Le panneau reste prêt pour les retours modules et système.",
-        onClick: () => setNotificationOpen(true),
-      },
-      {
         id: "shopify",
-        title: shopifyState.ready ? `${shopifyState.storeDomain}` : "Shopify non connecté",
-        body: shopifyState.ready ? `${shopifyOverview.pendingFulfillment} commande(s) à traiter.` : "Connecte une boutique ou injecte une démo de travail.",
+        title: shopifyState.ready ? `${shopifyState.storeDomain}` : "Shopify not connected",
+        body: shopifyState.ready ? `${shopifyOverview.pendingFulfillment} order(s) to process.` : "Connect a store or inject demo data.",
         onClick: () => setActiveSection("shopify"),
       },
     ],
-    [notificationFeed, openTasks, shopifyOverview.pendingFulfillment, shopifyState.ready, shopifyState.storeDomain, unreadNotifications, upcomingEvents],
+    [openTasks, shopifyOverview.pendingFulfillment, shopifyState.ready, shopifyState.storeDomain, upcomingEvents],
   );
 
   const dashboardMiniCards = useMemo(
     () => [
       {
         id: "contacts",
-        title: "Contacts suivis",
-        body: `${dashboardMetrics.contacts} contact(s) reliés à tes événements et à ton compte.`,
+        title: "Tracked contacts",
+        body: `${dashboardMetrics.contacts} contacts linked to your events and account.`,
         onClick: () => setActiveSection("contacts"),
       },
       {
         id: "latest-note",
-        title: "Dernière note",
-        body: recentNotes[0]?.title || "Aucune note récente.",
+        title: "Latest note",
+        body: recentNotes[0]?.title || "No recent note.",
         onClick: () => setActiveSection("notes"),
       },
       {
         id: "month-revenue",
-        title: "CA du mois",
+        title: "Month revenue",
         body: formatCurrency(shopifyOverview.revenueMonth),
         onClick: () => setActiveSection("shopify"),
       },
       {
         id: "background",
-        title: "Fond actif",
-        body: currentThemeBackground ? "Image personnalisée active." : "Fond de base actif.",
+        title: "Active background",
+        body: currentThemeBackground ? "Custom image active." : "Base background active.",
         onClick: () => setActiveSection("profile"),
       },
     ],
@@ -1511,12 +1484,11 @@ export default function FlowApp() {
 
   const settingsItems = useMemo(
     () => [
-      { id: "account", label: "My Account" },
+      { id: "account", label: "Account" },
       { id: "appearance", label: "Appearance" },
-      { id: "privacy", label: "Privacy & Safety" },
+      { id: "privacy", label: "Security" },
       { id: "integrations", label: "Integrations" },
       { id: "billing", label: "Billing" },
-      { id: "notifications", label: "Notifications" },
       { id: "language", label: "Language" },
       { id: "keys", label: "Key Bindings" },
       { id: "advanced", label: "Advanced" },
@@ -1529,10 +1501,10 @@ export default function FlowApp() {
       { id: "dashboard", label: "Dashboard", icon: "grid" },
       { id: "notes", label: "Notes", icon: "note" },
       { id: "contacts", label: "Contacts", icon: "users" },
-      { id: "events", label: "Événements", icon: "calendar" },
-      { id: "tasks", label: "Tâches", icon: "check" },
+      { id: "events", label: "Events", icon: "calendar" },
+      { id: "tasks", label: "Tasks", icon: "check" },
       { id: "shopify", label: "Shopify", icon: "bag" },
-      { id: "profile", label: "Paramètres", icon: "sliders" },
+      { id: "profile", label: "Settings", icon: "sliders" },
     ],
     [],
   );
@@ -1543,6 +1515,7 @@ export default function FlowApp() {
   const themeClass = shellTheme === "light" ? "theme-light" : "theme-dark";
   const shouldShowSidebar = effectiveLayout !== "immersive";
   const sidebarShowsDetails = isMobile || sidebarExpanded;
+  const demoModeActive = Boolean(db.settings?.demoFixtures?.overrideShopify);
 
   useEffect(() => {
     const savedEmail = readStoredEmail();
@@ -1693,7 +1666,7 @@ export default function FlowApp() {
         }
         setShopifyState({
           loading: false,
-          error: statusPayload?.error || "Aucune boutique Shopify n'est connectee sur ce compte.",
+          error: statusPayload?.error || "No Shopify store is connected to this account.",
           data: null,
           refreshedAt: "",
           ready: false,
@@ -1782,17 +1755,17 @@ export default function FlowApp() {
         const params = new URLSearchParams(window.location.search);
         const googleState = params.get("authGoogle");
         if (googleState === "success") {
-          setNotice("Connexion Google réussie.");
+          setNotice("Google login successful.");
         } else if (googleState === "missing-config") {
-          setError("Google n'est pas encore configuré sur cet environnement.");
+          setError("Google is not configured in this environment.");
         } else if (googleState === "cancelled") {
-          setError("Connexion Google annulée.");
+          setError("Google login cancelled.");
         } else if (googleState === "failed") {
-          setError("Connexion Google impossible. Vérifie la configuration OAuth.");
+          setError("Google login failed. Check OAuth configuration.");
         } else if (googleState === "invalid-state") {
-          setError("État OAuth invalide. Relance la connexion Google.");
+          setError("Invalid OAuth state. Retry Google login.");
         } else if (googleState === "missing-code") {
-          setError("Code Google manquant. Relance la connexion.");
+          setError("Missing Google code. Retry the login.");
         }
 
         if (googleState) {
@@ -1818,7 +1791,7 @@ export default function FlowApp() {
         setRemoteRelease(payload?.version ? payload : RELEASE);
         if (isReleaseDifferent(payload)) {
           setAvailableUpdate(payload);
-          setNotice(`Nouvelle version disponible: v${payload.version}.`);
+          setNotice(`New version available: v${payload.version}.`);
         }
       } catch {}
     }
@@ -1852,9 +1825,9 @@ export default function FlowApp() {
       setAvailableUpdate({
         version: event?.data?.version || RELEASE.version,
         deployedAt: new Date().toISOString(),
-        summary: "Une nouvelle version vient d’être publiée.",
+        summary: "A new version was published.",
       });
-      setNotice("Une mise à jour a été détectée en direct.");
+      setNotice("A live update has been detected.");
     };
 
     navigator.serviceWorker.addEventListener("message", onMessage);
@@ -1920,8 +1893,10 @@ export default function FlowApp() {
   useEffect(() => {
     const overlayActive = commandOpen || shopifyGuideOpen || releaseOpen || searchOpen || notificationOpen;
     document.body.style.overflow = overlayActive ? "hidden" : "";
+    document.documentElement.style.overflow = overlayActive ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     };
   }, [commandOpen, shopifyGuideOpen, releaseOpen, searchOpen, notificationOpen]);
 
@@ -1929,8 +1904,8 @@ export default function FlowApp() {
     function onPointerDown(event) {
       const target = event.target;
       if (searchWrapRef.current && !searchWrapRef.current.contains(target)) setSearchOpen(false);
-      if (profileMenuRef.current && !profileMenuRef.current.contains(target)) setProfileMenuOpen(false);
       if (notifRef.current && !notifRef.current.contains(target)) setNotificationOpen(false);
+      if (profileMenuRef.current && !profileMenuRef.current.contains(target)) setProfileMenuOpen(false);
       if (noteToolsRef.current && !noteToolsRef.current.contains(target)) setNoteToolsOpen(false);
     }
 
@@ -1997,7 +1972,7 @@ export default function FlowApp() {
 
   async function applyLayout(nextLayout) {
     if (isMobile && nextLayout === "immersive") {
-      setNotice("La vue immersive reste réservée au desktop.");
+      setNotice("Immersive view is desktop only.");
       return;
     }
     setDashboardLayout(nextLayout);
@@ -2030,7 +2005,7 @@ export default function FlowApp() {
         [themeKey]: nextImage,
       },
     });
-    await persistDb(nextDb, nextImage ? "Fond mis à jour." : "Fond réinitialisé.");
+    await persistDb(nextDb, nextImage ? "Background updated." : "Background reset.");
   }
 
   async function importBackgroundFromDevice(event) {
@@ -2047,19 +2022,6 @@ export default function FlowApp() {
     } finally {
       setBackgroundBusy(false);
     }
-  }
-
-  async function markNotificationsAsRead(ids = []) {
-    const date = new Date().toISOString();
-    const nextDb = {
-      ...db,
-      notifications: db.notifications.map((item) =>
-        ids.length === 0 || ids.includes(item.id)
-          ? { ...item, readAt: item.readAt || date }
-          : item,
-      ),
-    };
-    await persistDb(nextDb);
   }
 
   function scheduleNotePersist(nextDb) {
@@ -2114,7 +2076,7 @@ export default function FlowApp() {
     setSelectedNoteCategory(name);
     setNoteCategoryDraft("");
     setCreatingCategory(false);
-    await persistDb(nextDb, "Catégorie créée.");
+    await persistDb(nextDb, "Category created.");
   }
 
   function createNoteCategory() {
@@ -2137,7 +2099,7 @@ export default function FlowApp() {
     setSelectedNoteCategory(targetCategory);
     setSelectedNoteId(note.id);
     setNoteTitleDraft(note.title || "");
-    await persistDb(nextDb, "Note créée.");
+    await persistDb(nextDb, "Note created.");
   }
 
   function persistEditorHtml() {
@@ -2257,10 +2219,10 @@ export default function FlowApp() {
       setShellTheme(settings.theme);
       setDashboardLayout(settings.dashboardLayout || readStoredLayout());
       setSidebarLocked(settings.sidebarLocked || readStoredSidebarLock());
-      setNotice("Connexion réussie.");
+      setNotice("Login successful.");
       setLogin((current) => ({ ...current, password: "" }));
     } catch (authError) {
-      setError(normalizeMessage(authError, "Connexion impossible."));
+      setError(normalizeMessage(authError, "Login failed."));
     } finally {
       setBusy("");
     }
@@ -2274,12 +2236,12 @@ export default function FlowApp() {
     setNotice("");
 
     if (!register.name.trim()) {
-      setError("Le nom est requis.");
+      setError("Name is required.");
       setBusy("");
       return;
     }
     if (register.password !== register.confirmPassword) {
-      setError("Les mots de passe ne correspondent pas.");
+      setError("Passwords do not match.");
       setBusy("");
       return;
     }
@@ -2302,9 +2264,9 @@ export default function FlowApp() {
       setDashboardLayout(readStoredLayout());
       setSidebarLocked(readStoredSidebarLock());
       setRegister((current) => ({ ...current, password: "", confirmPassword: "" }));
-      setNotice("Compte créé. La session est ouverte.");
+      setNotice("Account created. Your session is now active.");
     } catch (registerError) {
-      setError(normalizeMessage(registerError, "Création de compte impossible."));
+      setError(normalizeMessage(registerError, "Account creation failed."));
     } finally {
       setBusy("");
     }
@@ -2323,9 +2285,9 @@ export default function FlowApp() {
       });
       rememberEmail(reset.email);
       syncEmailAcrossForms(reset.email);
-      setNotice(payload?.message || "Si le compte existe, un code sera envoyé.");
+      setNotice(payload?.message || "If the account exists, a code will be sent.");
     } catch (resetError) {
-      setError(normalizeMessage(resetError, "Envoi du code impossible."));
+      setError(normalizeMessage(resetError, "Code delivery failed."));
     } finally {
       setBusy("");
     }
@@ -2344,12 +2306,12 @@ export default function FlowApp() {
       });
       rememberEmail(reset.email);
       syncEmailAcrossForms(reset.email);
-      setNotice("Mot de passe mis à jour.");
+      setNotice("Password updated.");
       setLogin((current) => ({ ...current, email: reset.email, password: "" }));
       setReset((current) => ({ ...current, code: "", password: "" }));
       setActiveTab("login");
     } catch (resetError) {
-      setError(normalizeMessage(resetError, "Réinitialisation impossible."));
+      setError(normalizeMessage(resetError, "Password reset failed."));
     } finally {
       setBusy("");
     }
@@ -2367,10 +2329,10 @@ export default function FlowApp() {
       setIsAdmin(false);
       setSearchValue("");
       setSelectedResult(null);
-      setNotice("Session fermée.");
+      setNotice("Session closed.");
       await refreshSession().catch(() => {});
     } catch (logoutError) {
-      setError(normalizeMessage(logoutError, "Déconnexion impossible."));
+      setError(normalizeMessage(logoutError, "Logout failed."));
     } finally {
       setBusy("");
     }
@@ -2392,10 +2354,9 @@ export default function FlowApp() {
     }
     setSearchOpen(false);
     setCommandOpen(false);
-    setNotificationOpen(false);
     setMobileNavOpen(false);
     setSearchValue(result.title);
-    setNotice(`Résultat chargé: ${result.title}`);
+    setNotice(`Result loaded: ${result.title}`);
   }
 
   async function saveAccountSettings(event) {
@@ -2425,15 +2386,39 @@ export default function FlowApp() {
       setDb(payload?.db || createEmptyDb());
       setIsAdmin(Boolean(payload?.admin));
       setAccountForm((current) => ({ ...current, currentPassword: "", newPassword: "" }));
-      setNotice("Parametres du compte enregistres.");
+      setNotice("Account settings saved.");
     } catch (accountError) {
-      setError(normalizeMessage(accountError, "Mise a jour du compte impossible."));
+      setError(normalizeMessage(accountError, "Unable to update account settings."));
     } finally {
       setAccountBusy(false);
     }
   }
 
-  async function saveSettingsPatch(patch, message = "Paramètres mis à jour.") {
+  async function markNotificationsAsRead(ids = []) {
+    const existingNotifications = Array.isArray(db.notifications) ? db.notifications : [];
+    const now = new Date().toISOString();
+    const nextDb = {
+      ...db,
+      notifications: existingNotifications.map((notification) => {
+        if (ids.length === 0) {
+          return notification.readAt ? notification : { ...notification, readAt: now };
+        }
+        if (ids.includes(notification.id)) {
+          return notification.readAt ? notification : { ...notification, readAt: now };
+        }
+        return notification;
+      }),
+    };
+
+    try {
+      await persistDb(nextDb, ids.length ? "Notification marked as read." : "All notifications marked as read.");
+      setNotificationOpen(true);
+    } catch {
+      // persistDb handles error feedback.
+    }
+  }
+
+  async function saveSettingsPatch(patch, message = "Settings updated.") {
     try {
       await persistDb(nextDbWithSettings(patch), message);
     } catch {
@@ -2444,7 +2429,7 @@ export default function FlowApp() {
   async function saveDashboardArrangement(nextArrangement) {
     setDashboardArrangement(nextArrangement);
     try {
-      await persistDb(nextDbWithSettings({ dashboardArrangement: nextArrangement }), "Disposition du dashboard mise à jour.");
+      await persistDb(nextDbWithSettings({ dashboardArrangement: nextArrangement }), "Dashboard arrangement updated.");
     } catch {
       setDashboardArrangement(normalizeDashboardArrangement(db.settings?.dashboardArrangement));
     }
@@ -2487,10 +2472,10 @@ export default function FlowApp() {
         }),
       });
       setDb(payload?.db || db);
-      setNotice(`Boutique Shopify connectee${payload?.shop?.name ? ` : ${payload.shop.name}` : ""}.`);
+      setNotice(`Shopify store connected${payload?.shop?.name ? ` : ${payload.shop.name}` : ""}.`);
       await refreshShopifyData();
     } catch (configError) {
-      setError(normalizeMessage(configError, "Connexion Shopify impossible."));
+      setError(normalizeMessage(configError, "Shopify connection failed."));
     } finally {
       setShopifyConfigBusy(false);
     }
@@ -2513,9 +2498,9 @@ export default function FlowApp() {
         ready: false,
         storeDomain: "",
       });
-      setNotice("Boutique Shopify deconnectee.");
+      setNotice("Shopify store disconnected.");
     } catch (configError) {
-      setError(normalizeMessage(configError, "Suppression Shopify impossible."));
+      setError(normalizeMessage(configError, "Shopify removal failed."));
     } finally {
       setShopifyConfigBusy(false);
     }
@@ -2537,7 +2522,6 @@ export default function FlowApp() {
         ...extractIds(fixtures.tasks),
         ...extractIds(fixtures.events),
         ...extractIds(fixtures.bookmarks),
-        ...extractIds(fixtures.notifications),
         ...extractIds(fixtures.activity),
       ]);
 
@@ -2548,7 +2532,6 @@ export default function FlowApp() {
           tasks: (db.tasks || []).filter((item) => !demoIds.has(item?.id)),
           events: (db.events || []).filter((item) => !demoIds.has(item?.id)),
           bookmarks: (db.bookmarks || []).filter((item) => !demoIds.has(item?.id)),
-          notifications: (db.notifications || []).filter((item) => !demoIds.has(item?.id)),
           activity: (db.activity || []).filter((item) => !demoIds.has(item?.id)),
           settings: {
             ...(db.settings || {}),
@@ -2561,7 +2544,7 @@ export default function FlowApp() {
         };
         await persistDb(nextDb, "Mode test desactive.");
         await refreshShopifyData();
-        setNotice("Mode test désactivé. Aucune boutique n'est connectée.");
+        setNotice("Demo mode disabled. No store is connected.");
         return;
       }
 
@@ -2580,7 +2563,6 @@ export default function FlowApp() {
         tasks: uniqueById(db.tasks || [], fixtures.tasks),
         events: uniqueById(db.events || [], fixtures.events),
         bookmarks: uniqueById(db.bookmarks || [], fixtures.bookmarks),
-        notifications: uniqueById(db.notifications || [], fixtures.notifications),
         activity: uniqueById(db.activity || [], fixtures.activity),
         settings: {
           ...(db.settings || {}),
@@ -2593,9 +2575,9 @@ export default function FlowApp() {
       };
       await persistDb(nextDb, "Donnees de travail injectees.");
       await refreshShopifyData();
-      setNotice("Mode test actif.");
+      setNotice("Demo mode enabled.");
     } catch (seedError) {
-      setError(normalizeMessage(seedError, "Remplissage des donnees impossible."));
+      setError(normalizeMessage(seedError, "Demo data injection failed."));
     } finally {
       setDemoBusy(false);
     }
@@ -3044,7 +3026,7 @@ export default function FlowApp() {
           display: flex;
           flex-direction: column;
           gap: 18px;
-          transition: width 0.28s ease, transform 0.28s ease, padding 0.28s ease;
+          transition: width 0.22s ease, transform 0.22s ease, padding 0.22s ease;
           position: relative;
           z-index: 20;
           overflow: hidden;
@@ -3054,9 +3036,6 @@ export default function FlowApp() {
           background: var(--surface-layer-strong);
         }
         .theme-light .search-dropdown,
-        .theme-light .notification-panel {
-          background: #d6dbe2;
-        }
         .sidebar.collapsed {
           width: 94px;
           padding-left: 14px;
@@ -3145,6 +3124,11 @@ export default function FlowApp() {
           min-height: 0;
           overflow: auto;
           padding-right: 4px;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .sidebar-nav::-webkit-scrollbar {
+          display: none;
         }
         .sidebar-group-label {
           color: var(--text-faint);
@@ -3262,12 +3246,11 @@ export default function FlowApp() {
           grid-template-columns: minmax(0, 1fr) auto;
           align-items: center;
           gap: 14px;
-          padding: 14px 16px;
-          border-radius: 17px;
-          border: 1px solid var(--line);
-          background: transparent;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-          backdrop-filter: blur(18px);
+          padding: 0;
+          border: 0;
+          background: none;
+          box-shadow: none;
+          backdrop-filter: none;
           position: relative;
           z-index: 60;
           flex: none;
@@ -3375,19 +3358,6 @@ export default function FlowApp() {
           position: relative;
           overflow: hidden;
         }
-        .notification-panel {
-          position: absolute;
-          top: calc(100% + 12px);
-          right: 0;
-          z-index: 190;
-          overflow: auto;
-          width: min(420px, calc(100vw - 28px));
-          max-height: min(72vh, 640px);
-          border-radius: 17px;
-          background: #12151c;
-          padding: 16px;
-          animation: riseIn 0.24s ease;
-        }
         .profile-menu {
           position: absolute;
           bottom: calc(100% + 10px);
@@ -3401,6 +3371,69 @@ export default function FlowApp() {
           animation: riseIn 0.24s ease;
           min-width: 200px;
           overflow: hidden;
+        }
+        .notification-menu {
+          position: absolute;
+          top: calc(100% + 10px);
+          right: 0;
+          width: min(360px, calc(100vw - 32px));
+          z-index: 190;
+          border-radius: 17px;
+          background: rgba(16, 18, 24, 0.98);
+          border: 1px solid var(--line);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(20px);
+          animation: riseIn 0.24s ease;
+          overflow: hidden;
+        }
+        .theme-light .notification-menu {
+          background: rgba(240, 243, 247, 0.98);
+        }
+        .notification-menu-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 14px 16px;
+          border-bottom: 1px solid var(--line);
+        }
+        .notification-menu-head strong {
+          font-size: 14px;
+        }
+        .notification-menu-list {
+          display: grid;
+          gap: 8px;
+          padding: 12px;
+          max-height: min(52vh, 420px);
+          overflow: auto;
+        }
+        .notification-menu-item {
+          border-radius: 17px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer-soft);
+          padding: 12px 14px;
+          display: grid;
+          gap: 8px;
+        }
+        .notification-menu-item p,
+        .notification-menu-item span {
+          margin: 0;
+          color: var(--text-soft);
+          font-size: 12px;
+        }
+        .notification-menu-actions {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+        .notification-menu-actions button {
+          border-radius: 12px;
+          border: 1px solid var(--line);
+          background: transparent;
+          color: var(--text-main);
+          min-height: 34px;
+          padding: 0 12px;
         }
         .profile-menu-item {
           all: unset;
@@ -3427,7 +3460,6 @@ export default function FlowApp() {
         }
         .search-dropdown::before,
         .command-modal::before,
-        .notification-panel::before,
         .spotlight-card::before,
         .metric-card::before,
         .content-card::before,
@@ -3446,7 +3478,6 @@ export default function FlowApp() {
         }
         .search-dropdown > *,
         .command-modal > *,
-        .notification-panel > *,
         .spotlight-card > *,
         .metric-card > *,
         .content-card > *,
@@ -3794,19 +3825,6 @@ export default function FlowApp() {
           font-size: 12px;
           overflow-wrap: anywhere;
         }
-        .notification-panel {
-          position: absolute;
-          top: calc(100% + 12px);
-          right: 0;
-          width: min(420px, calc(100vw - 28px));
-          max-height: min(72vh, 640px);
-          z-index: 2200;
-          overflow: auto;
-          padding: 16px;
-          background: #12151c;
-          animation: riseIn 0.24s ease;
-        }
-        .notification-panel,
         .search-dropdown,
         .search-result,
         .module-chip,
@@ -3822,61 +3840,6 @@ export default function FlowApp() {
         .notification-card,
         .notification-empty {
           border-radius: 17px !important;
-        }
-        .notification-panel-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 14px;
-        }
-        .notification-panel-header h3 {
-          margin: 0;
-          font-size: 22px;
-          letter-spacing: -0.04em;
-        }
-        .notification-list {
-          display: grid;
-          gap: 12px;
-        }
-        .notification-card {
-          border-radius: 17px;
-          border: 1px solid var(--line);
-          background:
-            linear-gradient(180deg, rgba(139, 92, 84, 0.16), rgba(255, 255, 255, 0.01) 46%, rgba(80, 45, 40, 0.12)),
-            rgba(88, 54, 50, 0.22);
-          padding: 14px;
-        }
-        .notification-card.read {
-          background: var(--surface-layer-soft);
-        }
-        .notification-card-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-        }
-        .notification-card strong {
-          display: block;
-          font-size: 14px;
-        }
-        .notification-card p {
-          margin: 10px 0 0;
-          color: var(--text-soft);
-          line-height: 1.6;
-          font-size: 13px;
-        }
-        .notification-card small {
-          color: var(--text-faint);
-          display: block;
-          margin-top: 10px;
-        }
-        .notification-empty {
-          border-radius: 17px;
-          border: 1px dashed var(--line);
-          padding: 22px;
-          text-align: center;
-          color: var(--text-soft);
         }
         .command-backdrop {
           position: fixed;
@@ -4124,9 +4087,144 @@ export default function FlowApp() {
           width: 18px;
           height: 18px;
         }
+        .theme-toggle {
+          position: relative;
+          display: inline-block;
+          width: 50px;
+          height: 24px;
+          cursor: pointer;
+        }
+        .theme-toggle input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+        .toggle-slider {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: var(--surface-layer);
+          border: 1px solid var(--line);
+          border-radius: 17px;
+          transition: 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 4px;
+        }
+        .toggle-slider:before {
+          content: "";
+          position: absolute;
+          height: 16px;
+          width: 16px;
+          left: 3px;
+          bottom: 3px;
+          background: var(--text-main);
+          border-radius: 50%;
+          transition: 0.3s;
+        }
+        .theme-toggle input:checked + .toggle-slider:before {
+          transform: translateX(26px);
+        }
+        .theme-toggle input:checked + .toggle-slider {
+          background: var(--accent);
+        }
+        .layout-toggle {
+          position: relative;
+          display: inline-block;
+          width: 80px;
+          height: 24px;
+          cursor: pointer;
+        }
+        .layout-toggle input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+        .layout-toggle .toggle-slider {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: var(--surface-layer);
+          border: 1px solid var(--line);
+          border-radius: 17px;
+          transition: 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 8px;
+          font-size: 12px;
+          color: var(--text-soft);
+        }
+        .layout-toggle .toggle-slider:before {
+          content: "";
+          position: absolute;
+          height: 16px;
+          width: 16px;
+          left: 3px;
+          bottom: 3px;
+          background: var(--text-main);
+          border-radius: 50%;
+          transition: 0.3s;
+        }
+        .layout-toggle input:checked + .toggle-slider:before {
+          transform: translateX(56px);
+        }
+        .layout-toggle input:checked + .toggle-slider {
+          background: var(--accent);
+        }
+        .shopify-connect-form {
+          display: grid;
+          gap: 12px;
+        }
+        .shopify-secret-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 10px;
+          align-items: center;
+        }
+        .shopify-secret-row input {
+          min-width: 0;
+          width: 100%;
+        }
+        .secret-toggle {
+          all: unset;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 42px;
+          height: 42px;
+          border-radius: 17px;
+          border: 1px solid var(--line);
+          background: var(--surface-layer);
+          color: var(--text-soft);
+          cursor: pointer;
+        }
+        .secret-toggle:hover {
+          border-color: var(--text-main);
+          color: var(--text-main);
+        }
         .setting-stack {
           display: grid;
           gap: 18px;
+        }
+        .setting-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .setting-row:last-child {
+          border-bottom: none;
+        }
+        .setting-row label {
+          font-weight: 500;
+          color: var(--text-main);
         }
         .setting-card {
           border-radius: 17px;
@@ -4984,18 +5082,6 @@ export default function FlowApp() {
           .module-rail {
             display: grid;
           }
-          .notification-panel {
-            position: absolute;
-            top: calc(100% + 10px);
-            right: 0;
-            left: auto;
-            width: min(360px, calc(100vw - 24px));
-            max-height: min(68vh, 560px);
-            z-index: 2200;
-            overflow: auto;
-            padding: 14px;
-            background: #12151c;
-          }
           .page-head p,
           .content-card-header p,
           .surface-head p,
@@ -5051,10 +5137,10 @@ export default function FlowApp() {
           {availableUpdate ? (
             <div className="toast">
               <div>
-                <strong>Mise à jour prête</strong>
-                <p>La page se rechargera dans {reloadCountdown}s pour charger {formatReleaseLabel(availableUpdate)}.</p>
+                <strong>Update ready</strong>
+                <p>This page will reload in {reloadCountdown}s to load {formatReleaseLabel(availableUpdate)}.</p>
               </div>
-              <button type="button" onClick={() => window.location.reload()} aria-label="Recharger">
+              <button type="button" onClick={() => window.location.reload()} aria-label="Reload">
                 <Icon name="arrow-right" size={16} />
               </button>
             </div>
@@ -5103,7 +5189,7 @@ export default function FlowApp() {
                     type="button"
                     className="lock-button"
                     onClick={() => applySidebarLock(!sidebarLocked)}
-                    aria-label={sidebarLocked ? "Déverrouiller la barre" : "Verrouiller la barre"}
+                    aria-label={sidebarLocked ? "Unlock sidebar" : "Lock sidebar"}
                   >
                     <Icon name={sidebarLocked ? "lock" : "unlock"} size={16} />
                   </button>
@@ -5130,9 +5216,9 @@ export default function FlowApp() {
               <div className={`sidebar-footer ${sidebarShowsDetails ? "" : "collapsed"}`} ref={profileMenuRef}>
                 {sidebarShowsDetails ? (
                   <>
-                    <button type="button" style={{ all: 'unset', cursor: 'pointer', width: '100%', textAlign: 'left' }} onClick={() => setProfileMenuOpen(!profileMenuOpen)}>
+                    <button type="button" style={{ all: 'unset', cursor: 'pointer', width: '100%', textAlign: 'left' }} onClick={() => setProfileMenuOpen(!profileMenuOpen)} aria-label="Open profile menu">
                       <div className="sidebar-footer-copy">
-                        <strong>{user.name || "Compte Flow"}</strong>
+                        <strong>{user.name || "Flow account"}</strong>
                         <span>{user.email}</span>
                       </div>
                     </button>
@@ -5140,22 +5226,31 @@ export default function FlowApp() {
                       <div className="profile-menu">
                         <button type="button" className="profile-menu-item" onClick={() => {
                           setActiveSection("profile");
+                          setSettingsTab("account");
                           setProfileMenuOpen(false);
                         }}>
                           <Icon name="user" size={16} />
-                          <span>Profil</span>
+                          <span>Profile</span>
                         </button>
                         <button type="button" className="profile-menu-item" onClick={() => {
-                          setActiveSection("settings");
+                          setActiveSection("profile");
                           setSettingsTab("account");
                           setProfileMenuOpen(false);
                         }}>
                           <Icon name="settings" size={16} />
-                          <span>Paramètres</span>
+                          <span>Settings</span>
+                        </button>
+                        <button type="button" className="profile-menu-item" onClick={() => setProfileMenuOpen(false)}>
+                          <Icon name="help" size={16} />
+                          <span>Help</span>
+                        </button>
+                        <button type="button" className="profile-menu-item" onClick={() => setProfileMenuOpen(false)}>
+                          <Icon name="mail" size={16} />
+                          <span>Contact us</span>
                         </button>
                         <button type="button" className="profile-menu-item" onClick={submitLogout} disabled={busy === "logout"}>
                           <Icon name="log-out" size={16} />
-                          <span>{busy === "logout" ? "Déconnexion..." : "Se déconnecter"}</span>
+                          <span>{busy === "logout" ? "Logging out..." : "Sign out"}</span>
                         </button>
                       </div>
                     ) : null}
@@ -5169,22 +5264,31 @@ export default function FlowApp() {
                       <div className="profile-menu">
                         <button type="button" className="profile-menu-item" onClick={() => {
                           setActiveSection("profile");
+                          setSettingsTab("account");
                           setProfileMenuOpen(false);
                         }}>
                           <Icon name="user" size={16} />
-                          <span>Profil</span>
+                          <span>Profile</span>
                         </button>
                         <button type="button" className="profile-menu-item" onClick={() => {
-                          setActiveSection("settings");
+                          setActiveSection("profile");
                           setSettingsTab("account");
                           setProfileMenuOpen(false);
                         }}>
                           <Icon name="settings" size={16} />
-                          <span>Paramètres</span>
+                          <span>Settings</span>
+                        </button>
+                        <button type="button" className="profile-menu-item" onClick={() => setProfileMenuOpen(false)}>
+                          <Icon name="help" size={16} />
+                          <span>Help</span>
+                        </button>
+                        <button type="button" className="profile-menu-item" onClick={() => setProfileMenuOpen(false)}>
+                          <Icon name="mail" size={16} />
+                          <span>Contact us</span>
                         </button>
                         <button type="button" className="profile-menu-item" onClick={submitLogout} disabled={busy === "logout"}>
                           <Icon name="log-out" size={16} />
-                          <span>{busy === "logout" ? "Déconnexion..." : "Se déconnecter"}</span>
+                          <span>{busy === "logout" ? "Logging out..." : "Sign out"}</span>
                         </button>
                       </div>
                     ) : null}
@@ -5201,7 +5305,7 @@ export default function FlowApp() {
                   type="button"
                   className="icon-button mobile-only"
                   onClick={() => setMobileNavOpen((current) => !current)}
-                  aria-label="Ouvrir la barre latérale"
+                  aria-label="Open sidebar"
                 >
                   <Icon name="menu" size={18} />
                 </button>
@@ -5217,8 +5321,8 @@ export default function FlowApp() {
                       setSearchOpen(true);
                     }}
                     onFocus={() => setSearchOpen(true)}
-                    placeholder="Rechercher notes, contacts, événements, tâches..."
-                    aria-label="Recherche globale"
+                    placeholder="Search notes, contacts, events, tasks..."
+                    aria-label="Global search"
                   />
                   <span className="search-shortcut">⌘K / Ctrl+K</span>
                 </div>
@@ -5238,76 +5342,73 @@ export default function FlowApp() {
                         </button>
                       ))
                     ) : (
-                      <div className="notification-empty">Aucun résultat sur cette recherche.</div>
+                      <div className="notification-empty">No results found for this search.</div>
                     )}
                   </div>
                 ) : null}
               </div>
 
               <div className="topbar-actions" ref={notifRef}>
-                <button type="button" className="icon-button" onClick={() => setNotificationOpen((current) => !current)} aria-label="Ouvrir les notifications">
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => {
+                    setNotificationOpen((current) => !current);
+                    setSearchOpen(false);
+                  }}
+                  aria-label="Open notifications"
+                >
                   <Icon name="bell" size={18} />
                   {unreadNotifications ? <span className="badge">{Math.min(unreadNotifications, 9)}</span> : null}
                 </button>
+                {notificationOpen ? (
+                  <div className="notification-menu">
+                    <div className="notification-menu-head">
+                      <strong>Notifications</strong>
+                      <button type="button" onClick={() => void markNotificationsAsRead()} disabled={!unreadNotifications}>
+                        Mark all read
+                      </button>
+                    </div>
+                    <div className="notification-menu-list">
+                      {notificationFeed.length ? notificationFeed.map((item) => (
+                        <div key={item.id} className="notification-menu-item">
+                          <strong>{item.title || "Notification"}</strong>
+                          <p>{item.body || ""}</p>
+                          <div className="notification-menu-actions">
+                            <span>{formatRelative(item.createdAt)}</span>
+                            {!item.readAt ? (
+                              <button type="button" onClick={() => void markNotificationsAsRead([item.id])}>Mark as read</button>
+                            ) : (
+                              <span>Read</span>
+                            )}
+                          </div>
+                        </div>
+                      )) : <div className="notification-empty">No notifications.</div>}
+                    </div>
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   className="icon-button"
                   onClick={() => void seedDemoData()}
-                  aria-label={shopifyDemoOrders.length && !storedShopifyConfig.storeDomain ? "Reinitialiser le mode test" : "Remplir le site avec des donnees de travail"}
+                  aria-label={demoModeActive ? "Disable demo mode" : "Enable demo mode"}
                   disabled={demoBusy}
                 >
                   <Icon name="spark" size={18} />
                 </button>
-                <button
-                  type="button"
-                  className="icon-button"
-                  onClick={() => void applyTheme(shellTheme === "dark" ? "light" : "dark")}
-                  aria-label="Changer le thème"
-                >
-                  <Icon name={shellTheme === "dark" ? "sun" : "moon"} size={18} />
-                </button>
+                <label className="theme-toggle">
+                  <input
+                    type="checkbox"
+                    checked={shellTheme === "dark"}
+                    onChange={() => void applyTheme(shellTheme === "dark" ? "light" : "dark")}
+                    aria-label="Toggle theme"
+                  />
+                  <span className="toggle-slider">
+                    <Icon name="sun" size={14} />
+                    <Icon name="moon" size={14} />
+                  </span>
+                </label>
               </div>
-
-              {notificationOpen ? (
-                <div className="notification-panel">
-                  <div className="notification-panel-header">
-                    <div>
-                      <h3>Notifications</h3>
-                      <p className="helper" style={{ marginTop: 6 }}>
-                        {unreadNotifications ? `${unreadNotifications} non lue(s)` : "Aucune alerte en attente"}
-                      </p>
-                    </div>
-                    {notificationFeed.length ? (
-                      <button type="button" className="ghost" onClick={() => void markNotificationsAsRead([])}>
-                        Tout lire
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <div className="notification-list">
-                    {notificationFeed.length ? (
-                      notificationFeed.map((item) => (
-                        <div key={item.id} className={`notification-card ${item.readAt ? "read" : ""}`}>
-                          <div className="notification-card-head">
-                            <strong>{item.title}</strong>
-                            {!item.readAt ? (
-                              <button type="button" className="ghost" onClick={() => void markNotificationsAsRead([item.id])}>
-                                Lire
-                              </button>
-                            ) : null}
-                          </div>
-                          <p>{item.detail || "Notification système"}</p>
-                          <small>{formatRelative(item.createdAt)} · {formatShortDate(item.createdAt)}</small>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="notification-empty">
-                        Les nouvelles notifications apparaîtront ici dès qu’on branchera les modules.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : null}
             </div>
 
             <div className="shell-content">
@@ -5408,16 +5509,16 @@ export default function FlowApp() {
                             </svg>
                           </div>
                           <div className="chart-legend">
-                            <span><span className="legend-dot" style={{ background: "currentColor" }} />Charge active</span>
-                            <span><span className="legend-dot" style={{ background: "rgba(255,146,113,0.45)" }} />Résumé synthétique</span>
+                            <span><span className="legend-dot" style={{ background: "currentColor" }} />Active load</span>
+                            <span><span className="legend-dot" style={{ background: "rgba(255,146,113,0.45)" }} />Summary snapshot</span>
                           </div>
                         </div>
 
                         <div className="content-card">
                           <div className="content-card-header">
                             <div>
-                              <h2>Vue du jour</h2>
-                              <p>Ce qui mérite ton attention en premier.</p>
+                              <h2>Day view</h2>
+                              <p>What deserves your attention first.</p>
                             </div>
                           </div>
                           <div className="dashboard-focus-grid">
@@ -5474,12 +5575,12 @@ export default function FlowApp() {
                               </span>
                               <h3>{selectedResult.title}</h3>
                               <p>{selectedResult.subtitle}</p>
-                              <p>{selectedResult.body || "Le détail complet s’ouvrira ici pendant qu’on construit les modules un par un."}</p>
+                              <p>{selectedResult.body || "Full details will open here while modules are built one by one."}</p>
                             </>
                           ) : (
                             <>
-                              <h3>Zone de focus</h3>
-                              <p>Sélectionne une note, un contact, un événement ou une tâche.</p>
+                              <h3>Focus area</h3>
+                              <p>Select a note, contact, event, or task.</p>
                             </>
                           )}
                         </div>
@@ -5487,7 +5588,7 @@ export default function FlowApp() {
                         <div className="surface-card">
                           <div className="surface-head">
                             <div>
-                              <h2>Derniers éléments</h2>
+                              <h2>Recent items</h2>
                             </div>
                           </div>
                           <div className="overview-list">
@@ -5503,8 +5604,8 @@ export default function FlowApp() {
                             {!dashboardFeed.length ? (
                               <div className="overview-list-item">
                                 <div>
-                                  <strong>Rien de récent</strong>
-                                  <span>Le compte attend ses premiers éléments.</span>
+                                  <strong>Nothing recent</strong>
+                                  <span>The account is waiting for its first items.</span>
                                 </div>
                               </div>
                             ) : null}
@@ -5522,11 +5623,11 @@ export default function FlowApp() {
                         <div className="floating-card">
                           <div className="surface-head">
                             <div>
-                              <h2>Centre de pilotage</h2>
-                              <p>Version immersive du dashboard, sans barre latérale, avec tous les modules remontés en haut du site.</p>
+                              <h2>Control Center</h2>
+                              <p>Immersive dashboard layout, no sidebar, with all modules moved to the top of the page.</p>
                             </div>
                             <button type="button" className="ghost" onClick={() => setActiveSection("profile")}>
-                              Ouvrir le profil
+                              Open profile
                             </button>
                           </div>
                           <div className="floating-kpis">
@@ -5535,16 +5636,12 @@ export default function FlowApp() {
                               <strong>{dashboardMetrics.notes}</strong>
                             </div>
                             <div className="floating-kpi">
-                              <span>En cours</span>
+                              <span>Active</span>
                               <strong>{dashboardMetrics.tasks}</strong>
                             </div>
                             <div className="floating-kpi">
-                              <span>Événements</span>
+                              <span>Events</span>
                               <strong>{dashboardMetrics.events}</strong>
-                            </div>
-                            <div className="floating-kpi">
-                              <span>Alertes</span>
-                              <strong>{dashboardMetrics.notifications}</strong>
                             </div>
                           </div>
                         </div>
@@ -5552,21 +5649,15 @@ export default function FlowApp() {
                         <div className="floating-card">
                           <div className="surface-head">
                             <div>
-                              <h2>Panneau de veille</h2>
-                              <p>Le même langage visuel servira aux modules quand on les branchera un par un.</p>
+                              <h2>Watchboard</h2>
+                              <p>The same visual system will serve the modules as they are connected one by one.</p>
                             </div>
                           </div>
                           <div className="overview-list">
                             <div className="overview-list-item">
                               <div>
-                                <strong>Recherche haute priorité</strong>
-                                <span>Sans doublon, avec ouverture rapide au clavier.</span>
-                              </div>
-                            </div>
-                            <div className="overview-list-item">
-                              <div>
-                                <strong>Notifications</strong>
-                                <span>Panneau flottant aligné sur la topbar et thème commun dark / light.</span>
+                                <strong>Priority search</strong>
+                                <span>Duplicate-free results with fast keyboard access.</span>
                               </div>
                             </div>
                           </div>
@@ -5575,20 +5666,19 @@ export default function FlowApp() {
 
                       <div className="immersive-right">
                         <div className="immersive-header">
-                          <h1>Dashboard Flow</h1>
-                          <p>La structure immersive garde les mêmes données, mais remplace la barre gauche par une navigation supérieure et un espace plus atmosphérique.</p>
+                          <h1>Flow Dashboard</h1>
+                          <p>The immersive layout keeps the same data while replacing the left sidebar with a top-level workspace.</p>
                           <div className="route-pills">
-                            <span className="route-pill">Recherche globale</span>
-                            <span className="route-pill">Notifications flottantes</span>
-                            <span className="route-pill">Profil et structure</span>
+                            <span className="route-pill">Global search</span>
+                            <span className="route-pill">Profile & structure</span>
                           </div>
                         </div>
 
                         <div className="floating-card">
                           <div className="surface-head">
                             <div>
-                              <h2>Résultat ciblé</h2>
-                              <p>{selectedResult ? "Le résultat sélectionné depuis la recherche apparaît ici." : "Aucun résultat actif pour le moment."}</p>
+                              <h2>Selected result</h2>
+                              <p>{selectedResult ? "The selected search result appears here." : "No active result at the moment."}</p>
                             </div>
                           </div>
                           {selectedResult ? (
@@ -5599,11 +5689,11 @@ export default function FlowApp() {
                               </span>
                               <h3>{selectedResult.title}</h3>
                               <p>{selectedResult.subtitle}</p>
-                              <p>{selectedResult.body || "Le détail complet du module arrivera ici au fur et à mesure de la reconstruction."}</p>
+                              <p>{selectedResult.body || "Full module details will appear here as sections are rebuilt."}</p>
                             </div>
                           ) : (
                             <div className="section-placeholder" style={{ minHeight: 160 }}>
-                              <p>Utilise la recherche du haut ou `⌘K / Ctrl+K` pour charger une fiche ici.</p>
+                              <p>Use the top search or `⌘K / Ctrl+K` to load a card here.</p>
                             </div>
                           )}
                         </div>
@@ -5612,8 +5702,8 @@ export default function FlowApp() {
                           <div className="floating-card schedule-card">
                             <div className="surface-head">
                               <div>
-                                <h2>Cadence des modules</h2>
-                                <p>Vision simple de l’état des briques qu’on est en train de remettre à plat.</p>
+                                <h2>Module cadence</h2>
+                                <p>A simple overview of the building blocks we're reworking.</p>
                               </div>
                               <button type="button" className="release-chip" onClick={() => setReleaseOpen(true)}>
                                 <Icon name="spark" size={15} />
@@ -5622,7 +5712,7 @@ export default function FlowApp() {
                             </div>
                             <div className="schedule-scale">
                               <div className="scale-row">
-                                <span>Recherche</span>
+                                <span>Search</span>
                                 <div className="scale-bar"><div className="scale-fill" style={{ width: "74%" }} /></div>
                               </div>
                               <div className="scale-row">
@@ -5639,34 +5729,6 @@ export default function FlowApp() {
                               </div>
                             </div>
                           </div>
-
-                          <div className="floating-card">
-                            <div className="surface-head">
-                              <div>
-                                <h2>Alertes</h2>
-                                <p>Panneau inspiré des références, branché sur les vraies notifications du compte.</p>
-                              </div>
-                            </div>
-                            <div className="overview-list">
-                              {notificationFeed.slice(0, 2).map((item) => (
-                                <div key={item.id} className="overview-list-item">
-                                  <div>
-                                    <strong>{item.title}</strong>
-                                    <span>{item.detail || "Notification système"}</span>
-                                  </div>
-                                  <span className="helper">{formatRelative(item.createdAt)}</span>
-                                </div>
-                              ))}
-                              {!notificationFeed.length ? (
-                                <div className="overview-list-item">
-                                  <div>
-                                    <strong>Aucune alerte</strong>
-                                    <span>Le panneau est prêt pour les prochaines remontées du produit.</span>
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -5677,7 +5739,7 @@ export default function FlowApp() {
                   <div className="page-head">
                     <div>
                       <h1>Shopify</h1>
-                      <p>{shopifyState.ready ? `Boutique connectee · ${shopifyState.storeDomain}` : "Connecte ta boutique ou remplis le site avec des donnees de travail."}</p>
+                      <p>{shopifyState.ready ? `Store connected · ${shopifyState.storeDomain}` : "Connect your store or load demo work data."}</p>
                     </div>
                   </div>
 
@@ -5685,42 +5747,31 @@ export default function FlowApp() {
                     <div className="surface-card shopify-connect-card">
                       <div className="surface-head">
                         <div>
-                          <h2>Aucune boutique connectee</h2>
-                          <p>Renseigne le domaine Shopify et le token séparément. Le token se recupere dans Shopify Admin avec la permission <code>read_orders</code>. <button type="button" onClick={() => setShopifyGuideOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Guide complet</button>.</p>
+                          <h2>No store connected</h2>
+                          <p>Enter your Shopify domain and token separately. The token is retrieved from Shopify Admin with the <code>read_orders</code> permission. <button type="button" onClick={() => setShopifyGuideOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Full guide</button>.</p>
                         </div>
                       </div>
                       <div className="shopify-connect-form">
-                        <div className="input-with-toggle">
-                          <input
-                            type={showShopifyDomain ? "text" : "password"}
-                            value={shopifyDomainInput}
-                            onChange={(event) => setShopifyDomainInput(event.target.value)}
-                            placeholder="store.myshopify.com"
-                            aria-label="Shop domain"
-                          />
-                          {shopifyDomainInput && (
-                            <button type="button" className="input-toggle-button" onClick={() => setShowShopifyDomain(!showShopifyDomain)} aria-label={showShopifyDomain ? "Masquer" : "Afficher"}>
-                              <Icon name={showShopifyDomain ? "eye-off" : "eye"} size={18} />
-                            </button>
-                          )}
-                        </div>
-                        <div className="input-with-toggle">
-                          <input
-                            type={showShopifyToken ? "text" : "password"}
-                            value={shopifyTokenInput}
-                            onChange={(event) => setShopifyTokenInput(event.target.value)}
-                            placeholder="shpat_xxx"
-                            aria-label="Shopify access token"
-                          />
-                          {shopifyTokenInput && (
-                            <button type="button" className="input-toggle-button" onClick={() => setShowShopifyToken(!showShopifyToken)} aria-label={showShopifyToken ? "Masquer" : "Afficher"}>
-                              <Icon name={showShopifyToken ? "eye-off" : "eye"} size={18} />
-                            </button>
-                          )}
-                        </div>
+                        <input
+                          type="text"
+                          value={shopifyDomainInput}
+                          onChange={(event) => setShopifyDomainInput(event.target.value)}
+                          placeholder="store.myshopify.com"
+                          aria-label="Shop domain"
+                        />
+                        <input
+                          type="text"
+                          value={shopifyTokenInput}
+                          onChange={(event) => setShopifyTokenInput(event.target.value)}
+                          placeholder="shpat_xxx"
+                          aria-label="Shopify access token"
+                        />
                         <div className="button-row">
                           <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
-                            {shopifyConfigBusy ? "Connexion..." : "Connecter la boutique"}
+                            {shopifyConfigBusy ? "Connecting..." : "Connect store"}
+                          </button>
+                          <button type="button" className="ghost" onClick={() => void seedDemoData()} disabled={demoBusy}>
+                            {db.settings?.demoFixtures?.overrideShopify ? "Stop demo mode" : "Test with fake shop data"}
                           </button>
                         </div>
                       </div>
@@ -5742,10 +5793,10 @@ export default function FlowApp() {
 
                       <div className="shopify-kpis">
                         {[
-                          { label: "CA periode", value: formatCurrency(shopifyOverview.revenueCurrent), icon: "activity" },
-                          { label: "CA ce mois", value: formatCurrency(shopifyOverview.revenueMonth), icon: "grid" },
-                          { label: "Commandes", value: `${shopifyOverview.ordersCurrent}`, icon: "note", action: () => setActiveSection("shopify-orders") },
-                          { label: "Non fulfillées", value: `${shopifyOverview.pendingFulfillment}`, icon: "check" },
+                          { label: "Period revenue", value: formatCurrency(shopifyOverview.revenueCurrent), icon: "activity" },
+                          { label: "Month revenue", value: formatCurrency(shopifyOverview.revenueMonth), icon: "grid" },
+                          { label: "Orders", value: `${shopifyOverview.ordersCurrent}`, icon: "note", action: () => setActiveSection("shopify-orders") },
+                          { label: "Unfulfilled", value: `${shopifyOverview.pendingFulfillment}`, icon: "check" },
                         ].map((item) => {
                           const Tag = item.action ? "button" : "div";
                           return (
@@ -5769,24 +5820,24 @@ export default function FlowApp() {
                       <div className="shopify-card shopify-mobile-kpi-card interactive-card" onClick={() => setActiveSection("shopify-orders")} role="button" tabIndex={0}>
                         <div className="surface-head">
                           <div>
-                            <h2>Période · {activeShopifyPeriodLabel}</h2>
+                            <h2>Period · {activeShopifyPeriodLabel}</h2>
                           </div>
                         </div>
                         <div className="shopify-mobile-kpi-grid">
                           <div className="shopify-mobile-kpi-item">
-                            <span>CA période</span>
+                            <span>Period revenue</span>
                             <strong>{formatCurrency(shopifyOverview.revenueCurrent)}</strong>
                           </div>
                           <div className="shopify-mobile-kpi-item">
-                            <span>CA du mois</span>
+                            <span>Month revenue</span>
                             <strong>{formatCurrency(shopifyOverview.revenueMonth)}</strong>
                           </div>
                           <div className="shopify-mobile-kpi-item">
-                            <span>Commandes</span>
+                            <span>Orders</span>
                             <strong>{shopifyOverview.ordersCurrent}</strong>
                           </div>
                           <div className="shopify-mobile-kpi-item">
-                            <span>À traiter</span>
+                            <span>Pending</span>
                             <strong>{shopifyOverview.pendingFulfillment}</strong>
                           </div>
                         </div>
@@ -5797,8 +5848,8 @@ export default function FlowApp() {
                           <div className="shopify-card">
                             <div className="surface-head">
                               <div>
-                                <h2>Performance commerciale</h2>
-                                <p>{shopifyState.refreshedAt ? `Mise à jour ${formatShopifyDate(shopifyState.refreshedAt)}` : "En attente de données Shopify."}</p>
+                                <h2>Commercial performance</h2>
+                                <p>{shopifyState.refreshedAt ? `Updated ${formatShopifyDate(shopifyState.refreshedAt)}` : "Waiting on Shopify data."}</p>
                               </div>
                             </div>
                             {shopifyState.loading && !shopifyState.data ? (
@@ -5823,7 +5874,7 @@ export default function FlowApp() {
                                         borderRadius: "18px",
                                         color: "#f5f7fb",
                                       }}
-                                      formatter={(value, key) => [formatCurrency(value), key === "previous" ? "Periode precedente" : "Periode courante"]}
+                                      formatter={(value, key) => [formatCurrency(value), key === "previous" ? "Previous period" : "Current period"]}
                                     />
                                     <Area type="monotone" dataKey="previous" stroke="rgba(255,255,255,0.3)" strokeWidth={2} fill="rgba(255,255,255,0)" />
                                     <Area type="monotone" dataKey="current" stroke="currentColor" strokeWidth={2.8} fill="url(#shopifyCurrentArea)" />
@@ -5836,7 +5887,7 @@ export default function FlowApp() {
                           <div className="shopify-card interactive-card" onClick={() => setActiveSection("shopify-orders")} role="button" tabIndex={0}>
                             <div className="surface-head">
                               <div>
-                                <h2>Dernières commandes</h2>
+                                <h2>Recent orders</h2>
                               </div>
                             </div>
                             {shopifyState.loading && !shopifyState.data ? (
@@ -5850,7 +5901,7 @@ export default function FlowApp() {
                                       <th>Date</th>
                                       <th>Client</th>
                                       <th>Total €</th>
-                                      <th>Paiement</th>
+                                      <th>Payment</th>
                                       <th>Fulfillment</th>
                                     </tr>
                                   </thead>
@@ -5867,7 +5918,7 @@ export default function FlowApp() {
                                     ))}
                                   </tbody>
                                 </table>
-                                {!visibleShopifyOrders.length ? <div className="notification-empty">Aucune commande sur cette période.</div> : null}
+                                {!visibleShopifyOrders.length ? <div className="notification-empty">No orders in this period.</div> : null}
                               </div>
                             )}
                           </div>
@@ -5877,11 +5928,11 @@ export default function FlowApp() {
                           <div className="shopify-card">
                             <div className="surface-head">
                               <div>
-                                <h2>Top 5 produits du mois</h2>
+                                <h2>Top 5 products this month</h2>
                               </div>
                               {storedShopifyConfig.storeDomain ? (
                                 <button type="button" className="ghost" onClick={() => void clearShopifyConfig()} disabled={shopifyConfigBusy}>
-                                  Déconnecter
+                                  Disconnect
                                 </button>
                               ) : null}
                             </div>
@@ -5893,13 +5944,13 @@ export default function FlowApp() {
                                   <div key={product.id} className="shopify-product-row">
                                     <div style={{ minWidth: 0 }}>
                                       <strong>{product.title}</strong>
-                                      <span>{product.quantity} vente(s)</span>
+                                      <span>{product.quantity} sale(s)</span>
                                     </div>
                                     <strong>{formatCurrency(product.revenue)}</strong>
                                   </div>
                                 ))}
                                 {!(shopifyState.data?.topProducts || []).length ? (
-                                  <div className="notification-empty">Aucun produit sur la période.</div>
+                                  <div className="notification-empty">No products in this period.</div>
                                 ) : null}
                               </div>
                             )}
@@ -5913,8 +5964,8 @@ export default function FlowApp() {
                 <section className="shopify-layout">
                   <div className="page-head">
                     <div>
-                      <h1>Commandes Shopify</h1>
-                      <p>Tri et recherche directe sur les commandes de la période active.</p>
+                      <h1>Shopify orders</h1>
+                      <p>Sort and search orders for the active period.</p>
                     </div>
                   </div>
                   <div className="orders-shell">
@@ -5924,16 +5975,16 @@ export default function FlowApp() {
                         <input
                           value={shopifyOrderQuery}
                           onChange={(event) => setShopifyOrderQuery(event.target.value)}
-                          placeholder="Rechercher par produit, date ou client"
-                          aria-label="Rechercher dans les commandes Shopify"
+                          placeholder="Search by product, date, or customer"
+                          aria-label="Search Shopify orders"
                         />
                       </div>
                       <div className="orders-sort-row">
                         {[
-                          { id: "recent", label: "Récent" },
-                          { id: "oldest", label: "Ancien" },
-                          { id: "expensive", label: "Plus cher" },
-                          { id: "cheap", label: "Moins cher" },
+                          { id: "recent", label: "Recent" },
+                          { id: "oldest", label: "Oldest" },
+                          { id: "expensive", label: "Highest" },
+                          { id: "cheap", label: "Lowest" },
                         ].map((option) => (
                           <button
                             key={option.id}
@@ -5949,8 +6000,8 @@ export default function FlowApp() {
                     <div className="shopify-card">
                       <div className="surface-head">
                         <div>
-                          <h2>Commandes visibles</h2>
-                          <p>{shopifyOrdersPageRows.length} résultat(s) sur {activeShopifyPeriodLabel.toLowerCase()}.</p>
+                          <h2>Visible orders</h2>
+                          <p>{shopifyOrdersPageRows.length} result(s) in {activeShopifyPeriodLabel.toLowerCase()}.</p>
                         </div>
                       </div>
                       <div className="shopify-table-wrap orders-table-wrap">
@@ -5959,11 +6010,11 @@ export default function FlowApp() {
                             <tr>
                               <th>#</th>
                               <th>Date</th>
-                              <th>Client</th>
+                              <th>Customer</th>
                               <th>Total €</th>
-                              <th>Paiement</th>
+                              <th>Payment</th>
                               <th>Fulfillment</th>
-                              <th>Produits</th>
+                              <th>Products</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -5980,7 +6031,7 @@ export default function FlowApp() {
                             ))}
                           </tbody>
                         </table>
-                        {!shopifyOrdersPageRows.length ? <div className="notification-empty">Aucune commande ne correspond à cette recherche.</div> : null}
+                        {!shopifyOrdersPageRows.length ? <div className="notification-empty">No orders match this search.</div> : null}
                       </div>
                     </div>
                   </div>
@@ -5992,7 +6043,7 @@ export default function FlowApp() {
                       <div>
                         <h2>Notes</h2>
                       </div>
-                      <button type="button" className="icon-button" onClick={() => void createNoteCategory()} aria-label="Créer une catégorie">
+                      <button type="button" className="icon-button" onClick={() => void createNoteCategory()} aria-label="Create category">
                         <Icon name="plus" size={16} />
                       </button>
                     </div>
@@ -6002,8 +6053,8 @@ export default function FlowApp() {
                         <input
                           value={noteQuery}
                           onChange={(event) => setNoteQuery(event.target.value)}
-                          placeholder="Rechercher"
-                          aria-label="Rechercher dans les notes"
+                          placeholder="Search"
+                          aria-label="Search notes"
                         />
                       </div>
                     </div>
@@ -6025,8 +6076,8 @@ export default function FlowApp() {
                                 setNoteCategoryDraft("");
                               }
                             }}
-                            placeholder="Nom de la catégorie"
-                            aria-label="Nom de la catégorie"
+                            placeholder="Category name"
+                            aria-label="Category name"
                           />
                         </div>
                       ) : null}
@@ -6056,7 +6107,7 @@ export default function FlowApp() {
                     <div className="notes-editor-pane">
                       <>
                         <div className="notes-editor-toolbar">
-                          <button type="button" className="ghost" onClick={() => setSelectedNoteId("")} aria-label="Retour aux notes">
+                          <button type="button" className="ghost" onClick={() => setSelectedNoteId("")} aria-label="Back to notes">
                             <Icon name="arrow-left" size={16} />
                           </button>
                           <div className="notes-editor-actions" ref={noteToolsRef}>
@@ -6064,7 +6115,7 @@ export default function FlowApp() {
                               type="button"
                               className="notes-tools-button"
                               onClick={() => setNoteToolsOpen((current) => !current)}
-                              aria-label="Ouvrir les options de texte"
+                              aria-label="Open text options"
                             >
                               T
                             </button>
@@ -6094,20 +6145,20 @@ export default function FlowApp() {
                                       setNoteTextColor(event.target.value);
                                       applyNoteCommand("foreColor", event.target.value);
                                     }}
-                                    aria-label="Couleur du texte"
+                                    aria-label="Text color"
                                   />
                                 </div>
                                 <div className="notes-tools-grid">
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("title")}>Titre</button>
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("subtitle")}>Sous-titre</button>
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("secondary")}>Titre secondaire</button>
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("body")}>Corps</button>
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("mono")}>Monostyle</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("title")}>Title</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("subtitle")}>Subtitle</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("secondary")}>Secondary title</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("body")}>Body</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("mono")}>Monospace</button>
                                   <button type="button" onMouseDown={preserveNoteSelection} onClick={insertChecklistLine}>Checklist</button>
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("bullets")}>Liste à puces</button>
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteCommand("insertHTML", "— ")}>Liste à tirets</button>
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("numbers")}>Liste numérotée</button>
-                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("quote")}>Bloc de citation</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("bullets")}>Bulleted list</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteCommand("insertHTML", "— ")}>Dashed list</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("numbers")}>Numbered list</button>
+                                  <button type="button" onMouseDown={preserveNoteSelection} onClick={() => applyNoteBlock("quote")}>Quote block</button>
                                 </div>
                               </div>
                             ) : null}
@@ -6121,15 +6172,15 @@ export default function FlowApp() {
                             setNoteTitleDraft(value);
                             updateSelectedNote({ title: value });
                           }}
-                          placeholder="Nouvelle note"
-                          aria-label="Titre de la note"
+                          placeholder="New note"
+                          aria-label="Note title"
                         />
                         <div
                           ref={noteEditorRef}
                           className="note-editor"
                           contentEditable
                           suppressContentEditableWarning
-                          data-placeholder="Écris ta note ici..."
+                          data-placeholder="Write your note here..."
                           onInput={onNoteEditorInput}
                           onClick={onNoteEditorClick}
                           onKeyUp={rememberNoteSelection}
@@ -6145,7 +6196,7 @@ export default function FlowApp() {
                           <h1>{selectedNoteCategory || "Notes"}</h1>
                         </div>
                         <button type="button" className="primary notes-add-button" onClick={() => void createNoteInCategory()}>
-                          Ajouter une note
+                          Add note
                         </button>
                       </div>
                       <div className="notes-list-scroll">
@@ -6157,13 +6208,13 @@ export default function FlowApp() {
                               className="note-card"
                               onClick={() => setSelectedNoteId(note.id)}
                             >
-                              <strong>{note.title || "Nouvelle note"}</strong>
+                              <strong>{note.title || "New note"}</strong>
                               <span>{notePreview(note)}</span>
                               <small>{formatRelative(note.updatedAt || note.createdAt)}</small>
                             </button>
                           ))}
                         </div>
-                        {!filteredNotesInSelectedCategory.length ? <div className="notification-empty">Aucune note dans cette catégorie.</div> : null}
+                        {!filteredNotesInSelectedCategory.length ? <div className="notification-empty">No notes in this category.</div> : null}
                       </div>
                     </div>
                   )}
@@ -6172,7 +6223,7 @@ export default function FlowApp() {
                 <section className="overview-layout">
                   <div className="page-head">
                     <div>
-                      <h1>Paramètres</h1>
+                      <h1>Settings</h1>
                     </div>
                   </div>
 
@@ -6196,24 +6247,24 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>My Account</h2>
-                              <p>Informations principales visibles sur ton compte.</p>
+                              <p>Main account information visible on your profile.</p>
                             </div>
                           </div>
                           <div className="settings-field-grid">
-                            <Field label="Nom" value={accountForm.name} onChange={(value) => setAccountForm((current) => ({ ...current, name: value }))} placeholder="Ton nom" />
-                            <Field label="Email" type="email" value={accountForm.email} onChange={(value) => setAccountForm((current) => ({ ...current, email: value }))} placeholder="toi@flow.app" />
+                            <Field label="Name" value={accountForm.name} onChange={(value) => setAccountForm((current) => ({ ...current, name: value }))} placeholder="Your name" />
+                            <Field label="Email" type="email" value={accountForm.email} onChange={(value) => setAccountForm((current) => ({ ...current, email: value }))} placeholder="you@flow.app" />
                             <Field label="Username" value={accountForm.username} onChange={(value) => setAccountForm((current) => ({ ...current, username: value }))} placeholder="username" />
-                            <Field label="Nom complet" value={accountForm.fullName} onChange={(value) => setAccountForm((current) => ({ ...current, fullName: value }))} placeholder="Nom complet" />
-                            <Field label="Telephone" value={accountForm.phone} onChange={(value) => setAccountForm((current) => ({ ...current, phone: value }))} placeholder="+33..." />
-                            <Field label="Photo" value={accountForm.photoUrl} onChange={(value) => setAccountForm((current) => ({ ...current, photoUrl: value }))} placeholder="URL ou image locale deja importee" />
+                            <Field label="Full name" value={accountForm.fullName} onChange={(value) => setAccountForm((current) => ({ ...current, fullName: value }))} placeholder="Full name" />
+                            <Field label="Phone" value={accountForm.phone} onChange={(value) => setAccountForm((current) => ({ ...current, phone: value }))} placeholder="+1..." />
+                            <Field label="Profile photo" value={accountForm.photoUrl} onChange={(value) => setAccountForm((current) => ({ ...current, photoUrl: value }))} placeholder="URL or local image already uploaded" />
                           </div>
                           <label className="toggle-field">
                             <input type="checkbox" checked={accountForm.phoneVisible} onChange={(event) => setAccountForm((current) => ({ ...current, phoneVisible: event.target.checked }))} />
-                            <span>Afficher le téléphone dans le compte</span>
+                            <span>Show phone in profile</span>
                           </label>
                           <div className="button-row">
                             <button type="submit" className="primary" disabled={accountBusy}>
-                              {accountBusy ? "Enregistrement..." : "Enregistrer"}
+                              {accountBusy ? "Saving..." : "Save"}
                             </button>
                           </div>
                         </form>
@@ -6224,33 +6275,46 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Appearance</h2>
-                              <p>Theme, structure et fond du shell.</p>
+                              <p>Choose theme, layout and background for the shell.</p>
                             </div>
                           </div>
-                          <div className="setting-options">
-                            <button type="button" className={`setting-option ${shellTheme === "dark" ? "active" : ""}`} onClick={() => void applyTheme("dark")}>
-                              <strong>Mode sombre</strong>
-                              <span>Fond sombre anime et cartes opaques.</span>
-                            </button>
-                            <button type="button" className={`setting-option ${shellTheme === "light" ? "active" : ""}`} onClick={() => void applyTheme("light")}>
-                              <strong>Mode clair</strong>
-                              <span>Version eclaircie sans basculer en blanc.</span>
-                            </button>
-                            <button type="button" className={`setting-option ${dashboardLayout === "overview" ? "active" : ""}`} onClick={() => void applyLayout("overview")}>
-                              <strong>Vue tableau</strong>
-                              <span>Sidebar gauche et grille dense.</span>
-                            </button>
-                            <button type="button" className={`setting-option ${dashboardLayout === "immersive" ? "active" : ""} ${isMobile ? "disabled" : ""}`} onClick={() => void applyLayout("immersive")} disabled={isMobile}>
-                              <strong>Vue immersive</strong>
-                              <span>Desktop seulement, modules remontes en haut.</span>
-                            </button>
+                          <div className="setting-row">
+                            <label>Theme</label>
+                            <label className="layout-toggle">
+                              <input
+                                type="checkbox"
+                                checked={shellTheme === "dark"}
+                                onChange={() => void applyTheme(shellTheme === "dark" ? "light" : "dark")}
+                                aria-label="Toggle theme"
+                              />
+                              <span className="toggle-slider">
+                                <span>Light</span>
+                                <span>Dark</span>
+                              </span>
+                            </label>
+                          </div>
+                          <div className="setting-row">
+                            <label>Dashboard view</label>
+                            <label className="layout-toggle">
+                              <input
+                                type="checkbox"
+                                checked={dashboardLayout === "immersive"}
+                                onChange={() => void applyLayout(dashboardLayout === "immersive" ? "overview" : "immersive")}
+                                disabled={isMobile}
+                                aria-label="Toggle dashboard view"
+                              />
+                              <span className="toggle-slider">
+                                <span>Board</span>
+                                <span>Immersive</span>
+                              </span>
+                            </label>
                           </div>
                           <div className="button-row">
                             <button type="button" className="secondary" onClick={() => backgroundInputRef.current?.click()} disabled={backgroundBusy}>
-                              {backgroundBusy ? "Import..." : "Importer un fond"}
+                              {backgroundBusy ? "Importing..." : "Upload background"}
                             </button>
                             <button type="button" className="ghost" onClick={() => void applyCustomBackground("")} disabled={!currentThemeBackground || backgroundBusy}>
-                              Retirer le fond
+                              Remove background
                             </button>
                           </div>
                         </div>
@@ -6260,35 +6324,35 @@ export default function FlowApp() {
                         <div className="settings-form">
                           <div className="surface-head">
                             <div>
-                              <h2>Privacy & Safety</h2>
-                              <p>Connexion, sécurité et exposition minimale des données.</p>
+                              <h2>Security</h2>
+                              <p>Update passwords and manage account safety.</p>
                             </div>
                           </div>
                           <div className="settings-field-grid">
-                            <Field label="Mot de passe actuel" type="password" value={accountForm.currentPassword} onChange={(value) => setAccountForm((current) => ({ ...current, currentPassword: value }))} placeholder="Mot de passe actuel" />
-                            <Field label="Nouveau mot de passe" type="password" value={accountForm.newPassword} onChange={(value) => setAccountForm((current) => ({ ...current, newPassword: value }))} placeholder="Nouveau mot de passe" />
+                            <Field label="Current password" type="password" value={accountForm.currentPassword} onChange={(value) => setAccountForm((current) => ({ ...current, currentPassword: value }))} placeholder="Current password" />
+                            <Field label="New password" type="password" value={accountForm.newPassword} onChange={(value) => setAccountForm((current) => ({ ...current, newPassword: value }))} placeholder="New password" />
                           </div>
                           <div className="mini-grid">
                             <div className="mini-card">
                               <strong>Google</strong>
-                              <span>{providers.google ? "Connexion disponible." : "Configuration absente sur cet environnement."}</span>
+                              <span>{providers.google ? "Google sign-in available." : "Google login not configured."}</span>
                             </div>
                             <div className="mini-card">
-                              <strong>Email reset</strong>
-                              <span>{providers.email ? "Réinitialisation disponible." : "Réinitialisation email indisponible."}</span>
+                              <strong>Email recovery</strong>
+                              <span>{providers.email ? "Reset email available." : "Email reset unavailable."}</span>
                             </div>
                             <div className="mini-card">
-                              <strong>Téléphone</strong>
-                              <span>{accountForm.phoneVisible ? "Visible sur le compte." : "Masqué sur le compte."}</span>
+                              <strong>Phone</strong>
+                              <span>{accountForm.phoneVisible ? "Visible in profile." : "Hidden from public profile."}</span>
                             </div>
                             <div className="mini-card">
                               <strong>Session</strong>
-                              <span>Compte relié au store distant et reconnectable sur plusieurs appareils.</span>
+                              <span>Logged in across devices with secure session handling.</span>
                             </div>
                           </div>
                           <div className="button-row">
                             <button type="button" className="primary" onClick={(event) => void saveAccountSettings({ preventDefault() {} })} disabled={accountBusy}>
-                              {accountBusy ? "Enregistrement..." : "Mettre à jour la sécurité"}
+                              {accountBusy ? "Saving..." : "Update security"}
                             </button>
                           </div>
                         </div>
@@ -6299,31 +6363,43 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Integrations</h2>
-                              <p>Chaque utilisateur connecte sa propre boutique Shopify.</p>
+                              <p>Connect your Shopify store securely and manage fake data mode.</p>
                             </div>
                           </div>
                           <div className="shopify-connect-form">
-                            <input
-                              value={shopifyDomainInput}
-                              onChange={(event) => setShopifyDomainInput(event.target.value)}
-                              placeholder="store.myshopify.com"
-                              aria-label="Shop domain"
-                            />
-                            <input
-                              value={shopifyTokenInput}
-                              onChange={(event) => setShopifyTokenInput(event.target.value)}
-                              placeholder="shpat_xxx"
-                              aria-label="Shopify access token"
-                            />
-                            <div className="button-row">
-                              <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
-                                {shopifyConfigBusy ? "Verification..." : "Verifier et connecter"}
-                              </button>
-                              <button type="button" className="ghost" onClick={() => void clearShopifyConfig()} disabled={shopifyConfigBusy || !storedShopifyConfig.storeDomain}>
-                                Deconnecter
+                            <div className="shopify-secret-row">
+                              <input
+                                value={shopifyDomainInput}
+                                onChange={(event) => setShopifyDomainInput(event.target.value)}
+                                type={showShopifySecrets ? "text" : "password"}
+                                placeholder="store.myshopify.com"
+                                aria-label="Shop domain"
+                              />
+                              <button type="button" className="secret-toggle" onClick={() => setShowShopifySecrets((current) => !current)}>
+                                <Icon name={showShopifySecrets ? "eye-off" : "eye"} size={16} />
                               </button>
                             </div>
-                            <p className="helper">{storedShopifyConfig.storeDomain ? `Boutique active : ${storedShopifyConfig.storeDomain}` : "Aucune boutique connectee. Colle la clé privée liée à read_orders."}</p>
+                            <div className="shopify-secret-row">
+                              <input
+                                value={shopifyTokenInput}
+                                onChange={(event) => setShopifyTokenInput(event.target.value)}
+                                type={showShopifySecrets ? "text" : "password"}
+                                placeholder="shpat_xxx"
+                                aria-label="Shopify access token"
+                              />
+                              <button type="button" className="secret-toggle" onClick={() => setShowShopifySecrets((current) => !current)}>
+                                <Icon name={showShopifySecrets ? "eye-off" : "eye"} size={16} />
+                              </button>
+                            </div>
+                            <div className="button-row">
+                              <button type="button" className="primary" onClick={() => void saveShopifyConfig()} disabled={shopifyConfigBusy}>
+                                {shopifyConfigBusy ? "Checking..." : "Verify & connect"}
+                              </button>
+                              <button type="button" className="ghost" onClick={() => void clearShopifyConfig()} disabled={shopifyConfigBusy || !storedShopifyConfig.storeDomain}>
+                                Disconnect
+                              </button>
+                            </div>
+                            <p className="helper">{storedShopifyConfig.storeDomain ? `Active store: ${storedShopifyConfig.storeDomain}` : "No store connected. Paste the private key for read_orders."}</p>
                           </div>
                         </div>
                       ) : null}
@@ -6333,49 +6409,14 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Billing</h2>
-                              <p>Lecture directe de l’état d’abonnement du compte.</p>
+                              <p>View your subscription status directly in the shell.</p>
                             </div>
                           </div>
                           <div className="settings-field-grid">
                             <Field label="Plan" value={db.subscription?.plan || "summit"} onChange={() => {}} disabled placeholder="" />
-                            <Field label="Statut" value={db.subscription?.status || "complimentary"} onChange={() => {}} disabled placeholder="" />
+                            <Field label="Status" value={db.subscription?.status || "complimentary"} onChange={() => {}} disabled placeholder="" />
                             <Field label="Cycle" value={db.subscription?.billingCycle || "lifetime"} onChange={() => {}} disabled placeholder="" />
-                            <Field label="Renouvellement" value={db.subscription?.renewsAt ? formatShopifyDate(db.subscription.renewsAt) : "Aucune date"} onChange={() => {}} disabled placeholder="" />
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {settingsTab === "notifications" ? (
-                        <div className="settings-form">
-                          <div className="surface-head">
-                            <div>
-                              <h2>Notifications</h2>
-                              <p>Centre de lecture rapide, avec état lu / non lu.</p>
-                            </div>
-                          </div>
-                          <div className="button-row">
-                            <button type="button" className="secondary" onClick={() => void markNotificationsAsRead([])} disabled={!notificationFeed.length}>
-                              Tout marquer lu
-                            </button>
-                          </div>
-                          <div className="overview-list">
-                            {notificationFeed.map((item) => (
-                              <div key={item.id} className="overview-list-item">
-                                <div>
-                                  <strong>{item.title}</strong>
-                                  <span>{item.detail}</span>
-                                </div>
-                                <span className="helper">{formatRelative(item.createdAt)}</span>
-                              </div>
-                            ))}
-                            {!notificationFeed.length ? (
-                              <div className="overview-list-item">
-                                <div>
-                                  <strong>Aucune notification</strong>
-                                  <span>Le centre est pret.</span>
-                                </div>
-                              </div>
-                            ) : null}
+                            <Field label="Renewal" value={db.subscription?.renewsAt ? formatShopifyDate(db.subscription.renewsAt) : "No date"} onChange={() => {}} disabled placeholder="" />
                           </div>
                         </div>
                       ) : null}
@@ -6385,21 +6426,21 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Language</h2>
-                              <p>Réglages simples de langue et de semaine.</p>
+                              <p>Select interface language and first day of week.</p>
                             </div>
                           </div>
                           <div className="setting-options">
-                            <SettingQuickButton active={(db.settings?.locale || "fr") === "fr"} onClick={() => void saveSettingsPatch({ locale: "fr" }, "Langue mise à jour.")}>
+                            <SettingQuickButton active={(db.settings?.locale || "fr") === "fr"} onClick={() => void saveSettingsPatch({ locale: "fr" }, "Language updated.")}>
                               <strong>Français</strong>
                             </SettingQuickButton>
-                            <SettingQuickButton active={(db.settings?.locale || "fr") === "en"} onClick={() => void saveSettingsPatch({ locale: "en" }, "Langue mise à jour.")}>
+                            <SettingQuickButton active={(db.settings?.locale || "fr") === "en"} onClick={() => void saveSettingsPatch({ locale: "en" }, "Language updated.")}>
                               <strong>English</strong>
                             </SettingQuickButton>
-                            <SettingQuickButton active={(db.settings?.weekStart || 1) === 1} onClick={() => void saveSettingsPatch({ weekStart: 1 }, "Début de semaine mis à jour.")}>
-                              <strong>Lundi</strong>
+                            <SettingQuickButton active={(db.settings?.weekStart || 1) === 1} onClick={() => void saveSettingsPatch({ weekStart: 1 }, "Week start updated.")}>
+                              <strong>Monday</strong>
                             </SettingQuickButton>
-                            <SettingQuickButton active={(db.settings?.weekStart || 1) === 0} onClick={() => void saveSettingsPatch({ weekStart: 0 }, "Début de semaine mis à jour.")}>
-                              <strong>Dimanche</strong>
+                            <SettingQuickButton active={(db.settings?.weekStart || 1) === 0} onClick={() => void saveSettingsPatch({ weekStart: 0 }, "Week start updated.")}>
+                              <strong>Sunday</strong>
                             </SettingQuickButton>
                           </div>
                         </div>
@@ -6410,13 +6451,13 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Key Bindings</h2>
-                              <p>Raccourcis utiles déjà actifs dans le shell.</p>
+                              <p>Useful shortcuts already available in the shell.</p>
                             </div>
                           </div>
                           <div className="overview-list">
-                            <div className="overview-list-item"><div><strong>⌘K / Ctrl+K</strong><span>Ouvrir la palette de recherche globale.</span></div></div>
-                            <div className="overview-list-item"><div><strong>Échap</strong><span>Fermer la palette ou un popup visible.</span></div></div>
-                            <div className="overview-list-item"><div><strong>Recherche du haut</strong><span>Filtrer notes, contacts, événements, tâches et signets sans doublon.</span></div></div>
+                            <div className="overview-list-item"><div><strong>⌘K / Ctrl+K</strong><span>Open the global command palette.</span></div></div>
+                            <div className="overview-list-item"><div><strong>Escape</strong><span>Close the palette or any open popover.</span></div></div>
+                            <div className="overview-list-item"><div><strong>Top search</strong><span>Filter notes, contacts, events, tasks, and bookmarks in one place.</span></div></div>
                           </div>
                         </div>
                       ) : null}
@@ -6426,35 +6467,35 @@ export default function FlowApp() {
                           <div className="surface-head">
                             <div>
                               <h2>Advanced</h2>
-                              <p>Etat du shell, release et session.</p>
+                              <p>Shell status, release metadata, and session state.</p>
                             </div>
                           </div>
                           <div className="overview-list">
                             <div className="overview-list-item">
                               <div>
-                                <strong>Barre latérale</strong>
-                                <span>{sidebarLocked ? "Verrouillée ouverte" : "Hover pour ouverture temporaire"}</span>
+                                <strong>Sidebar</strong>
+                                <span>{sidebarLocked ? "Locked open" : "Hover to expand temporarily"}</span>
                               </div>
                             </div>
                             <div className="overview-list-item">
                               <div>
-                                <strong>Vue active</strong>
-                                <span>{effectiveLayout === "immersive" ? "Immersive desktop" : "Tableau"}</span>
+                                <strong>Active view</strong>
+                                <span>{effectiveLayout === "immersive" ? "Immersive desktop" : "Board"}</span>
                               </div>
                             </div>
                             <div className="overview-list-item">
                               <div>
-                                <strong>Version chargee</strong>
+                                <strong>Loaded version</strong>
                                 <span>{releaseMeta}</span>
                               </div>
                             </div>
                           </div>
                           <div className="button-row">
                             <button type="button" className="secondary" onClick={() => setReleaseOpen(true)}>
-                              Ouvrir le journal
+                              Open changelog
                             </button>
                             <button type="button" className="ghost" onClick={submitLogout} disabled={busy === "logout"}>
-                              {busy === "logout" ? "Déconnexion..." : "Se déconnecter"}
+                              {busy === "logout" ? "Logging out..." : "Sign out"}
                             </button>
                           </div>
                         </div>
@@ -6465,7 +6506,7 @@ export default function FlowApp() {
               ) : (
                 <div className="surface-card section-placeholder">
                   <h3>{navSections.find((section) => section.id === activeSection)?.label || "Module"}</h3>
-                  <p>Module en préparation.</p>
+                  <p>Module in preparation.</p>
                 </div>
               )}
               </div>
@@ -6483,14 +6524,14 @@ export default function FlowApp() {
                 <strong>Flow</strong>
               </div>
               <button type="button" className="ghost auth-journal-button" onClick={() => setReleaseOpen(true)}>
-                Journal de version
+                Release log
               </button>
             </div>
 
             <div className="auth-tabs">
-              <AuthTabButton active={activeTab === "login"} onClick={() => setActiveTab("login")}>Connexion</AuthTabButton>
-              <AuthTabButton active={activeTab === "register"} onClick={() => setActiveTab("register")}>Créer</AuthTabButton>
-              <AuthTabButton active={activeTab === "reset"} onClick={() => setActiveTab("reset")}>Mot de passe</AuthTabButton>
+              <AuthTabButton active={activeTab === "login"} onClick={() => setActiveTab("login")}>Login</AuthTabButton>
+              <AuthTabButton active={activeTab === "register"} onClick={() => setActiveTab("register")}>Create</AuthTabButton>
+              <AuthTabButton active={activeTab === "reset"} onClick={() => setActiveTab("reset")}>Password</AuthTabButton>
             </div>
 
             {activeTab === "login" ? (
@@ -6506,21 +6547,21 @@ export default function FlowApp() {
                   disabled={Boolean(busy)}
                 />
                 <Field
-                  label="Mot de passe"
+                  label="Password"
                   type="password"
                   value={login.password}
                   onChange={(value) => setLogin((current) => ({ ...current, password: value }))}
-                  placeholder="Mot de passe"
+                  placeholder="Password"
                   autoComplete="current-password"
                   name="password"
                   disabled={Boolean(busy)}
                 />
                 <div className="button-row">
                   <button type="submit" className="primary" disabled={busy === "login"}>
-                    {busy === "login" ? "Connexion..." : "Se connecter"}
+                    {busy === "login" ? "Logging in..." : "Sign in"}
                   </button>
                   <button type="button" className="secondary" onClick={startGoogleAuth} disabled={Boolean(busy)}>
-                    Continuer avec Google
+                    Continue with Google
                   </button>
                 </div>
               </form>
@@ -6529,10 +6570,10 @@ export default function FlowApp() {
             {activeTab === "register" ? (
               <form onSubmit={submitRegister}>
                 <Field
-                  label="Nom"
+                  label="Name"
                   value={register.name}
                   onChange={(value) => setRegister((current) => ({ ...current, name: value }))}
-                  placeholder="Ton nom"
+                  placeholder="Your name"
                   autoComplete="name"
                   name="name"
                   disabled={Boolean(busy)}
@@ -6542,37 +6583,37 @@ export default function FlowApp() {
                   type="email"
                   value={register.email}
                   onChange={(value) => syncEmailAcrossForms(value)}
-                  placeholder="toi@flow.app"
+                  placeholder="you@flow.app"
                   autoComplete="email"
                   name="email"
                   disabled={Boolean(busy)}
                 />
                 <Field
-                  label="Mot de passe"
+                  label="Password"
                   type="password"
                   value={register.password}
                   onChange={(value) => setRegister((current) => ({ ...current, password: value }))}
-                  placeholder="8 caractères minimum"
+                  placeholder="At least 8 characters"
                   autoComplete="new-password"
                   name="password"
                   disabled={Boolean(busy)}
                 />
                 <Field
-                  label="Confirmer"
+                  label="Confirm"
                   type="password"
                   value={register.confirmPassword}
                   onChange={(value) => setRegister((current) => ({ ...current, confirmPassword: value }))}
-                  placeholder="Répète le mot de passe"
+                  placeholder="Repeat password"
                   autoComplete="new-password"
                   name="confirmPassword"
                   disabled={Boolean(busy)}
                 />
                 <div className="button-row">
                   <button type="submit" className="primary" disabled={busy === "register"}>
-                    {busy === "register" ? "Création..." : "Créer le compte"}
+                    {busy === "register" ? "Creating..." : "Create account"}
                   </button>
                   <button type="button" className="secondary" onClick={startGoogleAuth} disabled={Boolean(busy)}>
-                    Créer via Google
+                    Create with Google
                   </button>
                 </div>
               </form>
@@ -6600,7 +6641,7 @@ export default function FlowApp() {
 
                 <form onSubmit={submitPasswordReset}>
                   <Field
-                    label="Code reçu"
+                    label="Verification code"
                     value={reset.code}
                     onChange={(value) => setReset((current) => ({ ...current, code: value }))}
                     placeholder="123456"
@@ -6609,21 +6650,21 @@ export default function FlowApp() {
                     disabled={Boolean(busy)}
                   />
                   <Field
-                    label="Nouveau mot de passe"
+                    label="New password"
                     type="password"
                     value={reset.password}
                     onChange={(value) => setReset((current) => ({ ...current, password: value }))}
-                    placeholder="Nouveau mot de passe"
+                    placeholder="New password"
                     autoComplete="new-password"
                     name="newPassword"
                     disabled={Boolean(busy)}
                   />
                   <div className="button-row">
                     <button type="submit" className="primary" disabled={busy === "reset"}>
-                      {busy === "reset" ? "Réinitialisation..." : "Mettre à jour"}
+                      {busy === "reset" ? "Resetting..." : "Update password"}
                     </button>
                   </div>
-                  <p className="helper">{providers.email ? "Code envoyé si l’email est branché." : "Email non disponible sur cet environnement."}</p>
+                  <p className="helper">{providers.email ? "Code sent if email is configured." : "Email reset unavailable in this environment."}</p>
                 </form>
               </>
             ) : null}
@@ -6642,8 +6683,8 @@ export default function FlowApp() {
                 ref={commandInputRef}
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
-                placeholder="Rechercher notes, contacts, événements, tâches..."
-                aria-label="Palette de commande"
+                placeholder="Search notes, contacts, events, tasks..."
+                aria-label="Command palette"
               />
             </div>
             <div className="command-list">
@@ -6660,12 +6701,12 @@ export default function FlowApp() {
                   </button>
                 ))
               ) : (
-                <div className="notification-empty">Aucun résultat sur cette recherche.</div>
+                <div className="notification-empty">No results for this search.</div>
               )}
             </div>
             <div className="command-footer">
-              <span>Échap pour fermer</span>
-              <span>Recherche unique sans doublons</span>
+              <span>Esc to close</span>
+              <span>One search, no duplicates</span>
             </div>
           </div>
         </div>
@@ -6677,29 +6718,29 @@ export default function FlowApp() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
               <div>
                 <div style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Guide Shopify
+                  Shopify guide
                 </div>
-                <h3 style={{ margin: 0, fontSize: '22px' }}>Installation de Shopify</h3>
+                <h3 style={{ margin: 0, fontSize: '22px' }}>Shopify setup</h3>
                 <p style={{ margin: '12px 0 0', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  Suivez ces étapes pour récupérer votre token Shopify et le connecter directement sans quitter la page.
+                  Follow these steps to retrieve your Shopify token and connect it directly without leaving the page.
                 </p>
               </div>
-              <button type="button" onClick={() => setShopifyGuideOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '8px', fontWeight: 600 }} aria-label="Fermer le guide Shopify">
-                Fermer
+              <button type="button" onClick={() => setShopifyGuideOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', padding: '8px', fontWeight: 600 }} aria-label="Close Shopify guide">
+                Close
               </button>
             </div>
             <div style={{ display: 'grid', gap: '16px' }}>
               <section>
-                <h4>1. Créer l'application Shopify</h4>
+                <h4>1. Create the Shopify app</h4>
                 <ol style={{ margin: '10px 0 0 16px', color: 'var(--text-soft)' }}>
-                  <li>Connectez-vous à l’admin Shopify.</li>
-                  <li>Ouvrez <strong>Apps</strong> puis <strong>Develop apps</strong>.</li>
-                  <li>Créez une app, donnez-lui un nom et sauvegardez.</li>
+                  <li>Sign in to Shopify Admin.</li>
+                  <li>Open <strong>Apps</strong> then <strong>Develop apps</strong>.</li>
+                  <li>Create an app, give it a name, and save.</li>
                 </ol>
               </section>
               <section>
-                <h4>2. Donner les permissions API</h4>
-                <p style={{ margin: '8px 0 4px', color: 'var(--text-soft)' }}>Activez au minimum :</p>
+                <h4>2. Grant API permissions</h4>
+                <p style={{ margin: '8px 0 4px', color: 'var(--text-soft)' }}>Enable at least:</p>
                 <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--text-soft)' }}>
                   <li><code>read_orders</code></li>
                   <li><code>read_products</code></li>
@@ -6708,28 +6749,28 @@ export default function FlowApp() {
                 </ul>
               </section>
               <section>
-                <h4>3. Installer l'application</h4>
+                <h4>3. Install the app</h4>
                 <p style={{ margin: '8px 0 0', color: 'var(--text-soft)' }}>
-                  Installez l’app depuis l’onglet <strong>API credentials</strong> puis copiez le token une fois affiché.
+                  Install the app from the <strong>API credentials</strong> tab, then copy the token once it appears.
                 </p>
               </section>
               <section>
-                <h4>4. Récupérer le token</h4>
+                <h4>4. Retrieve the token</h4>
                 <p style={{ margin: '8px 0 0', color: 'var(--text-soft)' }}>
-                  Copiez le token d’accès affiché (début <code>shpat_</code>) car il ne sera visible qu’une seule fois.
+                  Copy the access token shown (starting with <code>shpat_</code>) because it is only visible once.
                 </p>
               </section>
               <section>
-                <h4>5. Connecter Shopify sur Flow</h4>
+                <h4>5. Connect Shopify in Flow</h4>
                 <p style={{ margin: '8px 0 0', color: 'var(--text-soft)' }}>
-                  Collez le domaine Shopify et le token dans le formulaire de connexion Shopify présent ici même.
+                  Paste the Shopify domain and token into the Shopify connection form found on this page.
                 </p>
-                <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)' }}><strong>Format attendu :</strong> <code>store.myshopify.com|shpat_xxx</code></p>
+                <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)' }}><strong>Expected format:</strong> <code>store.myshopify.com|shpat_xxx</code></p>
               </section>
               <section style={{ padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <h4 style={{ margin: '0 0 10px' }}>Astuce rapide</h4>
+                <h4 style={{ margin: '0 0 10px' }}>Quick tip</h4>
                 <p style={{ margin: 0, color: 'var(--text-soft)' }}>
-                  Si vous perdez le token, régénérez-en un nouveau depuis Shopify puis remplacez l’ancien.
+                  If you lose the token, regenerate a new one in Shopify and replace the old one.
                 </p>
               </section>
             </div>

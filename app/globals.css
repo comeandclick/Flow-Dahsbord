@@ -49,8 +49,8 @@ body {
 
 /* Global elements */
 button, [role="button"] {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: rgba(18, 20, 28, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--text-primary);
   border-radius: var(--radius-md);
   padding: 12px 20px;
@@ -58,37 +58,50 @@ button, [role="button"] {
   font-weight: 600;
   cursor: pointer;
   backdrop-filter: var(--glass-blur);
-  transition: all 0.22s ease;
+  transition: background 0.22s ease, border-color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:hover, [role="button"]:hover {
-  background: var(--glass-bg-strong);
-  border-color: var(--glass-border-strong);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
-  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.18);
 }
 
 button:active, [role="button"]:active {
   transform: translateY(0);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+}
+
+button:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.22);
+  outline-offset: 3px;
 }
 
 input, textarea, select {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: rgba(18, 20, 28, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-primary);
   padding: 12px 16px;
   border-radius: var(--radius-md);
   font-size: 14px;
   font-family: inherit;
   backdrop-filter: var(--glass-blur);
-  transition: all 0.22s ease;
+  transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
 }
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--glass-border-strong);
-  background: var(--glass-bg-strong);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(24, 26, 34, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.18);
+  outline-offset: 3px;
 }
 
 input::placeholder {
@@ -97,19 +110,19 @@ input::placeholder {
 
 /* Cards and containers */
 .card, .panel, [role="region"] {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: rgba(12, 14, 18, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
   padding: 24px;
   backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-shadow);
-  transition: all 0.22s ease;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
 }
 
 .card:hover, .panel:hover {
-  background: var(--glass-bg-strong);
-  border-color: var(--glass-border-strong);
-  box-shadow: var(--glass-shadow-strong);
+  background: rgba(18, 20, 28, 0.72);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.28);
 }
 
 /* Scrollbars */
