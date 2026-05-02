@@ -1,3 +1,5 @@
+"use client";
+
 export default function BillingPage() {
   return (
     <div className="billing-page">
