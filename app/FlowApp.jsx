@@ -2659,14 +2659,14 @@ export default function FlowApp() {
           --map-veil: linear-gradient(180deg, rgba(2, 1, 7, 0.1), rgba(2, 1, 7, 0.88));
           --topbar-glow: rgba(255, 255, 255, 0.08);
           --surface-layer:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02) 46%, rgba(255, 255, 255, 0.03)),
-            rgba(18, 20, 28, 0.22);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03) 48%, rgba(255, 255, 255, 0.05)),
+            rgba(18, 20, 28, 0.20);
           --surface-layer-strong:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.016) 48%, rgba(255, 255, 255, 0.04)),
-            rgba(18, 20, 28, 0.35);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04) 48%, rgba(255, 255, 255, 0.07)),
+            rgba(18, 20, 28, 0.32);
           --surface-layer-soft:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012) 52%, rgba(255, 255, 255, 0.028)),
-            rgba(18, 20, 28, 0.15);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02) 52%, rgba(255, 255, 255, 0.04)),
+            rgba(18, 20, 28, 0.14);
         }
         .theme-light {
           --page-bg:
@@ -2696,15 +2696,14 @@ export default function FlowApp() {
           --map-veil: linear-gradient(180deg, rgba(197, 204, 212, 0.16), rgba(157, 166, 176, 0.82));
           --topbar-glow: rgba(255, 255, 255, 0.08);
           --surface-layer:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05) 52%, rgba(255, 255, 255, 0.12)),
-            rgba(171, 180, 189, 0.58);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.12) 52%, rgba(255, 255, 255, 0.14)),
+            rgba(245, 247, 250, 0.58);
           --surface-layer-strong:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06) 52%, rgba(255, 255, 255, 0.12)),
-            rgba(162, 172, 181, 0.72);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.14) 52%, rgba(255, 255, 255, 0.16)),
+            rgba(245, 247, 250, 0.72);
           --surface-layer-soft:
-            radial-gradient(circle at 0% 0%, rgba(205, 130, 100, 0.16), transparent 30%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.1)),
-            rgba(173, 181, 188, 0.46);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08) 52%, rgba(255, 255, 255, 0.12)),
+            rgba(241, 244, 248, 0.46);
         }
         :global(html),
         :global(body) {
@@ -3365,7 +3364,7 @@ export default function FlowApp() {
         .surface-card,
         .floating-card {
           border: 1px solid var(--line);
-          background: var(--surface-layer-strong);
+          background: rgba(18, 20, 28, 0.94);
           box-shadow: var(--shadow);
           backdrop-filter: blur(20px);
           position: relative;
@@ -3377,7 +3376,7 @@ export default function FlowApp() {
           left: 0;
           z-index: 190;
           border-radius: 17px;
-          background: var(--surface-layer-strong);
+          background: rgba(18, 20, 28, 0.96);
           border: 1px solid var(--line);
           box-shadow: var(--shadow);
           backdrop-filter: blur(20px);
@@ -3485,7 +3484,7 @@ export default function FlowApp() {
           inset: 0;
           pointer-events: none;
           background:
-            radial-gradient(circle at 0% 0%, rgba(181, 199, 160, 0.12), transparent 34%),
+            radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.08), transparent 32%),
             linear-gradient(180deg, rgba(255,255,255,0.06), transparent 30%);
           opacity: 0.88;
         }
@@ -4674,7 +4673,7 @@ export default function FlowApp() {
           border-radius: 17px;
           padding: 18px;
           border: 1px solid var(--line);
-          background: var(--surface-layer);
+          background: rgba(18, 20, 28, 0.92);
           box-shadow: var(--shadow);
           backdrop-filter: blur(20px);
           animation: riseIn 0.3s ease;
@@ -4721,7 +4720,7 @@ export default function FlowApp() {
           overflow: auto;
           border-radius: 17px;
           border: 1px solid var(--line);
-          background: var(--surface-layer-soft);
+          background: rgba(18, 20, 28, 0.88);
         }
         .shopify-table {
           width: 100%;
@@ -4773,7 +4772,7 @@ export default function FlowApp() {
         .shopify-product-row {
           border-radius: 17px;
           border: 1px solid var(--line);
-          background: var(--surface-layer-soft);
+          background: rgba(18, 20, 28, 0.88);
           padding: 14px 16px;
           display: flex;
           align-items: center;
