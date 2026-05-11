@@ -1,7 +1,7 @@
 const RELEASE_STATUS_META = {
-  done: { label: "Termine", color: "var(--orange)", tint: "rgba(255,255,255,.14)", border: "rgba(255,255,255,.24)" },
-  wip: { label: "En cours", color: "var(--orange)", tint: "rgba(255,255,255,.14)", border: "rgba(255,255,255,.24)" },
-  todo: { label: "A faire", color: "var(--red)", tint: "var(--red-d)", border: "rgba(216,92,92,.24)" },
+  done: { label: "Termine", color: "#4ade80", tint: "rgba(74,222,128,.10)", border: "rgba(74,222,128,.25)" },
+  wip: { label: "En cours", color: "#fb923c", tint: "rgba(251,146,60,.10)", border: "rgba(251,146,60,.25)" },
+  todo: { label: "A faire", color: "#f87171", tint: "rgba(248,113,113,.10)", border: "rgba(248,113,113,.25)" },
 };
 
 function getReleaseStatusMeta(status) {
