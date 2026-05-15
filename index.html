@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kalimat — Apprendre l'arabe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #F8F7F4;
+      --surface: #FFFFFF;
+      --border: #E5E5E0;
+      --primary: #1a1a2e;
+      --accent: #2563EB;
+      --success: #16a34a;
+      --error: #dc2626;
+      --muted: #6B7280;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--primary);
+      min-height: 100vh;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+    }
+
+    .nav-logo {
+      font-family: 'Noto Sans Arabic', serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-logo span { font-family: 'Inter', sans-serif; font-weight: 400; font-size: 0.875rem; color: var(--muted); }
+
+    .nav-links { display: flex; gap: 4px; }
+
+    .nav-link {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+    }
+
+    .nav-link:hover { color: var(--primary); background: var(--bg); }
+    .nav-link.active { color: white; background: var(--primary); }
+
+    /* LAYOUT */
+    main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 80px 20px 40px;
+    }
+
+    /* PAGES */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* HOME */
+    .home-header { margin-bottom: 28px; }
+    .home-header h1 { font-size: 1.5rem; font-weight: 600; }
+    .home-header p { color: var(--muted); margin-top: 4px; font-size: 0.9rem; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    @media (min-width: 480px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .stat-card .value { font-size: 1.5rem; font-weight: 600; }
+    .stat-card .label { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(1, 1fr);
+      gap: 12px;
+    }
+
+    @media (min-width: 480px) { .modules-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .module-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .module-card:hover { border-color: rgba(37,99,235,0.4); }
+    .module-card h3 { font-weight: 600; font-size: 0.95rem; }
+    .module-card p { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
+
+    /* CARD SESSION */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .section-header h1 { font-size: 1.5rem; font-weight: 600; }
+    .section-header p { color: var(--muted); font-size: 0.875rem; margin-top: 2px; }
+
+    .progress-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .progress-bar span { font-size: 0.875rem; color: var(--muted); }
+
+    .progress-track {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+
+    .direction-btn {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      background: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .direction-btn:hover { color: var(--primary); }
+
+    /* FLASH CARD */
+    .card-container { perspective: 1000px; height: 200px; margin-bottom: 24px; }
+
+    .card-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .card-inner.flipped { transform: rotateY(180deg); }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card-front {
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .card-back {
+      background: var(--primary);
+      color: white;
+      transform: rotateY(180deg);
+    }
+
+    .card-word {
+      font-size: 2rem;
+      font-weight: 600;
+    }
+
+    .card-word.arabic {
+      font-family: 'Noto Sans Arabic', serif;
+      direction: rtl;
+      line-height: 1.8;
+    }
+
+    .card-phonetic { font-size: 0.875rem; color: var(--muted); margin-top: 8px; }
+    .card-label { font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+
+    /* OPTIONS */
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(1, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    @media (min-width: 480px) { .options-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .option-btn {
+      width: 100%;
+      text-align: left;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--primary);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .option-btn:hover { border-color: rgba(37,99,235,0.4); background: rgba(37,99,235,0.03); }
+    .option-btn.wrong { background: #fef2f2; border-color: var(--error); color: var(--error); }
+    .option-btn.arabic-opt { font-family: 'Noto Sans Arabic', serif; font-size: 1rem; direction: rtl; text-align: right; }
+
+    .feedback { text-align: center; font-size: 0.875rem; font-weight: 500; color: var(--error); margin-bottom: 12px; }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 44px;
+      padding: 0 28px;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #2a2a4e; }
+    .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--primary); }
+    .btn-secondary:hover { background: var(--bg); }
+    .btn-full { width: 100%; }
+
+    /* SESSION END */
+    .session-end {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .session-end-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 320px;
+      width: 100%;
+    }
+
+    .session-end-card h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 4px; }
+    .session-end-card .subtitle { font-size: 0.875rem; color: var(--muted); margin-bottom: 24px; }
+
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+
+    .result-box { border-radius: 12px; padding: 16px; }
+    .result-box.green { background: #f0fdf4; }
+    .result-box.red { background: #fef2f2; }
+    .result-box .rval { font-size: 1.5rem; font-weight: 600; }
+    .result-box.green .rval { color: var(--success); }
+    .result-box.red .rval { color: var(--error); }
+    .result-box .rlabel { font-size: 0.75rem; margin-top: 2px; }
+    .result-box.green .rlabel { color: #15803d; }
+    .result-box.red .rlabel { color: #b91c1c; }
+    .rate { font-size: 2.5rem; font-weight: 700; margin-bottom: 24px; }
+
+    /* WRITING */
+    .writing-prompt {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .writing-prompt .wlabel { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 12px; }
+    .writing-prompt .wword { font-size: 2rem; font-weight: 600; }
+    .writing-prompt .wword.arabic { font-family: 'Noto Sans Arabic', serif; direction: rtl; line-height: 1.8; }
+    .writing-prompt .wphonetic { font-size: 0.875rem; color: var(--muted); margin-top: 8px; }
+
+    .writing-input {
+      width: 100%;
+      height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 0 16px;
+      font-size: 0.875rem;
+      color: var(--primary);
+      transition: border-color 0.15s;
+      margin-bottom: 12px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .writing-input.arabic-input {
+      font-family: 'Noto Sans Arabic', serif;
+      direction: rtl;
+      text-align: right;
+      font-size: 1rem;
+    }
+
+    .writing-input:focus { outline: none; border-color: var(--accent); }
+    .writing-input.correct { background: #f0fdf4; border-color: var(--success); color: var(--success); }
+    .writing-input.incorrect { background: #fef2f2; border-color: var(--error); color: var(--error); }
+
+    .answer-feedback {
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .answer-feedback.correct { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .answer-feedback.incorrect { background: #fef2f2; border: 1px solid #fecaca; }
+    .answer-feedback .ftitle { font-size: 0.875rem; font-weight: 600; }
+    .answer-feedback.correct .ftitle { color: var(--success); }
+    .answer-feedback.incorrect .ftitle { color: var(--error); }
+    .answer-feedback .ftext { font-size: 0.875rem; margin-top: 2px; color: var(--primary); }
+    .answer-feedback .ftext.arabic { font-family: 'Noto Sans Arabic', serif; direction: rtl; font-size: 1rem; }
+
+    /* COURSES */
+    .courses-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    @media(min-width:480px){ .courses-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .course-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .course-card:hover { border-color: rgba(37,99,235,0.4); }
+
+    .course-card-header { display: flex; align-items: start; justify-content: space-between; margin-bottom: 6px; }
+    .course-card h3 { font-weight: 600; font-size: 0.95rem; }
+    .course-badge { font-size: 0.7rem; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #f0fdf4; color: #15803d; }
+
+    .course-card p { font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; }
+    .course-card-footer { display: flex; align-items: center; justify-content: space-between; }
+    .course-count { font-size: 0.75rem; color: var(--muted); }
+
+    /* COURSE DETAIL */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.875rem;
+      color: var(--muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      margin-bottom: 20px;
+      padding: 0;
+      transition: color 0.15s;
+    }
+
+    .back-btn:hover { color: var(--primary); }
+
+    .course-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .course-header h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; }
+    .course-header p { color: var(--muted); font-size: 0.875rem; margin-bottom: 16px; }
+    .course-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .word-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .word-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .word-item-left { flex: 1; }
+    .word-item-left .wfr { font-size: 0.875rem; color: var(--primary); font-weight: 500; }
+    .word-item-left .wph { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .word-item-right { font-family: 'Noto Sans Arabic', serif; font-size: 1.25rem; color: var(--primary); direction: rtl; }
+
+    /* MOBILE NAV */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    @media (max-width: 768px) {
+      nav { display: none; }
+      .mobile-nav { display: flex; }
+      main { padding-top: 20px; padding-bottom: 90px; }
+    }
+
+    .mobile-nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 64px;
+      gap: 3px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      transition: color 0.15s;
+    }
+
+    .mobile-nav-item.active { color: var(--primary); }
+
+    .mobile-nav-item svg { width: 20px; height: 20px; }
+
+    .mobile-icon-wrap {
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    .mobile-nav-item.active .mobile-icon-wrap { background: rgba(26,26,46,0.08); }
+
+    /* EMPTY */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty p { font-size: 0.9rem; margin-top: 8px; }
+
+    /* CLASSEMENT */
+    .leaderboard-table {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .lb-header {
+      display: grid;
+      grid-template-columns: 40px 1fr 80px 60px;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lb-header span { font-size: 0.75rem; font-weight: 500; color: var(--muted); }
+    .lb-header span:last-child { text-align: right; }
+
+    .lb-row {
+      display: grid;
+      grid-template-columns: 40px 1fr 80px 60px;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      transition: background 0.1s;
+    }
+
+    .lb-row:last-child { border-bottom: none; }
+    .lb-row:hover { background: var(--bg); }
+    .lb-row.me { background: rgba(37,99,235,0.04); }
+
+    .lb-rank { font-size: 0.875rem; font-weight: 600; color: var(--muted); }
+    .lb-rank.gold { color: #f59e0b; }
+    .lb-rank.silver { color: #9ca3af; }
+    .lb-rank.bronze { color: #b45309; }
+
+    .lb-user { display: flex; align-items: center; gap: 10px; }
+    .lb-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: rgba(26,26,46,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .lb-name { font-size: 0.875rem; font-weight: 500; color: var(--primary); }
+    .lb-score { font-size: 0.875rem; color: var(--success); font-weight: 500; }
+    .lb-rate { font-size: 0.875rem; color: var(--muted); text-align: right; }
+
+    /* PROFIL */
+    .profile-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .profile-avatar {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: rgba(26,26,46,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .profile-name { font-size: 1.1rem; font-weight: 600; }
+    .profile-email { font-size: 0.875rem; color: var(--muted); }
+    .profile-since { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    .section-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- Desktop Nav -->
+<nav>
+  <div class="nav-logo">كلمات <span>Kalimat</span></div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="showPage('home')">Accueil</button>
+    <button class="nav-link" onclick="showPage('cartes')">Cartes</button>
+    <button class="nav-link" onclick="showPage('ecriture')">Écriture</button>
+    <button class="nav-link" onclick="showPage('cours')">Cours</button>
+    <button class="nav-link" onclick="showPage('classement')">Classement</button>
+    <button class="nav-link" onclick="showPage('profil')">Profil</button>
+  </div>
+</nav>
+
+<!-- Mobile Nav -->
+<nav class="mobile-nav">
+  <button class="mobile-nav-item active" onclick="showPage('home')" id="mnav-home">
+    <div class="mobile-icon-wrap"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div>
+    Accueil
+  </button>
+  <button class="mobile-nav-item" onclick="showPage('cartes')" id="mnav-cartes">
+    <div class="mobile-icon-wrap"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg></div>
+    Cartes
+  </button>
+  <button class="mobile-nav-item" onclick="showPage('ecriture')" id="mnav-ecriture">
+    <div class="mobile-icon-wrap"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></div>
+    Écriture
+  </button>
+  <button class="mobile-nav-item" onclick="showPage('cours')" id="mnav-cours">
+    <div class="mobile-icon-wrap"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg></div>
+    Cours
+  </button>
+  <button class="mobile-nav-item" onclick="showPage('profil')" id="mnav-profil">
+    <div class="mobile-icon-wrap"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div>
+    Profil
+  </button>
+</nav>
+
+<main>
+
+  <!-- HOME -->
+  <div id="page-home" class="page active">
+    <div class="home-header">
+      <h1>Bonjour, apprenant</h1>
+      <p>Continuez votre apprentissage de l'arabe.</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="value" id="stat-correct">0</div><div class="label">Réussites</div></div>
+      <div class="stat-card"><div class="value" id="stat-errors">0</div><div class="label">Erreurs</div></div>
+      <div class="stat-card"><div class="value" id="stat-rate">0%</div><div class="label">Taux de réussite</div></div>
+      <div class="stat-card"><div class="value" id="stat-streak">0j</div><div class="label">Série</div></div>
+    </div>
+    <div class="section-label">Modules</div>
+    <div class="modules-grid">
+      <div class="module-card" onclick="showPage('cartes')">
+        <div><h3>Cartes</h3><p>Apprenez avec des cartes interactives</p></div>
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="module-card" onclick="showPage('ecriture')">
+        <div><h3>Écriture</h3><p>Entraînez-vous à écrire en arabe</p></div>
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="module-card" onclick="showPage('cours')">
+        <div><h3>Cours</h3><p>Explorez les cours par thème</p></div>
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="module-card" onclick="showPage('classement')">
+        <div><h3>Classement</h3><p>Comparez votre progression</p></div>
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARTES -->
+  <div id="page-cartes" class="page">
+    <div id="cartes-session">
+      <div class="section-header">
+        <div><h1>Cartes</h1><p>Apprenez le vocabulaire arabe</p></div>
+        <button class="direction-btn" id="dir-btn" onclick="toggleDirection()">AR → FR</button>
+      </div>
+      <div class="progress-bar">
+        <span id="cards-remaining">48 cartes restantes</span>
+        <div class="progress-track"><div class="progress-fill" id="cards-progress" style="width:0%"></div></div>
+      </div>
+      <div class="card-container">
+        <div class="card-inner" id="card-inner">
+          <div class="card-face card-front">
+            <div class="card-word arabic" id="card-question">مرحبا</div>
+            <div class="card-phonetic" id="card-phonetic">marhaba</div>
+          </div>
+          <div class="card-face card-back">
+            <div class="card-label">Traduction</div>
+            <div class="card-word" id="card-answer">bonjour / salut</div>
+          </div>
+        </div>
+      </div>
+      <div class="options-grid" id="options-container"></div>
+      <div class="feedback" id="card-feedback" style="display:none">Réessaie, ce n'est pas la bonne réponse.</div>
+      <div style="display:flex;justify-content:center" id="next-btn-container" style="display:none">
+        <button class="btn btn-primary" onclick="nextCard()">Suivant</button>
+      </div>
+    </div>
+    <div id="cartes-end" style="display:none">
+      <div class="session-end">
+        <div class="session-end-card">
+          <h2>Session terminée</h2>
+          <p class="subtitle" id="end-cards-count">48 cartes parcourues</p>
+          <div class="result-grid">
+            <div class="result-box green"><div class="rval" id="end-correct">0</div><div class="rlabel">Réussites</div></div>
+            <div class="result-box red"><div class="rval" id="end-errors">0</div><div class="rlabel">Erreurs</div></div>
+          </div>
+          <div class="rate" id="end-rate">0%</div>
+          <button class="btn btn-primary btn-full" onclick="restartCards()">Recommencer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ECRITURE -->
+  <div id="page-ecriture" class="page">
+    <div id="ecriture-session">
+      <div class="section-header">
+        <div><h1>Écriture</h1><p>Écrivez les mots en arabe</p></div>
+        <button class="direction-btn" id="edir-btn" onclick="toggleWritingDir()">FR → AR</button>
+      </div>
+      <div class="progress-bar">
+        <span id="writing-remaining">48 mots restants</span>
+        <div class="progress-track"><div class="progress-fill" id="writing-progress" style="width:0%"></div></div>
+      </div>
+      <div class="writing-prompt">
+        <div class="wlabel" id="wlabel">Écrivez en arabe</div>
+        <div class="wword" id="wprompt">bonjour / salut</div>
+        <div class="wphonetic" id="wphonetic" style="display:none"></div>
+      </div>
+      <input class="writing-input arabic-input" id="writing-input" placeholder="اكتب هنا..." lang="ar" onkeydown="handleWritingKey(event)" />
+      <div class="answer-feedback" id="writing-feedback" style="display:none">
+        <div class="ftitle" id="wf-title"></div>
+        <div class="ftext" id="wf-text"></div>
+      </div>
+      <button class="btn btn-primary btn-full" id="writing-validate-btn" onclick="validateWriting()">Valider</button>
+      <div style="margin-top:10px;display:none" id="writing-next-wrap">
+        <button class="btn btn-primary btn-full" onclick="nextWriting()">Suivant</button>
+      </div>
+    </div>
+    <div id="ecriture-end" style="display:none">
+      <div class="session-end">
+        <div class="session-end-card">
+          <h2>Session terminée</h2>
+          <p class="subtitle" id="end-writing-count">48 mots traités</p>
+          <div class="result-grid">
+            <div class="result-box green"><div class="rval" id="wend-correct">0</div><div class="rlabel">Réussites</div></div>
+            <div class="result-box red"><div class="rval" id="wend-errors">0</div><div class="rlabel">Erreurs</div></div>
+          </div>
+          <div class="rate" id="wend-rate">0%</div>
+          <button class="btn btn-primary btn-full" onclick="restartWriting()">Recommencer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COURS -->
+  <div id="page-cours" class="page">
+    <div id="cours-list">
+      <div class="section-header">
+        <div><h1>Cours</h1><p>Explorez les thèmes</p></div>
+      </div>
+      <div class="courses-grid" id="courses-grid"></div>
+    </div>
+    <div id="cours-detail" style="display:none">
+      <button class="back-btn" onclick="showCourseList()">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Retour aux cours
+      </button>
+      <div class="course-header">
+        <h1 id="detail-title"></h1>
+        <p id="detail-desc"></p>
+        <div class="course-actions">
+          <button class="btn btn-primary" onclick="startCardsFromCourse()">S'entraîner avec les cartes</button>
+          <button class="btn btn-secondary" onclick="startWritingFromCourse()">S'entraîner à l'écriture</button>
+        </div>
+      </div>
+      <div class="section-label" id="detail-count"></div>
+      <div class="word-list" id="detail-words"></div>
+    </div>
+  </div>
+
+  <!-- CLASSEMENT -->
+  <div id="page-classement" class="page">
+    <div class="section-header">
+      <div><h1>Classement</h1><p>Les meilleurs apprenants</p></div>
+    </div>
+    <div class="leaderboard-table">
+      <div class="lb-header">
+        <span>#</span><span>Utilisateur</span><span>Réussites</span><span>Taux</span>
+      </div>
+      <div id="leaderboard-rows"></div>
+    </div>
+  </div>
+
+  <!-- PROFIL -->
+  <div id="page-profil" class="page">
+    <div class="section-header">
+      <div><h1>Profil</h1></div>
+    </div>
+    <div class="profile-card">
+      <div class="profile-avatar">A</div>
+      <div>
+        <div class="profile-name">Apprenant</div>
+        <div class="profile-email">demo@kalimat.app</div>
+        <div class="profile-since">Progression locale (demo)</div>
+      </div>
+    </div>
+    <div class="stats-grid" style="margin-bottom:0">
+      <div class="stat-card"><div class="value" id="p-correct">0</div><div class="label">Réussites</div></div>
+      <div class="stat-card"><div class="value" id="p-errors">0</div><div class="label">Erreurs</div></div>
+      <div class="stat-card"><div class="value" id="p-rate">0%</div><div class="label">Taux</div></div>
+      <div class="stat-card"><div class="value" id="p-cards">0</div><div class="label">Cartes</div></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ========================
+// DATA
+// ========================
+const COURSES = [
+  {
+    id: 'phrases', title: 'Phrases utiles', description: 'Expressions essentielles pour communiquer.', level: 'Débutant',
+    words: [
+      { ar: 'مرحبا', fr: 'bonjour / salut', ph: 'marhaba' },
+      { ar: 'شكرا', fr: 'merci', ph: 'shukran' },
+      { ar: 'من فضلك', fr: "s'il vous plaët", ph: 'min fadlak' },
+      { ar: 'عفوا', fr: 'de rien / pardon', ph: "'afwan" },
+      { ar: 'نعم', fr: 'oui', ph: "na'am" },
+      { ar: 'لا', fr: 'non', ph: 'la' },
+      { ar: 'كيف حالك', fr: 'comment vas-tu ?', ph: 'kayfa halak' },
+      { ar: 'بخير', fr: 'bien / ça va', ph: 'bikhayr' },
+      { ar: 'إلى اللقاء', fr: 'au revoir', ph: 'ila al-liqa' },
+      { ar: 'أتكلم العربية', fr: 'je parle arabe', ph: "atakallam al-'arabiyya" },
+    ]
+  },
+  {
+    id: 'chiffres', title: 'Les chiffres', description: 'Les chiffres de 0 à 10 en arabe.', level: 'Débutant',
+    words: [
+      { ar: 'صفر', fr: 'zéro', ph: 'sifr' },
+      { ar: 'واحد', fr: 'un', ph: 'wahid' },
+      { ar: 'اثنان', fr: 'deux', ph: 'ithnan' },
+      { ar: 'ثلاثة', fr: 'trois', ph: 'thalatha' },
+      { ar: 'أربعة', fr: 'quatre', ph: "arba'a" },
+      { ar: 'خمسة', fr: 'cinq', ph: 'khamsa' },
+      { ar: 'ستة', fr: 'six', ph: 'sitta' },
+      { ar: 'سبعة', fr: 'sept', ph: "sab'a" },
+      { ar: 'ثمانية', fr: 'huit', ph: 'thamaniya' },
+      { ar: 'تسعة', fr: 'neuf', ph: "tis'a" },
+      { ar: 'عشرة', fr: 'dix', ph: "'ashara" },
+    ]
+  },
+  {
+    id: 'couleurs', title: 'Les couleurs', description: 'Les couleurs essentielles en arabe.', level: 'Débutant',
+    words: [
+      { ar: 'أحمر', fr: 'rouge', ph: 'ahmar' },
+      { ar: 'أزرق', fr: 'bleu', ph: 'azraq' },
+      { ar: 'أخضر', fr: 'vert', ph: 'akhdar' },
+      { ar: 'أصفر', fr: 'jaune', ph: 'asfar' },
+      { ar: 'أبيض', fr: 'blanc', ph: 'abyad' },
+      { ar: 'أسود', fr: 'noir', ph: 'aswad' },
+      { ar: 'برتقالي', fr: 'orange', ph: 'burtuqali' },
+      { ar: 'بنفسجي', fr: 'violet', ph: 'banafsaji' },
+    ]
+  },
+  {
+    id: 'jours', title: 'Les jours', description: 'Les jours de la semaine en arabe.', level: 'Débutant',
+    words: [
+      { ar: 'الاثنين', fr: 'lundi', ph: 'al-ithnayn' },
+      { ar: 'الثلاثاء', fr: 'mardi', ph: 'ath-thulatha' },
+      { ar: 'الأربعاء', fr: 'mercredi', ph: "al-arbi'a" },
+      { ar: 'الخميس', fr: 'jeudi', ph: 'al-khamis' },
+      { ar: 'الجمعة', fr: 'vendredi', ph: "al-jum'a" },
+      { ar: 'السبت', fr: 'samedi', ph: 'as-sabt' },
+      { ar: 'الأحد', fr: 'dimanche', ph: 'al-ahad' },
+    ]
+  },
+  {
+    id: 'famille', title: 'La famille', description: 'Le vocabulaire de la famille.', level: 'Débutant',
+    words: [
+      { ar: 'أب', fr: 'père', ph: 'ab' },
+      { ar: 'أم', fr: 'mère', ph: 'umm' },
+      { ar: 'أخ', fr: 'frère', ph: 'akh' },
+      { ar: 'أخت', fr: 'soeur', ph: 'ukht' },
+      { ar: 'ابن', fr: 'fils', ph: 'ibn' },
+      { ar: 'بنت', fr: 'fille', ph: 'bint' },
+      { ar: 'جد', fr: 'grand-père', ph: 'jadd' },
+      { ar: 'جدة', fr: 'grand-mère', ph: 'jadda' },
+    ]
+  },
+  {
+    id: 'pronoms', title: 'Les pronoms', description: 'Les pronoms personnels arabes.', level: 'Débutant',
+    words: [
+      { ar: 'أنا', fr: 'je / moi', ph: 'ana' },
+      { ar: 'أنت', fr: 'tu (masc.)', ph: 'anta' },
+      { ar: 'أنتِ', fr: 'tu (fém.)', ph: 'anti' },
+      { ar: 'هو', fr: 'il', ph: 'huwa' },
+      { ar: 'هي', fr: 'elle', ph: 'hiya' },
+      { ar: 'نحن', fr: 'nous', ph: 'nahnu' },
+      { ar: 'أنتم', fr: 'vous', ph: 'antum' },
+      { ar: 'هم', fr: 'ils', ph: 'hum' },
+    ]
+  },
+];
+
+// ========================
+// STATE
+// ========================
+let stats = JSON.parse(localStorage.getItem('kalimat_stats') || '{"correct":0,"errors":0,"cards":0}');
+let currentPage = 'home';
+let cardDeck = [], cardIndex = 0, cardDirection = 'ar-fr', cardSessionCorrect = 0, cardSessionErrors = 0, currentCourseId = null, wrongAnswerState = false;
+let writingDeck = [], writingIndex = 0, writingDirection = 'fr-ar', writingSessionCorrect = 0, writingSessionErrors = 0, writingAnswered = false;
+
+function saveStats() {
+  localStorage.setItem('kalimat_stats', JSON.stringify(stats));
+  updateStatDisplays();
+}
+
+function updateStatDisplays() {
+  const total = stats.correct + stats.errors;
+  const rate = total > 0 ? Math.round((stats.correct / total) * 100) : 0;
+  ['stat-correct','p-correct'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = stats.correct; });
+  ['stat-errors','p-errors'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = stats.errors; });
+  ['stat-rate','p-rate'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = rate + '%'; });
+  ['p-cards'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = stats.cards; });
+  const sc = document.getElementById('stat-streak'); if(sc) sc.textContent = '0j';
+}
+
+// ========================
+// NAVIGATION
+// ========================
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-item').forEach(l => l.classList.remove('active'));
+
+  document.getElementById('page-' + page).classList.add('active');
+
+  const navBtns = document.querySelectorAll('.nav-link');
+  const pages = ['home','cartes','ecriture','cours','classement','profil'];
+  const idx = pages.indexOf(page);
+  if(idx >= 0 && navBtns[idx]) navBtns[idx].classList.add('active');
+
+  const mnavEl = document.getElementById('mnav-' + page);
+  if(mnavEl) mnavEl.classList.add('active');
+
+  currentPage = page;
+
+  if(page === 'cartes') initCards(null);
+  if(page === 'ecriture') initWriting(null);
+  if(page === 'cours') renderCourses();
+  if(page === 'classement') renderLeaderboard();
+  if(page === 'profil') updateStatDisplays();
+}
+
+// ========================
+// UTILS
+// ========================
+function getAllWords() {
+  return COURSES.flatMap(c => c.words.map(w => ({...w, courseId: c.id})));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for(let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function normalizeAr(s) {
+  return s.trim().replace(/[ً-ٟ]/g,'').replace(/[آأإ]/g,'ا').replace(/ة/g,'ه').replace(/[يى]/g,'ي');
+}
+
+function normalizeFr(s) { return s.trim().toLowerCase(); }
+
+// ========================
+// CARDS
+// ========================
+function initCards(courseId) {
+  currentCourseId = courseId;
+  const words = courseId ? COURSES.find(c => c.id === courseId)?.words ?? [] : getAllWords();
+  cardDeck = shuffle(words);
+  cardIndex = 0;
+  cardSessionCorrect = 0;
+  cardSessionErrors = 0;
+  wrongAnswerState = false;
+  document.getElementById('cartes-session').style.display = '';
+  document.getElementById('cartes-end').style.display = 'none';
+  renderCard();
+}
+
+function renderCard() {
+  if(cardIndex >= cardDeck.length) {
+    showCardsEnd();
+    return;
+  }
+  const card = cardDeck[cardIndex];
+  const remaining = cardDeck.length - cardIndex;
+  const progress = cardIndex / cardDeck.length * 100;
+  document.getElementById('cards-remaining').textContent = remaining + ' carte' + (remaining > 1 ? 's' : '') + ' restante' + (remaining > 1 ? 's' : '');
+  document.getElementById('cards-progress').style.width = progress + '%';
+  document.getElementById('card-inner').classList.remove('flipped');
+  document.getElementById('card-feedback').style.display = 'none';
+  document.getElementById('next-btn-container').style.display = 'none';
+
+  if(cardDirection === 'ar-fr') {
+    document.getElementById('card-question').textContent = card.ar;
+    document.getElementById('card-question').className = 'card-word arabic';
+    document.getElementById('card-phonetic').textContent = card.ph || '';
+    document.getElementById('card-phonetic').style.display = card.ph ? '' : 'none';
+    document.getElementById('card-answer').textContent = card.fr;
+    document.getElementById('card-answer').className = 'card-word';
+    document.getElementById('dir-btn').textContent = 'AR → FR';
+  } else {
+    document.getElementById('card-question').textContent = card.fr;
+    document.getElementById('card-question').className = 'card-word';
+    document.getElementById('card-phonetic').style.display = 'none';
+    document.getElementById('card-answer').textContent = card.ar;
+    document.getElementById('card-answer').className = 'card-word arabic';
+    document.getElementById('dir-btn').textContent = 'FR → AR';
+  }
+
+  const correctAnswer = cardDirection === 'ar-fr' ? card.fr : card.ar;
+  const pool = cardDeck.filter((_,i) => i !== cardIndex).map(w => cardDirection === 'ar-fr' ? w.fr : w.ar).filter(x => x !== correctAnswer);
+  const wrongs = shuffle(pool).slice(0, 3);
+  const options = shuffle([correctAnswer, ...wrongs]);
+
+  const container = document.getElementById('options-container');
+  container.innerHTML = '';
+  container.style.display = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn' + (cardDirection === 'fr-ar' ? ' arabic-opt' : '');
+    btn.textContent = opt;
+    btn.onclick = () => selectCardOption(btn, opt, correctAnswer, card);
+    container.appendChild(btn);
+  });
+}
+
+function selectCardOption(btn, selected, correct, card) {
+  const isCorrect = cardDirection === 'ar-fr'
+    ? normalizeFr(selected) === normalizeFr(correct)
+    : normalizeAr(selected) === normalizeAr(correct);
+
+  if(isCorrect) {
+    document.getElementById('options-container').style.display = 'none';
+    document.getElementById('card-inner').classList.add('flipped');
+    document.getElementById('card-feedback').style.display = 'none';
+    document.getElementById('next-btn-container').style.display = 'flex';
+    cardSessionCorrect++;
+    stats.correct++;
+    stats.cards++;
+    saveStats();
+  } else {
+    btn.classList.add('wrong');
+    document.getElementById('card-feedback').style.display = 'block';
+    cardSessionErrors++;
+    stats.errors++;
+    saveStats();
+    setTimeout(() => btn.classList.remove('wrong'), 800);
+  }
+}
+
+function nextCard() {
+  cardIndex++;
+  renderCard();
+}
+
+function toggleDirection() {
+  cardDirection = cardDirection === 'ar-fr' ? 'fr-ar' : 'ar-fr';
+  initCards(currentCourseId);
+}
+
+function showCardsEnd() {
+  document.getElementById('cartes-session').style.display = 'none';
+  document.getElementById('cartes-end').style.display = '';
+  const total = cardSessionCorrect + cardSessionErrors;
+  const rate = total > 0 ? Math.round(cardSessionCorrect / total * 100) : 0;
+  document.getElementById('end-correct').textContent = cardSessionCorrect;
+  document.getElementById('end-errors').textContent = cardSessionErrors;
+  document.getElementById('end-rate').textContent = rate + '%';
+  document.getElementById('end-cards-count').textContent = cardDeck.length + ' cartes parcourues';
+}
+
+function restartCards() {
+  initCards(currentCourseId);
+}
+
+// ========================
+// WRITING
+// ========================
+function initWriting(courseId) {
+  currentCourseId = courseId;
+  const words = courseId ? COURSES.find(c => c.id === courseId)?.words ?? [] : getAllWords();
+  writingDeck = shuffle(words);
+  writingIndex = 0;
+  writingSessionCorrect = 0;
+  writingSessionErrors = 0;
+  writingAnswered = false;
+  document.getElementById('ecriture-session').style.display = '';
+  document.getElementById('ecriture-end').style.display = 'none';
+  renderWriting();
+}
+
+function renderWriting() {
+  if(writingIndex >= writingDeck.length) {
+    showWritingEnd();
+    return;
+  }
+  const word = writingDeck[writingIndex];
+  const remaining = writingDeck.length - writingIndex;
+  document.getElementById('writing-remaining').textContent = remaining + ' mot' + (remaining > 1 ? 's' : '') + ' restant' + (remaining > 1 ? 's' : '');
+  document.getElementById('writing-progress').style.width = (writingIndex / writingDeck.length * 100) + '%';
+
+  writingAnswered = false;
+  const inp = document.getElementById('writing-input');
+  inp.value = '';
+  inp.className = 'writing-input' + (writingDirection === 'fr-ar' ? ' arabic-input' : '');
+  inp.placeholder = writingDirection === 'fr-ar' ? 'اكتب هنا...' : 'Écrivez ici...';
+  inp.lang = writingDirection === 'fr-ar' ? 'ar' : 'fr';
+  inp.disabled = false;
+  inp.focus();
+
+  document.getElementById('writing-feedback').style.display = 'none';
+  document.getElementById('writing-validate-btn').style.display = '';
+  document.getElementById('writing-next-wrap').style.display = 'none';
+
+  if(writingDirection === 'fr-ar') {
+    document.getElementById('wlabel').textContent = 'Écrivez en arabe';
+    document.getElementById('wprompt').textContent = word.fr;
+    document.getElementById('wprompt').className = 'wword';
+    document.getElementById('wphonetic').style.display = 'none';
+    document.getElementById('edir-btn').textContent = 'FR → AR';
+  } else {
+    document.getElementById('wlabel').textContent = 'Écrivez en français';
+    document.getElementById('wprompt').textContent = word.ar;
+    document.getElementById('wprompt').className = 'wword arabic';
+    if(word.ph) {
+      document.getElementById('wphonetic').textContent = word.ph;
+      document.getElementById('wphonetic').style.display = '';
+    } else {
+      document.getElementById('wphonetic').style.display = 'none';
+    }
+    document.getElementById('edir-btn').textContent = 'AR → FR';
+  }
+}
+
+function validateWriting() {
+  if(writingAnswered) return;
+  const word = writingDeck[writingIndex];
+  const inp = document.getElementById('writing-input');
+  const userInput = inp.value;
+  if(!userInput.trim()) return;
+
+  const correct = writingDirection === 'fr-ar' ? word.ar : word.fr;
+  const isCorrect = writingDirection === 'fr-ar'
+    ? normalizeAr(userInput) === normalizeAr(correct)
+    : normalizeFr(userInput) === normalizeFr(correct);
+
+  writingAnswered = true;
+  inp.disabled = true;
+
+  const fb = document.getElementById('writing-feedback');
+  const ftitle = document.getElementById('wf-title');
+  const ftext = document.getElementById('wf-text');
+
+  if(isCorrect) {
+    inp.className = inp.className + ' correct';
+    fb.className = 'answer-feedback correct';
+    ftitle.textContent = 'Bonne réponse !';
+    ftext.textContent = '';
+    ftext.style.display = 'none';
+    writingSessionCorrect++;
+    stats.correct++;
+  } else {
+    inp.className = inp.className + ' incorrect';
+    fb.className = 'answer-feedback incorrect';
+    ftitle.textContent = 'Réponse incorrecte';
+    ftext.textContent = 'Réponse correcte : ' + correct;
+    ftext.className = 'ftext' + (writingDirection === 'fr-ar' ? ' arabic' : '');
+    ftext.style.display = '';
+    writingSessionErrors++;
+    stats.errors++;
+  }
+
+  fb.style.display = '';
+  document.getElementById('writing-validate-btn').style.display = 'none';
+  document.getElementById('writing-next-wrap').style.display = '';
+  saveStats();
+}
+
+function handleWritingKey(e) {
+  if(e.key === 'Enter') {
+    if(!writingAnswered) validateWriting();
+    else nextWriting();
+  }
+}
+
+function nextWriting() {
+  writingIndex++;
+  renderWriting();
+}
+
+function toggleWritingDir() {
+  writingDirection = writingDirection === 'fr-ar' ? 'ar-fr' : 'fr-ar';
+  initWriting(currentCourseId);
+}
+
+function showWritingEnd() {
+  document.getElementById('ecriture-session').style.display = 'none';
+  document.getElementById('ecriture-end').style.display = '';
+  const total = writingSessionCorrect + writingSessionErrors;
+  const rate = total > 0 ? Math.round(writingSessionCorrect / total * 100) : 0;
+  document.getElementById('wend-correct').textContent = writingSessionCorrect;
+  document.getElementById('wend-errors').textContent = writingSessionErrors;
+  document.getElementById('wend-rate').textContent = rate + '%';
+  document.getElementById('end-writing-count').textContent = writingDeck.length + ' mots traités';
+}
+
+function restartWriting() {
+  initWriting(currentCourseId);
+}
+
+// ========================
+// COURSES
+// ========================
+function renderCourses() {
+  document.getElementById('cours-list').style.display = '';
+  document.getElementById('cours-detail').style.display = 'none';
+  const grid = document.getElementById('courses-grid');
+  grid.innerHTML = COURSES.map(c => `
+    <div class="course-card" onclick="showCourseDetail('${c.id}')">
+      <div class="course-card-header">
+        <h3>${c.title}</h3>
+        <span class="course-badge">${c.level}</span>
+      </div>
+      <p>${c.description}</p>
+      <div class="course-card-footer">
+        <span class="course-count">${c.words.length} mots</span>
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showCourseDetail(courseId) {
+  const course = COURSES.find(c => c.id === courseId);
+  if(!course) return;
+  currentCourseId = courseId;
+  document.getElementById('cours-list').style.display = 'none';
+  document.getElementById('cours-detail').style.display = '';
+  document.getElementById('detail-title').textContent = course.title;
+  document.getElementById('detail-desc').textContent = course.description;
+  document.getElementById('detail-count').textContent = course.words.length + ' mot' + (course.words.length > 1 ? 's' : '');
+  document.getElementById('detail-words').innerHTML = course.words.map(w => `
+    <div class="word-item">
+      <div class="word-item-left">
+        <div class="wfr">${w.fr}</div>
+        ${w.ph ? `<div class="wph">${w.ph}</div>` : ''}
+      </div>
+      <div class="word-item-right">${w.ar}</div>
+    </div>
+  `).join('');
+}
+
+function showCourseList() {
+  renderCourses();
+}
+
+function startCardsFromCourse() {
+  showPage('cartes');
+  initCards(currentCourseId);
+}
+
+function startWritingFromCourse() {
+  showPage('ecriture');
+  initWriting(currentCourseId);
+}
+
+// ========================
+// LEADERBOARD (demo)
+// ========================
+function renderLeaderboard() {
+  const demo = [
+    { name: 'Aymen', correct: 142, errors: 18 },
+    { name: 'Sara', correct: 98, errors: 22 },
+    { name: 'Youssef', correct: 75, errors: 30 },
+    { name: 'Leila', correct: 60, errors: 15 },
+    { name: 'Apprenant', correct: stats.correct, errors: stats.errors, me: true },
+  ].sort((a,b) => b.correct - a.correct).map((r,i) => ({...r, rank: i+1}));
+
+  const rows = document.getElementById('leaderboard-rows');
+  rows.innerHTML = demo.map(r => {
+    const total = r.correct + r.errors;
+    const rate = total > 0 ? Math.round(r.correct/total*100) : 0;
+    const rankClass = r.rank === 1 ? 'gold' : r.rank === 2 ? 'silver' : r.rank === 3 ? 'bronze' : '';
+    return `
+      <div class="lb-row${r.me ? ' me' : ''}">
+        <span class="lb-rank ${rankClass}">${r.rank}</span>
+        <div class="lb-user">
+          <div class="lb-avatar">${r.name[0]}</div>
+          <span class="lb-name">${r.name}${r.me ? ' (vous)' : ''}</span>
+        </div>
+        <span class="lb-score">${r.correct}</span>
+        <span class="lb-rate">${rate}%</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ========================
+// INIT
+// ========================
+updateStatDisplays();
+renderCourses();
+</script>
+</body>
+</html>
