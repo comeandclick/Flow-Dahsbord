@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   const { email, password, username } = await request.json()
 
   if (!username || username.length < 3)
-    return NextResponse.json({ error: "Nom d'utilisateur trop court (min. 3 caractères)." }, { status: 400 })
+    return NextResponse.json({ error: 'Nom d\'utilisateur trop court (min. 3 caractères).' }, { status: 400 })
 
   if (!password || password.length < 6)
     return NextResponse.json({ error: 'Mot de passe trop court (min. 6 caractères).' }, { status: 400 })
@@ -32,8 +32,15 @@ export async function POST(request: NextRequest) {
 
   const userId = data.user.id
 
-  await supabaseAdmin.from('profiles').insert({ id: userId, username, role: 'user' })
-  await supabaseAdmin.from('user_stats').insert({ user_id: userId })
+  await supabaseAdmin.from('profiles').insert({
+    id: userId,
+    username,
+    role: 'user',
+  })
+
+  await supabaseAdmin.from('user_stats').insert({
+    user_id: userId,
+  })
 
   return NextResponse.json({ success: true })
 }

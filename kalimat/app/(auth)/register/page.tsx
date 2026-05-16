@@ -21,7 +21,7 @@ export default function RegisterPage() {
     setError('')
 
     if (username.length < 3) {
-      setError("Le nom d'utilisateur doit contenir au moins 3 caractères.")
+      setError('Le nom d\'utilisateur doit contenir au moins 3 caractères.')
       return
     }
 

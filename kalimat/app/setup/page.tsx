@@ -164,7 +164,7 @@ insert into words (arabic, french, phonetic, course_id, level) values
   ('سبعة','sept','sab''a',(select id from c),'beginner'),
   ('ثمانية','huit','thamaniya',(select id from c),'beginner'),
   ('تسعة','neuf','tis''a',(select id from c),'beginner'),
-  ('عشرة','dix',''ashara',(select id from c),'beginner')
+  ('عشرة','dix','''ashara',(select id from c),'beginner')
 on conflict do nothing;
 
 with c as (select id from courses where slug = 'les-phrases-utiles')
