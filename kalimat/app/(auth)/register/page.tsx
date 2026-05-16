@@ -21,7 +21,7 @@ export default function RegisterPage() {
     setError('')
 
     if (username.length < 3) {
-      setError('Le nom d\'utilisateur doit contenir au moins 3 caractères.')
+      setError("Le nom d'utilisateur doit contenir au moins 3 caractères.")
       return
     }
 
@@ -32,32 +32,27 @@ export default function RegisterPage() {
 
     setLoading(true)
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username },
-      },
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, username }),
     })
 
-    if (signUpError) {
-      setError(signUpError.message)
+    const result = await res.json()
+
+    if (!res.ok) {
+      setError(result.error ?? 'Une erreur est survenue.')
       setLoading(false)
       return
     }
 
-    if (data.user) {
-      // Create profile
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        username,
-        role: 'user',
-      })
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
-      // Initialize stats
-      await supabase.from('user_stats').insert({
-        user_id: data.user.id,
-      })
+    if (signInError) {
+      setError('Compte créé. Connecte-toi maintenant.')
+      setLoading(false)
+      router.push('/login')
+      return
     }
 
     router.push('/')
